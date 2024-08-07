@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestRithmicSystemInfo
+	{     
+	int32    template_id = 154467;
+	repeated string   user_msg    = 132760;
+	}

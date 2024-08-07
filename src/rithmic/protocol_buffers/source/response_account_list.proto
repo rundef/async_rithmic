@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseAccountList
+	{
+	int32    template_id                       = 154467;
+	repeated string   user_msg                          = 132760;
+	repeated string   rq_handler_rp_code                = 132764;
+	repeated string   rp_code                           = 132766;
+
+	string   fcm_id                            = 154013;
+	string   ib_id                             = 154014;
+	string   account_id                        = 154008;
+	string   account_name                      = 154002;
+	string   account_currency                  = 154383;
+	string   account_auto_liquidate            = 131035;
+	string   auto_liq_threshold_current_value  = 131040;
+	}

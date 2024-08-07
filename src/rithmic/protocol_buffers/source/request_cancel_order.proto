@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestCancelOrder
+	{                                
+        enum OrderPlacement {
+    ORDERPLACEMENT_UNSPECIFIED = 0;
+	                     MANUAL  = 1;
+			     AUTO    = 2;
+	                    }
+
+	int32             template_id     = 154467;
+	repeated string            user_msg        = 132760;
+	string            window_name     = 154629;
+
+	string            fcm_id          = 154013;
+	string            ib_id           = 154014;
+	string            account_id      = 154008;
+	string            basket_id       = 110300;
+
+	OrderPlacement   manual_or_auto   = 154710;
+	}

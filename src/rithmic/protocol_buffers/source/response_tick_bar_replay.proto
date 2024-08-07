@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseTickBarReplay
+	{
+	enum BarType {
+    BARTYPE_UNSPECIFIED = 0;
+	              TICK_BAR     =  1;
+		      RANGE_BAR    =  2;
+		      VOLUME_BAR   =  3;
+	             }
+
+        enum BarSubType {
+    BARSUBTYPE_UNSPECIFIED = 0;
+	                 REGULAR  = 1;
+			 CUSTOM   = 2;
+	                }
+              
+	int32      template_id                  = 154467;
+	string     request_key                  = 132758;
+	repeated string     user_msg                     = 132760;
+	repeated string     rq_handler_rp_code           = 132764;
+	repeated string     rp_code                      = 132766;
+
+	string     symbol                       = 110100;
+	string     exchange                     = 110101;
+
+	BarType    type                         = 119200;
+	BarSubType sub_type                     = 119208;
+	string     type_specifier               = 148162;
+	uint64     num_trades                   = 119204;
+	uint64     volume                       = 119205;
+	uint64     bid_volume                   = 119213;
+	uint64     ask_volume                   = 119214;
+	double     open_price                   = 100019;
+	double     close_price                  = 100021;
+	double     high_price                   = 100012;
+	double     low_price                    = 100013;
+	int32      custom_session_open_ssm      = 119209;
+	repeated int32      data_bar_ssboe               = 119202;
+	repeated int32	    data_bar_usecs               = 119203;
+	}
