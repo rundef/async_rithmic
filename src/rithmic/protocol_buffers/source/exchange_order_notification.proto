@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package rti;
+
+message ExchangeOrderNotification
+	{       
+	enum NotifyType {
+    NOTIFYTYPE_UNSPECIFIED = 0;
+	                 STATUS        =   1;
+			 MODIFY        =   2;
+			 CANCEL        =   3;
+			 TRIGGER       =   4;
+			 FILL          =   5;
+			 REJECT        =   6;
+			 NOT_MODIFIED  =   7;
+			 NOT_CANCELLED =   8;
+			 GENERIC       =   9;
+                        }	
+
+        enum TransactionType {
+    TRANSACTIONTYPE_UNSPECIFIED = 0;
+	                      BUY  = 1;
+		              SELL = 2;
+			      SS   = 3;
+	                     }
+
+        enum Duration {
+    DURATION_UNSPECIFIED = 0;
+	               DAY  = 1;
+		       GTC  = 2;
+		       IOC  = 3;
+		       FOK  = 4;
+                      }
+ 
+        enum PriceType {
+    PRICETYPE_UNSPECIFIED = 0;
+	                LIMIT        = 1;
+			MARKET       = 2;
+			STOP_LIMIT   = 3;
+			STOP_MARKET  = 4;
+                       }
+
+	enum BracketType {
+    BRACKETTYPE_UNSPECIFIED = 0;
+	                  STOP_ONLY               = 1;
+			  TARGET_ONLY             = 2;
+			  TARGET_AND_STOP         = 3;
+			  STOP_ONLY_STATIC        = 4;
+			  TARGET_ONLY_STATIC      = 5;
+			  TARGET_AND_STOP_STATIC  = 6;
+                         }
+		       
+        enum OrderPlacement {
+    ORDERPLACEMENT_UNSPECIFIED = 0;
+	                     MANUAL  = 1;
+			     AUTO    = 2;
+	                    }
+
+	int32             template_id               = 154467;
+	string            user_tag                  = 154119;
+
+	NotifyType        notify_type               = 153625;
+	bool              is_snapshot               = 110121;
+	bool              is_rithmic_internal_msg   = 149373;
+
+	string            report_type            = 120001;
+	string            status                 = 110303;
+	string            basket_id              = 110300;
+	string            original_basket_id     = 154497;
+	string            linked_basket_ids      = 110358;
+
+	string            fcm_id                 = 154013;
+	string            ib_id                  = 154014;
+	string            user_id                = 131003;
+	string            account_id             = 154008;
+
+	string            symbol                 = 110100;
+	string            exchange               = 110101;
+	string            trade_exchange         = 112021;
+	string            trade_route            = 112016;
+	string            exchange_order_id      = 149238;
+	string            tp_exchange_order_id   = 153647;
+	string            instrument_type        = 110116;
+
+	 int32            quantity               = 112004;
+	 double           price                  = 110306;
+	 double           trigger_price          = 149247;
+
+	 TransactionType  transaction_type       = 112003;
+	 Duration         duration               = 112005;
+	 PriceType        price_type             = 112008;
+	 PriceType        orig_price_type        = 154770;
+	 OrderPlacement   manual_or_auto         = 154710;
+	 BracketType      bracket_type           = 157087;
+
+	 int32            confirmed_size         = 110329;
+	 string           confirmed_time         = 110326;
+	 string           confirmed_date         = 110327;
+	 string           confirmed_id           = 110330;
+
+	 int32            modified_size          = 149267;
+	 string           modified_time          = 149268;
+	 string           modified_date          = 149269;
+	 string           modify_id              = 149244;
+
+	 int32            cancelled_size         = 110318;
+	 string           cancelled_time         = 110319;
+	 string           cancelled_date         = 110320;
+	 string           cancelled_id           = 110321;
+
+	 double           fill_price             = 110307;
+	 int32            fill_size              = 110308;
+	 string           fill_time              = 110309;
+	 string           fill_date              = 110310;
+	 string           fill_id                = 110311;
+
+	 double           avg_fill_price         = 110322;
+
+	 int32            total_fill_size        = 154111;
+	 int32            total_unfilled_size    = 154112;
+
+	 string           trigger_id             = 149266;
+
+	string            sequence_number        = 112002;
+	string            orig_sequence_number   = 149263;
+	string            cor_sequence_number    = 149264;
+
+	string            currency               = 154382;
+	string            country_code           = 154172;
+
+	string            text                   = 120008;
+	string            report_text            = 120028;
+	string            remarks                = 154806;
+
+	string            window_name            = 154629;
+	string            originator_window_name = 154671;
+
+	 int32            cancel_at_ssboe        = 157085;
+	 int32            cancel_at_usecs        = 157086;
+         int32            cancel_after_secs      = 154488;
+
+	int32             ssboe                  = 150100;
+	int32             usecs                  = 150101;
+
+	int32             exch_receipt_ssboe     = 150405;
+	int32             exch_receipt_nsecs     = 150406;
+	}

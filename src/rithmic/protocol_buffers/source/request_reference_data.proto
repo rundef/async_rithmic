@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestReferenceData
+	{                                
+	int32  template_id  = 154467;
+	repeated string user_msg     = 132760;
+
+	string symbol       = 110100;
+	string exchange     = 110101;
+	}

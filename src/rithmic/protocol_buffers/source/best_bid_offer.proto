@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package rti;
+
+message BestBidOffer
+	{                                     
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	// below enum is just for reference only, not used in this message
+	enum PresenceBits {
+    PRESENCEBITS_UNSPECIFIED = 0;
+	                  BID          =  1;
+	                  ASK          =  2;
+			  LEAN_PRICE   =  4;
+                          }
+
+	int32  template_id        = 154467;        // PB_OFFSET + MNM_TEMPLATE_ID
+	string symbol             = 110100;        // PB_OFFSET + MNM_SYMBOL
+	string exchange           = 110101;        // PB_OFFSET + MNM_EXCHANGE
+
+	uint32 presence_bits      = 149138;        // PB_OFFSET + MNM_PRICING_INDICATOR
+	uint32 clear_bits         = 154571;        // PB_OFFSET + MNM_DISPLAY_INDICATOR 
+	bool   is_snapshot        = 110121;        // PB_OFFSET + MNM_UPDATE_TYPE               
+
+	double bid_price          = 100022;        // PB_OFFSET + MNM_BID_PRICE
+	int32  bid_size           = 100030;        // PB_OFFSET + MNM_BID_SIZE
+	int32  bid_orders         = 154403;        // PB_OFFSET + MNM_BID_NO_OF_ORDERS
+	int32  bid_implicit_size  = 154867;        // PB_OFFSET + MNM_BID_IMPLICIT_SIZE
+	string bid_time           = 100266;
+
+	double ask_price          = 100025;        // PB_OFFSET + MNM_ASK_PRICE      
+	int32  ask_size           = 100031;        // PB_OFFSET + MNM_ASK_SIZE
+	int32  ask_orders         = 154404;        // PB_OFFSET + MNM_ASK_NO_OF_ORDERS
+	int32  ask_implicit_size  = 154868;        // PB_OFFSET + MNM_ASK_IMPLICIT_SIZE	
+	string ask_time           = 100267;
+
+	double lean_price         = 154909;        // PB_OFFSET + MNM_LEAN_PRICE
+
+	int32  ssboe              = 150100;        // PB_OFFSET + MNM_SECONDS_SINCE_BOE
+	int32  usecs              = 150101;        // PB_OFFSET + MNM_USECS
+	}

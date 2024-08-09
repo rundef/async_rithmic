@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestTickBarReplay
+	{          
+	enum BarType {
+    BARTYPE_UNSPECIFIED = 0;
+	              TICK_BAR     =  1;
+		      RANGE_BAR    =  2;
+		      VOLUME_BAR   =  3;
+	             }
+
+        enum BarSubType {
+    BARSUBTYPE_UNSPECIFIED = 0;
+	                 REGULAR  = 1;
+			 CUSTOM   = 2;
+	                }
+
+        enum Direction {
+    DIRECTION_UNSPECIFIED = 0;
+	                FIRST = 1;
+			LAST  = 2;
+	               }
+
+	enum TimeOrder {
+    TIMEORDER_UNSPECIFIED = 0;
+	                FORWARDS  = 1;
+		        BACKWARDS = 2;
+	               }
+
+                            
+	int32        template_id                = 154467;
+	repeated string       user_msg                   = 132760;
+
+	string       symbol                     = 110100;
+	string       exchange                   = 110101;
+ 	BarType      bar_type                   = 119200;
+	BarSubType   bar_sub_type               = 119208;
+	string       bar_type_specifier         = 148162;
+
+	int32        start_index                = 153002;
+	int32        finish_index               = 153003;
+	int32        user_max_count             = 154020;
+
+	int32        custom_session_open_ssm    = 119209;
+	int32        custom_session_close_ssm   = 119210;
+
+	Direction    direction                  = 149253;
+	TimeOrder    time_order                 = 149307;
+
+	bool         resume_bars                = 153642;
+	}

@@ -44,7 +44,7 @@ setuptools.setup(
         'numpy',
         'pandas',
         'websockets',
-        'protobuf==3.20.3',
+        'protobuf==4.25.4',
     ],
     extras_require={
         'dev': ['check-manifest'],

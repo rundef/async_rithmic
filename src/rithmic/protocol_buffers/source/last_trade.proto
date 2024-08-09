@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package rti;
+
+message LastTrade
+	{                                     
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	// below enum is just for reference only, not used in this message
+	enum PresenceBits {
+    PRESENCEBITS_UNSPECIFIED = 0;
+	                  LAST_TRADE      =   1;
+			  NET_CHANGE      =   2;
+		          PRECENT_CHANGE  =   4;
+		          VOLUME          =   8;
+			  VWAP		  =  16;
+                          }
+
+        enum TransactionType {
+    TRANSACTIONTYPE_UNSPECIFIED = 0;
+	                      BUY  = 1;
+		              SELL = 2;
+	                     }
+
+	int32            template_id                  = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+	string           symbol                       = 110100;    // PB_OFFSET + MNM_SYMBOL
+	string           exchange                     = 110101;    // PB_OFFSET + MNM_EXCHANGE
+
+	uint32           presence_bits                = 149138;    // PB_OFFSET + MNM_PRICING_INDICATOR
+	uint32           clear_bits                   = 154571;    // PB_OFFSET + MNM_DISPLAY_INDICATOR
+	bool             is_snapshot                  = 110121;    // PB_OFFSET + MNM_UPDATE_TYPE               
+
+	double           trade_price                  = 100006;    // PB_OFFSET + MNM_TRADE_PRICE
+	int32            trade_size                   = 100178;    // PB_OFFSET + MNM_TRADE_SIZE
+	TransactionType  aggressor                    = 112003;    // PB_OFFSET + MNM_TRANSACTION_TYPE
+
+	string           exchange_order_id            = 149238;    // PB_OFFSET + MNM_EXCH_ORD_ID
+	string           aggressor_exchange_order_id  = 154641;    // PB_OFFSET + MNM_AGGRESSOR_EXCH_ORD_ID
+
+	double           net_change                   = 100011;    // PB_OFFSET + MNM_NET_CHANGE
+	double           percent_change               = 100056;    // PB_OFFSET + MNM_PERCENT_CHANGE
+	uint64           volume                       = 100032;    // PB_OFFSET + MNM_TRADE_VOLUME
+	double           vwap                         = 101379;    // PB_OFFSET + MNM_VWAP	
+
+	string           trade_time                   = 100379;
+
+	int32            ssboe                        = 150100;    // PB_OFFSET + MNM_SECONDS_SINCE_BOE
+	int32            usecs                        = 150101;    // PB_OFFSET + MNM_USECS
+
+	int32            source_ssboe                 = 150400;    // PB_OFFSET + MNM_SOURCE_SSBOE
+	int32            source_usecs                 = 150401;    // PB_OFFSET + MNM_SOURCE_USECS
+	int32            source_nsecs                 = 150404;    // PB_OFFSET + MNM_SOURCE_NSECS
+
+	int32            jop_ssboe                    = 150600;    // PB_OFFSET + MNM_JOP_SSBOE
+	int32            jop_nsecs                    = 150604;    // PB_OFFSET + MNM_JOP_NSECS
+	}

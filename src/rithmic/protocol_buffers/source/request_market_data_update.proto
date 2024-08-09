@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestMarketDataUpdate
+	{          
+	// update bits and Request enum defined here is also referred in request_subscribe_by_underlying.proto
+	// make sure both these proto files are always same.
+
+	// bit constants are defined using enum
+	enum UpdateBits {
+    UPDATEBITS_UNSPECIFIED = 0;
+	                 LAST_TRADE              =       1;
+		         BBO                     =       2;
+		         ORDER_BOOK              =       4;
+		         OPEN                    =       8;
+			 OPENING_INDICATOR       =      16;
+		         HIGH_LOW                =      32;
+			 HIGH_BID_LOW_ASK        =      64;
+		         CLOSE                   =     128;
+			 CLOSING_INDICATOR       =     256;
+			 SETTLEMENT              =     512;
+			 MARKET_MODE             =    1024;
+			 OPEN_INTEREST           =    2048;
+			 MARGIN_RATE             =    4096;
+			 HIGH_PRICE_LIMIT        =    8192;
+			 LOW_PRICE_LIMIT         =   16384;
+			 PROJECTED_SETTLEMENT    =   32768;
+			 ADJUSTED_CLOSE          =   65536;
+			}
+ 
+        enum Request {
+    REQUEST_UNSPECIFIED = 0;
+		      SUBSCRIBE   = 1;
+		      UNSUBSCRIBE = 2;
+	             } 
+                            
+	int32    template_id  = 154467;
+	repeated string   user_msg     = 132760;
+
+	string   symbol       = 110100;
+	string   exchange     = 110101;
+        Request  request      = 100000;
+	uint32   update_bits  = 154211;
+	}

@@ -267,7 +267,7 @@ class BaseOrder(metaclass=abc.ABCMeta):
         :return: (tuple) tuple of average fill price and quantity filled
         """
         if self.has_fills is False:
-            return np.NaN, 0
+            return np.nan, 0
         df = self.fill_dataframe
         df = df.assign(qty_px=df.quantity * df.price)
         g = df.groupby('order_id').agg(

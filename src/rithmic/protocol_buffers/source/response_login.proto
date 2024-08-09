@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseLogin
+	{       
+	int32  template_id         = 154467;
+	string template_version    = 153634;
+	repeated string user_msg            = 132760;
+	repeated string rp_code             = 132766;
+
+	string fcm_id              = 154013;
+	string ib_id               = 154014;
+	string country_code        = 154712;
+	string state_code          = 154713;
+
+	string unique_user_id      = 153428;
+	double heartbeat_interval  = 153633;
+	}
