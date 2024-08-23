@@ -14,7 +14,7 @@ import websockets
 from rithmic.callbacks.callbacks import CallbackManager
 from rithmic.config.credentials import RithmicEnvironment, get_rithmic_credentials
 from rithmic.protocol_buffers import base_pb2, request_login_pb2, response_login_pb2, request_heartbeat_pb2, \
-    request_logout_pb2, request_reference_data_pb2
+    request_logout_pb2, request_reference_data_pb2, request_rithmic_system_info_pb2, response_rithmic_system_info_pb2
 from rithmic.protocol_buffers.response_reference_data_pb2 import ResponseReferenceData
 from rithmic.tools.pyrithmic_logger import logger
 
@@ -145,12 +145,33 @@ class RithmicBaseApi(metaclass=ABCMeta):
         return _setup_ssl_context()
 
     def connect_and_login(self):
+        """
+        Clients should follow the below sequence for communicating with protocol server,
+        1. Open a websocket, upon connecting send 'RequestRithmicSystemInfo' message.
+           Parse the response and record list of 'system names' available. Close this connection
+
+        2. Open a new websocket, and login using the desired 'system_name'.
+        """
+        ws = self._get_websocket_connection()
+        self.ws = ws
+
+        future = asyncio.run_coroutine_threadsafe(self.get_system_names(), loop=self.loop)
+        system_names = future.result()
+        print("ZZZZ", system_names)
+
+        future = asyncio.run_coroutine_threadsafe(self.disconnect_from_rithmic(), loop=self.loop)
+        future.result()
+
+        if self.system_name not in system_names:
+            raise Exception(f"You must specify valid SYSTEM_NAME in the credentials file: {system_names}")
+
         ws = self._get_websocket_connection()
         self.ws = ws
         log_in_details = self._log_into_rithmic()
         logger.info('Connected to {0} as User {1} on {2} ({3})'.format(
             self.api_type, self.user, self.system_name, self.env
         ))
+        print("AAAA", log_in_details)
         return log_in_details
 
     def _get_websocket_connection(self):
@@ -166,6 +187,18 @@ class RithmicBaseApi(metaclass=ABCMeta):
         logger.info('Connected to {0}'.format(self.uri))
         return ws
 
+    async def get_system_names(self):
+        rq = request_rithmic_system_info_pb2.RequestRithmicSystemInfo()
+        rq.template_id = 16
+        buffer = self._convert_request_to_bytes(rq)
+        await self.send_buffer(buffer)
+
+        rp_buf = await self.recv_buffer()
+        rp = response_rithmic_system_info_pb2.ResponseRithmicSystemInfo()
+        rp.ParseFromString(rp_buf[4:])
+
+        return rp.system_name
+
     async def rithmic_login(self):
         rq = request_login_pb2.RequestLogin()
         rq.template_id = 10
@@ -179,11 +212,13 @@ class RithmicBaseApi(metaclass=ABCMeta):
         buffer = self._convert_request_to_bytes(rq)
         await self.send_buffer(buffer)
 
-        rp_buf = bytearray()
         rp_buf = await self.recv_buffer()
-        rp_length = int.from_bytes(rp_buf[0:3], byteorder='big', signed=True)
         rp = response_login_pb2.ResponseLogin()
         rp.ParseFromString(rp_buf[4:])
+
+        if rp.rp_code[0] != '0':
+            raise ConnectionError(f"Login failed: {', '.join(rp.rp_code)}")
+
         logger.info('Logged into Rithmic => unique user id={0}; Plant=>{1}'.format(
             rp.unique_user_id, INFRA_MAP[self.infra_type])
         )

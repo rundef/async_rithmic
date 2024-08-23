@@ -7,6 +7,8 @@ from rithmic.tools.pyrithmic_exceptions import CallbackIdNotFoundException
 class CallbackId(enum.Enum):
     TICKER_LAST_TRADE = 150
     # Callback for Last Trade processed in TICKER plant, argument is a dictionary of live tick data
+    TICKER_BEST_BID_OFFER = 151
+    # Callback for Best Bid Offer processed in TICKER plant
 
     TICKER_PERIODIC_LIVE_TICK_DATA_SYNCING = 901
     # Callback for Periodic Syncing in TICKER plant, arguments are a pandas DataFrame containing latest tick data

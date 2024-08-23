@@ -10,6 +10,7 @@ from rithmic.callbacks.callbacks import CallbackManager, CallbackId
 from rithmic.protocol_buffers import request_login_pb2, last_trade_pb2, request_market_data_update_pb2, \
     request_front_month_contract_pb2
 from rithmic.protocol_buffers.last_trade_pb2 import LastTrade
+from rithmic.protocol_buffers.best_bid_offer_pb2 import BestBidOffer
 from rithmic.protocol_buffers.response_front_month_contract_pb2 import ResponseFrontMonthContract
 from rithmic.tools.general import dict_destructure, set_index_no_name
 from rithmic.tools.meta import ApiType
@@ -19,6 +20,7 @@ from rithmic.tools.pyrithmic_logger import logger, configure_logging
 # Mapping of Template ID to the proto to use and the internal method used to process this message type
 CONSUMPTION_RESPONSE_MAP = {
     150: dict(proto=LastTrade, fn='process_last_trade'),
+    151: dict(proto=BestBidOffer, fn='process_best_bid_offer'),
     114: dict(proto=ResponseFrontMonthContract, fn='process_front_month_response')
 }
 CONSUMPTION_RESPONSE_MAP.update(SHARED_RESPONSE_MAP)
@@ -243,6 +245,7 @@ class RithmicTickerApi(RithmicBaseApi):
         :param msg_buf: (bytes) message received in bytes
         :return:
         """
+        print("_process_new_message", template_id)
         if template_id in CONSUMPTION_RESPONSE_MAP:
             meta = CONSUMPTION_RESPONSE_MAP[template_id]
             msg = meta['proto']()
@@ -263,6 +266,8 @@ class RithmicTickerApi(RithmicBaseApi):
         :return: (dict) dictionary of last trade data
         """
         data = self._get_row_information(template_id, msg)
+        from datetime import datetime
+        print("HELLO", datetime.now(), data)
         if msg.trade_size == 0:
             return
         if data['aggressor'] == 1:
@@ -277,6 +282,12 @@ class RithmicTickerApi(RithmicBaseApi):
         )
         self.process_new_tick_data(result, security_code, exchange_code)
         return result
+
+    def process_best_bid_offset(self, template_id: int, msg: BestBidOffer):
+        print(type(msg))
+        data = self._get_row_information(template_id, msg)
+        from datetime import datetime
+        print("BIDOFFSET", datetime.now(), data)
 
     def process_front_month_response(self, template_id: int, msg: ResponseFrontMonthContract):
         """

@@ -1,15 +1,25 @@
 # Python Rithmic API
 
-[![version number](https://img.shields.io/pypi/v/example-pypi-package?color=green&label=version)](https://github.com/tomchen/example_pypi_package/releases) [![License](https://img.shields.io/github/license/tomchen/example_pypi_package)](https://github.com/tomchen/example_pypi_package/blob/main/LICENSE)
+> Note: this a fork of https://github.com/jacksonwoody/pyrithmic.git
 
-Python API to interface with the Rithmic Protocol Buffer API: https://yyy3.rithmic.com/?page_id=9
+A robust, async-based Python API designed to interface seamlessly with the Rithmic Protocol Buffer API: Rithmic API Documentation. This package is built to provide an efficient and reliable connection to Rithmic's trading infrastructure, catering to advanced trading strategies and real-time data handling.
 
-Provides access to Tick Market Data (Live and Historical) and Order Routing to Execution Brokers. Rithmic Protocol Buffer API splits functionality across 'PLANTS', TICKER_PLANT, HISTORY_PLANT and ORDER_PLANT for live tick data, historical tick data and order management respectively. Pyrithmic has a seperate api for each plant as they each require their own websocket connection, specific log in and functionality. They share core logic and run asynchronously using Asyncio to process updates as messages arrive.
+## Key Enhancements
+
+This fork introduces several key improvements and new features over the original repository, ensuring compatibility with modern Python environments and providing additional functionality:
+
+- **Python 3.11+ Compatibility**: Refactored code to ensure smooth operation with the latest Python versions.
+- **System Name Validation**: Implements pre-login validation of system names, as recommended by Rithmic support, with enhanced error handling during the login process.
+- **Account Selection**: Allows users to specify which account to use when calling trading functions, rather than being restricted to the primary account.
+- **STOP Orders**: Exposing STOP orders to users
+- **Best Bid Offer (BBO) Streaming**: Integrates real-time Best Bid Offer tick streaming. 
+
+One of the most significant upgrades is the transition to an async architecture, providing superior performance and responsiveness when dealing with real-time trading and market data.
 
 ## Installation
 
 ```
-pip install git+https://github.com/jacksonwoody/pyrithmic.git#egg=pyrithmic
+pip install git+https://github.com/rundef/pyrithmic.git#egg=pyrithmic
 ```
 
 ## Credentials

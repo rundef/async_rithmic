@@ -21,6 +21,7 @@ from rithmic.protocol_buffers import (
     exchange_order_notification_pb2, response_bracket_order_pb2, response_new_order_pb2, request_new_order_pb2,
     request_bracket_order_pb2, request_cancel_order_pb2, request_update_stop_bracket_level_pb2,
     request_modify_order_pb2, request_update_target_bracket_level_pb2,
+    request_account_rms_info_pb2, response_account_rms_info_pb2,
 )
 from rithmic.tools.general import dict_destructure, get_utc_now
 from rithmic.tools.meta import ApiType
@@ -55,6 +56,8 @@ class RithmicOrderApi(RithmicBaseApi):
     """
     infra_type = request_login_pb2.RequestLogin.SysInfraType.ORDER_PLANT
     api_type = ApiType.ORDER
+
+    USER_TYPE_MAP = {0: 'ADMIN', 1: 'FCM', 2: 'IB', 3: 'TRADER'}
 
     def __init__(self, env: RithmicEnvironment = None, callback_manager: CallbackManager = None, loop=None,
                  auto_connect: bool = True, recovered_status_manager: StatusManager = None):
@@ -107,11 +110,12 @@ class RithmicOrderApi(RithmicBaseApi):
 
     def connect_and_login(self) -> None:
         """Connects, Logs in to Rithmic and subscribes to updates"""
-        logged_in = super(RithmicOrderApi, self).connect_and_login()
+        super(RithmicOrderApi, self).connect_and_login()
         future = asyncio.run_coroutine_threadsafe(self._get_login_info(), loop=self.loop)
         log_in_details = future.result()
         logger.info('Order API Extended Login Details => {0}'.format(log_in_details))
         self._set_log_in_details(log_in_details)
+        self.get_account_rms()
         self._run_update_subscription()
 
     async def _get_login_info(self) -> dict:
@@ -133,18 +137,17 @@ class RithmicOrderApi(RithmicBaseApi):
         rp = response_login_info_pb2.ResponseLoginInfo()
         rp.ParseFromString(rp_buf[4:])
 
-        user_type_to_string = {0: 'ADMIN', 1: 'FCM', 2: 'IB', 3: 'TRADER'}
-
         if rp.rp_code[0] == '0':
             accounts = await self._list_accounts(rp.fcm_id, rp.ib_id, rp.user_type)
             trade_routes = await self._list_trade_routes()
             details = dict(
                 template_id=rp.template_id, user_msg=rp.user_msg, rp_code=rp.rp_code,
-                fcm_id=rp.fcm_id, ib_id=rp.ib_id, user_type=user_type_to_string[rp.user_type],
+                fcm_id=rp.fcm_id, ib_id=rp.ib_id, user_type=rp.user_type,
+                user_type_string=self.USER_TYPE_MAP[rp.user_type],
                 accounts=accounts, trade_routes=trade_routes,
             )
             return details
-        raise ConnectionError('Error Getting Details from Rithmic')
+        raise ConnectionError(f"Error Getting Details from Rithmic: {', '.join(rp.rp_code)}")
 
     async def _list_accounts(self, fcm_id: str, ib_id: str, user_type: int) -> list:
         """
@@ -809,3 +812,35 @@ class RithmicOrderApi(RithmicBaseApi):
         with open(file_path, 'wb') as fp:
             state = self.status_manager
             pickle.dump(state, fp)
+
+    def get_account_rms(self):
+        future = asyncio.run_coroutine_threadsafe(self._get_account_rms(), loop=self.loop)
+        details = future.result()
+
+    async def _get_account_rms(self):
+        rq = request_account_rms_info_pb2.RequestAccountRmsInfo()
+        rq.template_id = 304
+        rq.user_msg.append("request_account_rms_info")
+        rq.fcm_id = self.fcm_id
+        rq.ib_id = self.ib_id
+        rq.user_type = self.user_type
+        buffer = self._convert_request_to_bytes(rq)
+        await self.send_buffer(buffer)
+
+        rp_buf = await self.recv_buffer()
+
+        rp = response_account_rms_info_pb2.ResponseAccountRmsInfo()
+        rp.ParseFromString(rp_buf[4:])
+
+        print(rp)
+
+        details = dict(
+            template_id=rp.template_id, user_msg=rp.user_msg, rp_code=rp.rp_code,
+            fcm_id=rp.fcm_id, ib_id=rp.ib_id, account_id=rp.account_id,
+            current=rp.currency, status=rp.status, algorithm=rp.algorithm,
+
+            min_account_balance=rp.min_account_balance,
+            min_margin_balance=rp.min_margin_balance,
+            check_min_account_balance=rp.check_min_account_balance,
+        )
+        print(details)

@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseAccountRmsInfo
+	{       
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	// below enum is just for reference only, not used in this message
+	enum PresenceBits {
+PRESENCEBITS_UNSPECIFIED = 0;
+	                  BUY_LIMIT           =     1;
+			  SELL_LIMIT          =     2;
+			  LOSS_LIMIT          =     4;
+			  MAX_ORDER_QUANTITY  =     8;
+			  MIN_ACCOUNT_BALANCE =    16;
+			  MIN_MARGIN_BALANCE  =    32;
+			  ALGORITHM           =    64;
+			  STATUS              =   128;
+			  CURRENCY            =   256;
+			  DEFAULT_COMMISSION  =   512;
+	                  }
+
+	enum AutoLiquidateFlag {
+AUTOLIQUIDATEFLAG_UNSPECIFIED = 0;
+	                        ENABLED  =  1;
+				DISABLED =  2;
+	                       }
+
+
+	int32    template_id                             = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+	repeated string   user_msg                                = 132760;    // PB_OFFSET + MNM_USER_MSG	
+	repeated string   rq_handler_rp_code                      = 132764;    // PB_OFFSET + MNM_REQUEST_HANDLER_RESPONSE_CODE
+	repeated string   rp_code                                 = 132766;    // PB_OFFSET + MNM_RESPONSE_CODE
+
+        uint32   presence_bits                           = 153622;    // PB_OFFSET + MNM_FIELD_PRESENCE_BITS
+
+	string   fcm_id                                  = 154013;    // PB_OFFSET + MNM_FCM_ID
+	string   ib_id                                   = 154014;    // PB_OFFSET + MNM_IB_ID
+	string   account_id                              = 154008;    // PB_OFFSET + MNM_ACCOUNT_ID
+
+	string   currency                                = 154383;    // PB_OFFSET + MNM_ACCOUNT_CURRENCY
+	string   status                                  = 154003;    // PB_OFFSET + MNM_ACCOUNT_STATUS
+	string   algorithm                               = 150142;    // PB_OFFSET + MNM_ALGORITHM
+
+	string   auto_liquidate_criteria                 = 131036;    // PB_OFFSET + MNM_ACCOUNT_AUTO_LIQUIDATE_CRITERIA
+
+	AutoLiquidateFlag auto_liquidate                 = 131035;    // PB_OFFSET + MNM_ACCOUNT_AUTO_LIQUIDATE
+	AutoLiquidateFlag disable_on_auto_liquidate      = 131038;    // PB_OFFSET + MNM_DISABLE_ON_AUTO_LIQUIDATE_FLAG
+
+	double   auto_liquidate_threshold                = 131037;    // PB_OFFSET + MNM_ACCOUNT_AUTO_LIQUIDATE_THRESHOLD
+	double   auto_liquidate_max_min_account_balance  = 131039;    // PB_OFFSET + MNM_AUTO_LIQ_MAX_MIN_ACCOUNT_BALANCE
+
+        double   loss_limit                              = 154019;    // PB_OFFSET + MNM_LOSS_LIMIT
+	double   min_account_balance                     = 156968;    // PB_OFFSET + MNM_MINIMUM_ACCOUNT_BALANCE
+	double   min_margin_balance                      = 156976;    // PB_OFFSET + MNM_MIN_MARGIN_BALANCE
+	double   default_commission                      = 153368;    // PB_OFFSET + MNM_DEFAULT_COMMISSION
+
+	int32    buy_limit                               = 154009;    // PB_OFFSET + MNM_BUY_LIMIT
+	int32    max_order_quantity                      = 110105;    // PB_OFFSET + MNM_MAX_LIMIT_QUAN
+	int32    sell_limit                              = 154035;    // PB_OFFSET + MNM_SELL_LIMIT
+
+	bool     check_min_account_balance               = 156972;    // PB_OFFSET + MNM_CHECK_MIN_ACCT_BALANCE
+	}
