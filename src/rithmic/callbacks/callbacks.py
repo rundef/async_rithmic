@@ -10,10 +10,6 @@ class CallbackId(enum.Enum):
     TICKER_BEST_BID_OFFER = 151
     # Callback for Best Bid Offer processed in TICKER plant
 
-    TICKER_PERIODIC_LIVE_TICK_DATA_SYNCING = 901
-    # Callback for Periodic Syncing in TICKER plant, arguments are a pandas DataFrame containing latest tick data
-    # and the security and exchange codes for the latest data
-
     ORDER_RITHMIC_NOTIFICATIONS = 351
     # Callback to process notifications that stream from Rithmic in ORDER plant
 

@@ -20,7 +20,9 @@ from rithmic.tools.pyrithmic_logger import logger
 
 
 INFRA_MAP = {
-    1: 'TICKER', 2: 'ORDER', 3: 'HISTORY'
+    1: 'TICKER',
+    2: 'ORDER',
+    3: 'HISTORY'
 }
 
 SHARED_RESPONSE_MAP = {
