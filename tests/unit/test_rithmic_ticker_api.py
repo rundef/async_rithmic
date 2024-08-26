@@ -1,5 +1,5 @@
 from rithmic import RithmicTickerApi
-from tests.unit.fixtures.api_fixtures import mocked_ticker_api_ws_mock as ticker_api_ws_mock, set_ws_messages
+from tests.unit.fixtures.api_fixtures import set_ws_messages
 from tests.unit.fixtures.mocked_messages import BASE_SEND, BASE_RECV
 
 

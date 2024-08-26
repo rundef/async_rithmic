@@ -2,6 +2,7 @@ from rithmic.plants.base import BasePlant, TEMPLATES_MAP
 from rithmic.enums import OrderType, OrderDuration
 
 import rithmic.protocol_buffers as pb
+from rithmic.logger import logger
 
 class OrderPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.ORDER_PLANT
@@ -13,6 +14,7 @@ class OrderPlant(BasePlant):
     async def _login(self):
         await super()._login()
         await self._fetch_login_info()
+        await self._subscribe_to_order_updates()
 
     async def _fetch_login_info(self):
         """
@@ -51,12 +53,39 @@ class OrderPlant(BasePlant):
             subscribe_for_updates=True,
         )
 
+    async def _subscribe_to_order_updates(self):
+        for account in self.accounts:
+            await self._send_and_recv(
+                template_id=308,
+                fcm_id=self.login_info["fcm_id"],
+                ib_id=self.login_info["ib_id"],
+                account_id=account.account_id
+            )
+
     async def get_account_rms(self):
         return await self._send_and_recv_many(
             template_id=304,
             fcm_id=self.login_info["fcm_id"],
             ib_id=self.login_info["ib_id"],
             user_type=self.login_info["user_type"]
+        )
+
+    async def list_orders(self, **kwargs):
+        """
+        request = TEMPLATES_MAP[320]()
+        for k, v in kwargs.items():
+            self._set_pb_field(request, k, v)
+
+        async with self.lock:
+            await self._send(self._convert_request_to_bytes(request))
+
+        return
+        """
+        return await self._send_and_recv_many(
+            template_id=320,
+            fcm_id=self.login_info["fcm_id"],
+            ib_id=self.login_info["ib_id"],
+            account_id=self._get_account_id(**kwargs)
         )
 
     def _get_account_id(self, **kwargs):
@@ -77,7 +106,7 @@ class OrderPlant(BasePlant):
     async def submit_order(
         self,
         order_id: str,
-        security_code: str,
+        symbol: str,
         exchange: str,
         qty: int,
         order_type: OrderType,
@@ -87,17 +116,11 @@ class OrderPlant(BasePlant):
         kwargs.setdefault("duration", OrderDuration.DAY)
         msg_kwargs = {}
 
-        if order_type == OrderType.LIMIT:
-            if "limit_price" not in kwargs:
-                raise Exception(f"Limit price must be specified for LMT orders")
+        if order_type in [OrderType.LIMIT, OrderType.STOP_MARKET]:
+            if "price" not in kwargs:
+                raise Exception(f"Price must be specified for this order type orders")
 
-            msg_kwargs["price"] = kwargs["limit_price"]
-
-        elif order_type == OrderType.STOP_MARKET:
-            if "stop_price" not in kwargs:
-                raise Exception(f"Stop price must be specified for STP orders")
-
-            msg_kwargs["price"] = kwargs["stop_price"]
+            msg_kwargs["price"] = kwargs["price"]
 
         msg_kwargs["account_id"] = self._get_account_id(**kwargs)
 
@@ -107,10 +130,10 @@ class OrderPlant(BasePlant):
             raise Exception(f"No Valid Trade Route Exists for {exchange}")
         msg_kwargs["trade_route"] = filtered[0].trade_route
 
-        return await self._send_and_recv(
+        return await self._send_and_recv_many(
             template_id=312,
             user_tag=order_id,
-            symbol=security_code,
+            symbol=symbol,
             exchange=exchange,
             price_type=order_type,
             quantity=qty,
@@ -140,17 +163,11 @@ class OrderPlant(BasePlant):
     ):
         msg_kwargs = {}
 
-        if order_type == OrderType.LIMIT:
-            if "limit_price" not in kwargs:
-                raise Exception(f"Limit price must be specified for LMT orders")
+        if order_type in [OrderType.LIMIT, OrderType.STOP_MARKET]:
+            if "price" not in kwargs:
+                raise Exception(f"Price must be specified for this order type orders")
 
-            msg_kwargs["price"] = kwargs["limit_price"]
-
-        elif order_type == OrderType.STOP_MARKET:
-            if "stop_price" not in kwargs:
-                raise Exception(f"Stop price must be specified for STP orders")
-
-            msg_kwargs["price"] = kwargs["stop_price"]
+            msg_kwargs["price"] = kwargs["price"]
 
         return await self._send_and_recv(
             template_id=314,
@@ -186,7 +203,19 @@ class OrderPlant(BasePlant):
                 buffer = await self._recv()
                 response = self._convert_bytes_to_response(buffer)
 
+                print(response)
+
+                if template_id == 352:
+                    buffer = await self._recv()
+                    response = self._convert_bytes_to_response(buffer)
+
+                    print(response)
+                    break
+
                 if len(response.rp_code) > 0:
+                    if response.rp_code[0] != '0':
+                        raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
+
                     break
                 else:
                     results.append(response)

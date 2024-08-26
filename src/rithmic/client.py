@@ -5,9 +5,10 @@ from pathlib import Path
 from rithmic.plants.ticker import TickerPlant
 from rithmic.plants.history import HistoryPlant
 from rithmic.plants.order import OrderPlant
-from rithmic.config.credentials import RithmicEnvironment, get_rithmic_credentials
+from rithmic.plants.pnl import PnlPlant
 from rithmic.event import Event
 from rithmic.enums import Gateway
+from rithmic.logger import logger
 
 def _setup_ssl_context():
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -17,20 +18,32 @@ def _setup_ssl_context():
     return ssl_context
 
 class RithmicClient:
-    on_connected = Event()
-    on_disconnected = Event()
+    #on_connected = Event()
+    #on_disconnected = Event()
     on_tick = Event()
     on_historical_tick = Event()
+    #on_order_update = Event()
+    #on_position_update = Event()
 
     def __init__(
         self,
-        env: RithmicEnvironment = None,
+        user: str,
+        password: str,
+        system_name: str,
+        app_name: str,
+        app_version: str,
         gateway: Gateway = Gateway.TEST,
         **kwargs
     ):
 
-        self.env = env
-        self.credentials = get_rithmic_credentials(env)
+        self.credentials = dict(
+            user=user,
+            password=password,
+            system_name=system_name,
+            app_name=app_name,
+            app_version=app_version,
+            gateway=gateway
+        )
         self.ssl_context = _setup_ssl_context()
         self.listeners = []
 

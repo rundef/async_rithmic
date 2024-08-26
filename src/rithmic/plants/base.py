@@ -6,6 +6,7 @@ from google.protobuf.descriptor import FieldDescriptor
 from google.protobuf.json_format import MessageToDict
 
 import rithmic.protocol_buffers as pb
+from rithmic.logger import logger
 
 TEMPLATES_MAP = {
     # Shared
@@ -33,8 +34,8 @@ TEMPLATES_MAP = {
     303: pb.response_account_list_pb2.ResponseAccountList,
     304: pb.request_account_rms_info_pb2.RequestAccountRmsInfo,
     305: pb.response_account_rms_info_pb2.ResponseAccountRmsInfo,
-    #308: pb.request_subscribe_for_order_updates_pb2.RequestSubscribeForOrderUpdates,
-    #309: pb.response_subscribe_for_order_updates_pb2.ResponseSubscribeForOrderUpdates,
+    308: pb.request_subscribe_for_order_updates_pb2.RequestSubscribeForOrderUpdates,
+    309: pb.response_subscribe_for_order_updates_pb2.ResponseSubscribeForOrderUpdates,
     310: pb.request_trade_routes_pb2.RequestTradeRoutes,
     311: pb.response_trade_routes_pb2.ResponseTradeRoutes,
     312: pb.request_new_order_pb2.RequestNewOrder,
@@ -43,10 +44,12 @@ TEMPLATES_MAP = {
     315: pb.response_modify_order_pb2.ResponseModifyOrder,
     316: pb.request_cancel_order_pb2.RequestCancelOrder,
     317: pb.response_cancel_order_pb2.ResponseCancelOrder,
+    320: pb.request_show_orders_pb2.RequestShowOrders,
+    321: pb.response_show_orders_pb2.ResponseShowOrders,
 
     350: pb.trade_route_pb2.TradeRoute,
     #351: rithmic_order_notification_pb2.RithmicOrderNotification,
-    #352: exchange_order_notification_pb2.ExchangeOrderNotification,
+    352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
 
     # History Plant Infrastructure
     206: pb.request_tick_bar_replay_pb2.RequestTickBarReplay,
@@ -86,14 +89,23 @@ class BasePlant:
 
         2. Open a new websocket, and login using the desired 'system_name'.
         """
-        self.ws = await websockets.connect(self.credentials["uri"], ssl=self.ssl_context, ping_interval=3)
+        self.ws = await websockets.connect(
+            self.credentials["gateway"],
+            ssl=self.ssl_context,
+            ping_interval=10
+        )
+
         info = await self.get_system_info()
         await self._disconnect()
 
         if self.credentials["system_name"] not in info.system_name:
             raise Exception(f"You must specify valid SYSTEM_NAME in the credentials file: {info.system_name}")
 
-        self.ws = await websockets.connect(self.credentials["uri"], ssl=self.ssl_context, ping_interval=3)
+        self.ws = await websockets.connect(
+            self.credentials["gateway"],
+            ssl=self.ssl_context,
+            ping_interval=10
+        )
 
     async def _disconnect(self):
         if self.is_connected:
@@ -104,10 +116,10 @@ class BasePlant:
             template_id=10,
             template_version="3.9",
             user=self.credentials["user"],
-            password=self.credentials["pw"],
+            password=self.credentials["password"],
+            system_name=self.credentials["system_name"],
             app_name=self.credentials["app_name"],
             app_version=self.credentials["app_version"],
-            system_name=self.credentials["system_name"],
             infra_type=self.infra_type,
         )
         self.heartbeat_interval = response.heartbeat_interval
@@ -122,6 +134,13 @@ class BasePlant:
 
     async def get_system_info(self):
         return await self._send_and_recv(template_id=16)
+
+    async def get_reference_data(self, symbol: str, exchange: str):
+        return await self._send_and_recv(
+            template_id=14,
+            symbol=symbol,
+            exchange=exchange
+        )
 
     async def _send(self, message: bytes):
         await self.ws.send(message)
@@ -150,7 +169,7 @@ class BasePlant:
 
         response = self._convert_bytes_to_response(buffer)
         if len(response.rp_code) and response.rp_code[0] != '0':
-            raise Exception(f"Server returned an invalid response after request {template_id}: {', '.join(response.rp_code)}")
+            raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
 
         return response
 

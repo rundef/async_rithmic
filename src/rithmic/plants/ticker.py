@@ -5,51 +5,52 @@ import pytz
 from rithmic.plants.base import BasePlant
 import rithmic.protocol_buffers as pb
 from rithmic.enums import DataType
+from rithmic.logger import logger
 
 class TickerPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.TICKER_PLANT
 
-    async def get_front_month_contract(self, underlying_code: str, exchange_code: str) -> Union[str, None]:
+    async def get_front_month_contract(self, symbol: str, exchange: str) -> Union[str, None]:
         """
         Get the current Front Month Contract of an underlying code and exchange, eg ES and CME
 
-        :param underlying_code: (str) valid underlying code
-        :param exchange_code: (str) valid exchange code
+        :param symbol: (str) valid symbol (e.g. ES)
+        :param exchange: (str) valid exchange (e.g. CME)
         :return: (str) the front month futures contract
         """
 
         response = await self._send_and_recv(
             template_id=113,
-            symbol=underlying_code,
-            exchange=exchange_code,
-            user_msg=[underlying_code]
+            symbol=symbol,
+            exchange=exchange,
+            user_msg=[symbol]
         )
         return response.trading_symbol
 
     async def subscribe_to_market_data(
         self,
-        security_code: str,
-        exchange_code: str,
+        symbol: str,
+        exchange: str,
         data_type: int
     ):
         return await self._send_and_recv(
             template_id=100,
-            symbol=security_code,
-            exchange=exchange_code,
+            symbol=symbol,
+            exchange=exchange,
             request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.SUBSCRIBE,
             update_bits=data_type
         )
 
     async def unsubscribe_from_market_data(
         self,
-        security_code: str,
-        exchange_code: str,
+        symbol: str,
+        exchange: str,
         data_type: int
     ):
         return await self._send_and_recv(
             template_id=100,
-            symbol=security_code,
-            exchange=exchange_code,
+            symbol=symbol,
+            exchange=exchange,
             request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.UNSUBSCRIBE,
             update_bits=data_type
         )

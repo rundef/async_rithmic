@@ -6,16 +6,8 @@ class DataType(enum.Enum):
     LAST_TRADE = 1
     BBO = 2
 
-class OrderType(enum.Enum):
-    LIMIT = pb.request_new_order_pb2.RequestNewOrder.PriceType.LIMIT
-    MARKET = pb.request_new_order_pb2.RequestNewOrder.PriceType.MARKET
-    STOP_MARKET = pb.request_new_order_pb2.RequestNewOrder.PriceType.STOP_MARKET
-
-class OrderDuration(enum.Enum):
-    DAY = pb.request_new_order_pb2.RequestNewOrder.Duration.DAY
-    GTC = pb.request_new_order_pb2.RequestNewOrder.Duration.GTC
-    IOC = pb.request_new_order_pb2.RequestNewOrder.Duration.IOC
-    FOK = pb.request_new_order_pb2.RequestNewOrder.Duration.FOK
+OrderType = pb.request_new_order_pb2.RequestNewOrder.PriceType
+OrderDuration = pb.request_new_order_pb2.RequestNewOrder.Duration
 
 class Gateway(enum.Enum):
     TEST = "rituz00100.rithmic.com:443"
