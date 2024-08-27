@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package rti;
+
+message TradeRoute
+	{       
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	 int32    template_id     = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+
+	 string   fcm_id          = 154013;    // PB_OFFSET + MNM_FCM_ID
+	 string   ib_id           = 154014;    // PB_OFFSET + MNM_IB_ID
+	 string   exchange        = 110101;    // PB_OFFSET + MNM_EXCHANGE
+	 string   trade_route     = 112016;    // PB_OFFSET + MNM_TRADE_ROUTE
+	 string   status          = 131407;    // PB_OFFSET + MNM_SERVICE_STATE
+	 bool     is_default      = 154689;    // PB_OFFSET + MNM_DEFAULT_ROUTE
+	}
