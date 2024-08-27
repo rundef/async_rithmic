@@ -1,12 +1,12 @@
 # Python Rithmic API
 
-> Note: this a fork of https://github.com/jacksonwoody/pyrithmic.git
-
 A robust, async-based Python API designed to interface seamlessly with the Rithmic Protocol Buffer API. This package is built to provide an efficient and reliable connection to Rithmic's trading infrastructure, catering to advanced trading strategies and real-time data handling.
+
+This was originally a fork of [pyrithmic](https://github.com/jacksonwoody/pyrithmic.git), but the code has been completely rewritten.
 
 ## Key Enhancements
 
-This fork introduces several key improvements and new features over the original repository, ensuring compatibility with modern Python environments and providing additional functionality:
+This repo introduces several key improvements and new features over the original repository, ensuring compatibility with modern Python environments and providing additional functionality:
 
 - **Python 3.11+ Compatibility**: Refactored code to ensure smooth operation with the latest Python versions.
 - **System Name Validation**: Implements pre-login validation of system names, as recommended by Rithmic support, with enhanced error handling during the login process.
@@ -30,10 +30,11 @@ Here's an example to get the front month contract for ES and stream market data:
 
 ```python
 import asyncio
-from rithmic import RithmicClient, Gateway, DataType
+from rithmic import RithmicClient, Gateway, DataType, LastTradePresenceBits
 
 async def callback(data: dict):
-    print("received", data)
+    if data["presence_bits"] & LastTradePresenceBits.LAST_TRADE:
+        print("received", data)
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
@@ -64,8 +65,6 @@ asyncio.run(main())
 
 All orders/cancels/modifications are placed asynchronously then their status is updated as updates from the exchange flow into the API. All order_id strings provided need to be unique to a session to track updates back from the exchange, suggest using a database primary key or dateetime based string for example
 
-TODO: note about passing account_id if multiple account
-
 #### Placing a Market Order:
 
 As a market order will be filled immediately, this script will submit the order and receive a fill straight away:
@@ -73,10 +72,11 @@ As a market order will be filled immediately, this script will submit the order 
 ```python
 import asyncio
 from datetime import datetime
-from rithmic import RithmicClient, Gateway, OrderType
+from rithmic import RithmicClient, Gateway, OrderType, ExchangeOrderNotificationType
 
-async def callback(data):
-  print("on_order_fill", data)
+async def callback(notification):
+  if notification.notify_type == ExchangeOrderNotificationType.FILL:
+    print("order filled", notification)
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
@@ -87,7 +87,7 @@ async def main():
     security_code = await client.get_front_month_contract(symbol, exchange)
     
     # Submit order
-    client.on_order_fill += callback
+    client.on_exchange_order_notification += callback
 
     order_id = '{0}_order'.format(datetime.now().strftime('%Y%m%d_%H%M%S'))
     await client.submit_order(
@@ -96,7 +96,8 @@ async def main():
         exchange,
         qty=1,
         order_type=OrderType.MARKET,
-        is_buy=True
+        is_buy=True,
+        #account_id="ABCD" # Mandatory if you have multiple accounts
     )
     
     await asyncio.sleep(1)
@@ -108,14 +109,13 @@ asyncio.run(main())
 
 #### Placing a Limit Order and cancelling it
 
-TODO
-
-We'll use the ticker api to get the most up to date live price and place a limit order which will fill due to aggressive limit price
-
 ```python
 import asyncio
 from datetime import datetime
 from rithmic import RithmicClient, Gateway, OrderType
+
+async def exchange_order_notification_callback(notification):
+  print("exchange order notification", notification)
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
@@ -126,6 +126,8 @@ async def main():
     security_code = await client.get_front_month_contract(symbol, exchange)
     
     # Submit order
+    client.on_exchange_order_notification += exchange_order_notification_callback
+    
     order_id = '{0}_order'.format(datetime.now().strftime('%Y%m%d_%H%M%S'))
     await client.submit_order(
         order_id,

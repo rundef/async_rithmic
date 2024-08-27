@@ -31,29 +31,31 @@ class TickerPlant(BasePlant):
         self,
         symbol: str,
         exchange: str,
-        data_type: int
+        data_type: DataType
     ):
-        return await self._send_and_recv(
-            template_id=100,
-            symbol=symbol,
-            exchange=exchange,
-            request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.SUBSCRIBE,
-            update_bits=data_type
-        )
+        async with self.lock:
+            await self._send_request(
+                template_id=100,
+                symbol=symbol,
+                exchange=exchange,
+                request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.SUBSCRIBE,
+                update_bits=data_type.value
+            )
 
     async def unsubscribe_from_market_data(
         self,
         symbol: str,
         exchange: str,
-        data_type: int
+        data_type: DataType
     ):
-        return await self._send_and_recv(
-            template_id=100,
-            symbol=symbol,
-            exchange=exchange,
-            request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.UNSUBSCRIBE,
-            update_bits=data_type
-        )
+        async with self.lock:
+            await self._send_request(
+                template_id=100,
+                symbol=symbol,
+                exchange=exchange,
+                request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.UNSUBSCRIBE,
+                update_bits=data_type.value
+            )
 
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)
@@ -63,7 +65,7 @@ class TickerPlant(BasePlant):
             ts = '{0}.{1}'.format(response.ssboe, response.usecs)
             data = self._response_to_dict(response)
             data["datetime"] = datetime.fromtimestamp(float(ts), tz=pytz.utc)
-            data["date_type"] = DataType.LAST_TRADE
+            data["data_type"] = DataType.LAST_TRADE
 
             await self.client.on_tick.notify(data)
 
@@ -72,9 +74,10 @@ class TickerPlant(BasePlant):
             ts = '{0}.{1}'.format(response.ssboe, response.usecs)
             data = self._response_to_dict(response)
             data["datetime"] = datetime.fromtimestamp(float(ts), tz=pytz.utc)
-            data["date_type"] = DataType.BBO
+            data["data_type"] = DataType.BBO
 
             await self.client.on_tick.notify(data)
 
+
         else:
-            print("UNHANDLED", response)
+            logger.warning(f"Ticker plant: unhandled inbound message with template_id={response.template_id}")

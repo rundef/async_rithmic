@@ -1,6 +1,7 @@
 import ssl
 import asyncio
 from pathlib import Path
+from datetime import datetime
 
 from rithmic.plants.ticker import TickerPlant
 from rithmic.plants.history import HistoryPlant
@@ -18,12 +19,11 @@ def _setup_ssl_context():
     return ssl_context
 
 class RithmicClient:
-    #on_connected = Event()
-    #on_disconnected = Event()
+    on_connected = Event()
     on_tick = Event()
     on_historical_tick = Event()
-    #on_order_update = Event()
-    #on_position_update = Event()
+    on_rithmic_order_notification = Event()
+    on_exchange_order_notification = Event()
 
     def __init__(
         self,
@@ -42,15 +42,15 @@ class RithmicClient:
             system_name=system_name,
             app_name=app_name,
             app_version=app_version,
-            gateway=gateway
+            gateway=f"wss://{gateway.value}",
         )
         self.ssl_context = _setup_ssl_context()
         self.listeners = []
 
         self.plants = {
             "ticker": TickerPlant(self, **kwargs),
-            "history": HistoryPlant(self, **kwargs),
             "order": OrderPlant(self, **kwargs),
+            "pnl": PnlPlant(self, **kwargs),
         }
 
         for plant in self.plants.values():
@@ -67,11 +67,38 @@ class RithmicClient:
                     setattr(self, method_name, method)
 
     async def connect(self):
-        for plant in self.plants.values():
+        for plant_type, plant in self.plants.items():
             await plant._connect()
             await plant._login()
 
+            logger.debug(f"Connected to {plant_type} plant")
+
             self.listeners.append(asyncio.create_task(plant._listen()))
+
+            await asyncio.sleep(0.1)
+
+        await self.on_connected.notify()
+
+    async def get_historical_tick_data(
+        self,
+        symbol: str,
+        exchange: str,
+        start_time: datetime,
+        end_time: datetime
+    ):
+        # Connect to the history plant only if we have to
+        if "history" not in self.plants:
+            plant = HistoryPlant(self)
+            await plant._connect()
+            await plant._login()
+
+            self.plants["history"] = plant
+
+            logger.debug("Connected to history plant")
+
+            self.listeners.append(asyncio.create_task(plant._listen()))
+
+        return await self.plants["history"].get_historical_tick_data(symbol, exchange, start_time, end_time)
 
     async def disconnect(self):
         for listener in self.listeners:

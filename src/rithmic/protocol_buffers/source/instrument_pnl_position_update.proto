@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package rti;
+
+message InstrumentPnLPositionUpdate
+	{       
+	 int32    template_id                = 154467;
+	 bool     is_snapshot                = 110121;
+
+	 string   fcm_id                     = 154013;
+	 string   ib_id                      = 154014;
+	 string   account_id                 = 154008;
+	
+	 string   symbol                     = 110100;
+	 string   exchange                   = 110101;
+	 string   product_code               = 100749;
+	 string   instrument_type            = 110116;
+
+	 int32    fill_buy_qty               = 154041;
+	 int32    fill_sell_qty              = 154042;
+
+	 int32    order_buy_qty              = 154037;
+	 int32    order_sell_qty             = 154038;
+
+	 int32    buy_qty                    = 154260;
+	 int32    sell_qty                   = 154261;
+
+	 double   avg_open_fill_price        = 154434;
+
+	 double   day_open_pnl               = 157954;
+         double   day_closed_pnl             = 157955;
+	 double   day_pnl                    = 157956;
+	 double   day_open_pnl_offset        = 157957;
+	 double   day_closed_pnl_offset      = 157958;
+
+	 string   mtm_security               = 154263;
+	 string   open_long_options_value    = 157105;
+	 string   open_short_options_value   = 157106;
+	 string   closed_options_value       = 157107;
+	 string   option_cash_reserved       = 157111;
+
+	 string   open_position_pnl          = 156961;
+	 int32    open_position_quantity     = 156962;
+	 string   closed_position_pnl        = 156963;
+
+	 int32    closed_position_quantity   = 156964;
+	 int32    net_quantity               = 156967;
+
+	 int32    ssboe                      = 150100;
+	 int32    usecs                      = 150101;
+	}

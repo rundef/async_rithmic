@@ -1,6 +1,7 @@
+import asyncio
+
 from rithmic.plants.base import BasePlant, TEMPLATES_MAP
 from rithmic.enums import OrderType, OrderDuration
-
 import rithmic.protocol_buffers as pb
 from rithmic.logger import logger
 
@@ -10,6 +11,9 @@ class OrderPlant(BasePlant):
     login_info = None
     trade_routes = None
     accounts = None
+
+    _order_list = []
+    _order_list_ready = False
 
     async def _login(self):
         await super()._login()
@@ -71,22 +75,26 @@ class OrderPlant(BasePlant):
         )
 
     async def list_orders(self, **kwargs):
-        """
-        request = TEMPLATES_MAP[320]()
-        for k, v in kwargs.items():
-            self._set_pb_field(request, k, v)
+        self._order_list = []
+        self._order_list_ready = False
 
         async with self.lock:
-            await self._send(self._convert_request_to_bytes(request))
+            await self._send_request(
+                template_id=320,
+                fcm_id=self.login_info["fcm_id"],
+                ib_id=self.login_info["ib_id"],
+                account_id=self._get_account_id(**kwargs)
+            )
 
-        return
-        """
-        return await self._send_and_recv_many(
-            template_id=320,
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
-            account_id=self._get_account_id(**kwargs)
-        )
+        while not self._order_list_ready:
+            await asyncio.sleep(0.1)
+
+        return self._order_list
+
+    async def get_order(self, order_id: str, **kwargs):
+        orders = await self.list_orders(**kwargs)
+        orders = [o for o in orders if o.user_tag == order_id]
+        return orders[0] if orders else None
 
     def _get_account_id(self, **kwargs):
         if len(self.accounts) == 1:
@@ -147,11 +155,15 @@ class OrderPlant(BasePlant):
         )
 
     async def cancel_order(self, order_id: str, **kwargs):
+        order = await self.get_order(order_id, **kwargs)
+        if not order:
+            raise Exception(f"Order {order_id} not found")
+
         return await self._send_and_recv(
             template_id=316,
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
-            bracket_id=None, # TODO: keep a mapping of order_id -> bracket_id
-            account_id=self._get_account_id(**kwargs)
+            basket_id=order.basket_id,
+            account_id=order.account_id,
         )
 
     async def modify_order(
@@ -161,6 +173,10 @@ class OrderPlant(BasePlant):
         order_type: OrderType,
         **kwargs
     ):
+        order = await self.get_order(order_id, **kwargs)
+        if not order:
+            raise Exception(f"Order {order_id} not found")
+
         msg_kwargs = {}
 
         if order_type in [OrderType.LIMIT, OrderType.STOP_MARKET]:
@@ -175,8 +191,9 @@ class OrderPlant(BasePlant):
             ib_id=self.login_info["ib_id"],
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             account_id=self._get_account_id(**kwargs),
-            bracket_id=None,  # TODO: keep a mapping of order_id -> bracket_id
-            # TODO: symbol, exchange
+            basket_id=order.basket_id,
+            symbol=order.symbol,
+            exchange=order.exchange,
             quantity=qty,
             price_type=order_type,
             **msg_kwargs
@@ -203,15 +220,6 @@ class OrderPlant(BasePlant):
                 buffer = await self._recv()
                 response = self._convert_bytes_to_response(buffer)
 
-                print(response)
-
-                if template_id == 352:
-                    buffer = await self._recv()
-                    response = self._convert_bytes_to_response(buffer)
-
-                    print(response)
-                    break
-
                 if len(response.rp_code) > 0:
                     if response.rp_code[0] != '0':
                         raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
@@ -225,17 +233,20 @@ class OrderPlant(BasePlant):
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)
 
-        if response.template_id == 350:
-            # Trade route
-            print("PROCESSMSG TRADEROUTE", response)
+        if response.template_id == 321:
+            # Show Orders Response
+            self._order_list_ready = True
 
         elif response.template_id == 351:
             # Rithmic order notification
-            print("PROCESSMSG RITHMICNOTIF", response)
+            await self.client.on_rithmic_order_notification.notify(response)
 
         elif response.template_id == 352:
             # Exchange order notification
-            print("PROCESSMSG EXCHANGENOTIF", response)
+            if response.is_snapshot:
+                self._order_list.append(response)
+            else:
+                await self.client.on_exchange_order_notification.notify(response)
 
         else:
-            print("UNHANDLED", response)
+            logger.warning(f"Order plant: unhandled inbound message with template_id={response.template_id}")

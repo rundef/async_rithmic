@@ -9,6 +9,8 @@ class DataType(enum.Enum):
 OrderType = pb.request_new_order_pb2.RequestNewOrder.PriceType
 OrderDuration = pb.request_new_order_pb2.RequestNewOrder.Duration
 
+LastTradePresenceBits = pb.last_trade_pb2.LastTrade.PresenceBits
+
 class Gateway(enum.Enum):
     TEST = "rituz00100.rithmic.com:443"
 

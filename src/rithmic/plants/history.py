@@ -54,4 +54,4 @@ class HistoryPlant(BasePlant):
             await self.client.on_historical_tick.notify(data)
 
         else:
-            print("UNHANDLED", response)
+            logger.warning(f"History plant: unhandled inbound message with template_id={response.template_id}")

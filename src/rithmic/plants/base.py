@@ -27,6 +27,9 @@ TEMPLATES_MAP = {
     113: pb.request_front_month_contract_pb2.RequestFrontMonthContract,
     114: pb.response_front_month_contract_pb2.ResponseFrontMonthContract,
 
+    150: pb.last_trade_pb2.LastTrade,
+    151: pb.best_bid_offer_pb2.BestBidOffer,
+
     # Order Plant Infrastructure
     300: pb.request_login_info_pb2.RequestLoginInfo,
     301: pb.response_login_info_pb2.ResponseLoginInfo,
@@ -48,12 +51,20 @@ TEMPLATES_MAP = {
     321: pb.response_show_orders_pb2.ResponseShowOrders,
 
     350: pb.trade_route_pb2.TradeRoute,
-    #351: rithmic_order_notification_pb2.RithmicOrderNotification,
+    351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
 
     # History Plant Infrastructure
     206: pb.request_tick_bar_replay_pb2.RequestTickBarReplay,
     207: pb.response_tick_bar_replay_pb2.ResponseTickBarReplay,
+
+    # PnL Plant Infrastructure
+    400: pb.request_pnl_position_updates_pb2.RequestPnLPositionUpdates,
+    401: pb.response_pnl_position_updates_pb2.ResponsePnLPositionUpdates,
+    402: pb.request_pnl_position_snapshot_pb2.RequestPnLPositionSnapshot,
+    403: pb.response_pnl_position_snapshot_pb2.ResponsePnLPositionSnapshot,
+    450: pb.instrument_pnl_position_update_pb2.InstrumentPnLPositionUpdate,
+    451: pb.account_pnl_position_update_pb2.AccountPnLPositionUpdate,
 }
 
 class BasePlant:
@@ -122,6 +133,7 @@ class BasePlant:
             app_version=self.credentials["app_version"],
             infra_type=self.infra_type,
         )
+
         self.heartbeat_interval = response.heartbeat_interval
 
         # Upon making a successful login, clients are expected to send at least a heartbeat request to the server
@@ -150,10 +162,7 @@ class BasePlant:
         self.last_message_time = time.time()
         return buffer
 
-    async def _send_and_recv(self, **kwargs):
-        """
-        Sends a request to the API and decode the response
-        """
+    async def _send_request(self, **kwargs):
         template_id = kwargs["template_id"]
 
         if template_id not in TEMPLATES_MAP:
@@ -163,8 +172,17 @@ class BasePlant:
         for k, v in kwargs.items():
             self._set_pb_field(request, k, v)
 
+        await self._send(self._convert_request_to_bytes(request))
+
+        return template_id
+
+    async def _send_and_recv(self, **kwargs):
+        """
+        Sends a request to the API and decode the response
+        """
+
         async with self.lock:
-            await self._send(self._convert_request_to_bytes(request))
+            template_id = await self._send_request(**kwargs)
             buffer = await self._recv()
 
         response = self._convert_bytes_to_response(buffer)
@@ -210,7 +228,7 @@ class BasePlant:
             try:
                 setattr(obj, field_name, value)
             except:
-                print(f"Error when trying to set {field_name}")
+                logger.error(f"Error when trying to set {field_name}")
                 raise
 
     async def _send_heartbeat(self):
@@ -233,7 +251,7 @@ class BasePlant:
                         await self._send_heartbeat()
 
         except Exception as e:
-            print(f"Exception in listener: {e}")
+            logger.error(f"Exception in listener: {e}")
             traceback.print_exc()
 
     def _response_to_dict(self, response):

@@ -1,3 +1,5 @@
+from rithmic.logger import logger
+
 class Event:
     def __init__(self):
         self._subscribers = []
@@ -10,9 +12,10 @@ class Event:
         self._subscribers.remove(callback)
         return self
 
-    async def notify(self, data):
+    async def notify(self, *args, **kwargs):
         for callback in self._subscribers:
             try:
-                await callback(data)
-            except Exception as e:
-                print(f"Error in callback: {e}")
+                await callback(*args, **kwargs)
+            except:
+                logger.error(f"Error in callback")
+                raise
