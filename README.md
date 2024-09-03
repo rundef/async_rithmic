@@ -2,7 +2,7 @@
 
 A robust, async-based Python API designed to interface seamlessly with the Rithmic Protocol Buffer API. This package is built to provide an efficient and reliable connection to Rithmic's trading infrastructure, catering to advanced trading strategies and real-time data handling.
 
-This was originally a fork of [pyrithmic](https://github.com/jacksonwoody/pyrithmic.git), but the code has been completely rewritten.
+This was originally a fork of [pyrithmic](https://github.com/jacksonwoody/pyrithmic), but the code has been completely rewritten.
 
 ## Key Enhancements
 
@@ -44,10 +44,9 @@ async def main():
     symbol, exchange = "ES", "CME"
     security_code = await client.get_front_month_contract(symbol, exchange)
     
-    data_type = DataType.LAST_TRADE
-    
     # Stream market data
     print(f"Streaming market data for {security_code}")
+    data_type = DataType.LAST_TRADE
     client.on_tick += callback
     await client.subscribe_to_market_data(security_code, exchange, data_type)
 
@@ -61,10 +60,6 @@ asyncio.run(main())
 
 ## Order API
 
-### Basics
-
-All orders/cancels/modifications are placed asynchronously then their status is updated as updates from the exchange flow into the API. All order_id strings provided need to be unique to a session to track updates back from the exchange, suggest using a database primary key or dateetime based string for example
-
 #### Placing a Market Order:
 
 As a market order will be filled immediately, this script will submit the order and receive a fill straight away:
@@ -72,7 +67,7 @@ As a market order will be filled immediately, this script will submit the order 
 ```python
 import asyncio
 from datetime import datetime
-from rithmic import RithmicClient, Gateway, OrderType, ExchangeOrderNotificationType
+from rithmic import RithmicClient, Gateway, OrderType, ExchangeOrderNotificationType, TransactionType
 
 async def callback(notification):
   if notification.notify_type == ExchangeOrderNotificationType.FILL:
@@ -96,7 +91,7 @@ async def main():
         exchange,
         qty=1,
         order_type=OrderType.MARKET,
-        is_buy=True,
+        transaction_type=TransactionType.SELL,
         #account_id="ABCD" # Mandatory if you have multiple accounts
     )
     
@@ -112,7 +107,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from datetime import datetime
-from rithmic import RithmicClient, Gateway, OrderType
+from rithmic import RithmicClient, Gateway, OrderType, TransactionType
 
 async def exchange_order_notification_callback(notification):
   print("exchange order notification", notification)
@@ -135,16 +130,14 @@ async def main():
         exchange,
         qty=1,
         order_type=OrderType.LIMIT,
-        is_buy=True,
+        transaction_type=TransactionType.BUY,
         price=5300.
     )
     
     await asyncio.sleep(1)
-    
     await client.cancel_order(order_id)
     
     await asyncio.sleep(1)
-
     await client.disconnect()
 
 asyncio.run(main())
@@ -186,7 +179,45 @@ async def main():
 asyncio.run(main())
 ```
 
+## Other methods
+
+This code snippet will list your account summary, session orders and positions:
+
+```python
+import asyncio
+from rithmic import RithmicClient, Gateway
+
+async def main():
+    client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
+    await client.connect()
+    
+    account_id = "MY_ACCOUNT"
+
+    summary = await client.list_account_summary(account_id=account_id)
+    print("Account summary:", summary[0])
+    
+    orders = await client.list_orders(account_id=account_id)
+    print("Orders:", orders)
+    
+    positions = await client.list_positions(account_id=account_id)
+    print("Positions:", positions)
+
+    await client.disconnect()
+
+asyncio.run(main())
+```
+
 ## Testing
 
-- `Unit tests`: Run `make unit-tests`
-- `Integration tests`: copy `tests/.env.template` to `tests/.env` and fill in your paper trading credentials to test real world functionality. Tests highlight examples of using live tick data, downloading historical tick data and placing/modifying/cancelling orders and processing fills. Run `make integration-tests`
+To execute the tests, use the following command: `make tests`
+
+## Unimplemented
+
+The following features are currently not available in this package.
+Contributions are welcome!
+If you're interested in adding any of these features, please feel free to submit a Pull Request.
+
+- Search Symbols Endpoint
+- Bracket Orders
+- One-Cancels-Other (OCO) Orders
+- Market depth

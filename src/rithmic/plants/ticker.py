@@ -60,7 +60,11 @@ class TickerPlant(BasePlant):
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)
 
-        if response.template_id == 150:
+        if response.template_id == 101:
+            # Market data update response
+            pass
+
+        elif response.template_id == 150:
             # Market data stream: Last Trade
             ts = '{0}.{1}'.format(response.ssboe, response.usecs)
             data = self._response_to_dict(response)

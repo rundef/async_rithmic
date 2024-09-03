@@ -37,6 +37,8 @@ TEMPLATES_MAP = {
     303: pb.response_account_list_pb2.ResponseAccountList,
     304: pb.request_account_rms_info_pb2.RequestAccountRmsInfo,
     305: pb.response_account_rms_info_pb2.ResponseAccountRmsInfo,
+    306: pb.request_product_rms_info_pb2.RequestProductRmsInfo,
+    307: pb.response_product_rms_info_pb2.ResponseProductRmsInfo,
     308: pb.request_subscribe_for_order_updates_pb2.RequestSubscribeForOrderUpdates,
     309: pb.response_subscribe_for_order_updates_pb2.ResponseSubscribeForOrderUpdates,
     310: pb.request_trade_routes_pb2.RequestTradeRoutes,
@@ -91,6 +93,15 @@ class BasePlant:
     @property
     def ssl_context(self):
         return self.client.ssl_context
+
+    @property
+    def plant_type(self):
+        return {
+            pb.request_login_pb2.RequestLogin.SysInfraType.HISTORY_PLANT: "history",
+            pb.request_login_pb2.RequestLogin.SysInfraType.PNL_PLANT: "pnl",
+            pb.request_login_pb2.RequestLogin.SysInfraType.TICKER_PLANT: "ticker",
+            pb.request_login_pb2.RequestLogin.SysInfraType.ORDER_PLANT: "order",
+        }[self.infra_type]
 
     async def _connect(self):
         """
@@ -172,7 +183,8 @@ class BasePlant:
         for k, v in kwargs.items():
             self._set_pb_field(request, k, v)
 
-        await self._send(self._convert_request_to_bytes(request))
+        buffer = self._convert_request_to_bytes(request)
+        await self._send(buffer)
 
         return template_id
 
@@ -183,9 +195,17 @@ class BasePlant:
 
         async with self.lock:
             template_id = await self._send_request(**kwargs)
-            buffer = await self._recv()
 
-        response = self._convert_bytes_to_response(buffer)
+            while True:
+                buffer = await self._recv()
+                response = self._convert_bytes_to_response(buffer)
+
+                if not hasattr(response, "rp_code"):
+                    await self._process_message(buffer)
+                    continue
+
+                break
+
         if len(response.rp_code) and response.rp_code[0] != '0':
             raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
 
@@ -250,9 +270,43 @@ class BasePlant:
                     if current_time - self.last_message_time > self.heartbeat_interval-2:
                         await self._send_heartbeat()
 
+                except websockets.exceptions.ConnectionClosedError:
+                    logger.exception("WebSocket connection closed with error")
+                    if not await self._handle_reconnection():
+                        break
+
+                except websockets.exceptions.ConnectionClosedOK as e:
+                    logger.info(f"WebSocket connection closed normally")
+                    break
+
         except Exception as e:
             logger.error(f"Exception in listener: {e}")
             traceback.print_exc()
+
+    async def _handle_reconnection(self, attempt=1):
+        max_retries = 5
+        wait_time = min(2 ** attempt, 120)
+
+        logger.info(f"{self.plant_type} plant reconnection attempt {attempt} in {wait_time} seconds...")
+        await asyncio.sleep(wait_time)
+
+        try:
+            # Attempt to reconnect this specific plant
+            await self._connect()
+            await self._login()
+
+            logger.info(f"{self.plant_type} plant reconnection successful.")
+            return True
+
+        except Exception as e:
+            if attempt < max_retries:
+                logger.warning(f"{self.plant_type} plant reconnection failed: {e}. Retrying...")
+                return await self._handle_reconnection(attempt + 1)
+            else:
+                logger.error(f"{self.plant_type} plant max reconnection attempts reached. Could not reconnect: {e}")
+
+        return False
+
 
     def _response_to_dict(self, response):
         data = MessageToDict(response, preserving_proto_field_name=True, use_integers_for_enums=True)

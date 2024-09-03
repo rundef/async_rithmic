@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseProductRmsInfo
+	{       
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	// below enum is just for reference only, not used in this message
+	enum PresenceBits {
+PRESENCE_BITS_UNSPECIFIED = 0;
+	                  BUY_LIMIT            =  1;
+			  SELL_LIMIT           =  2;
+			  LOSS_LIMIT           =  4;
+			  MAX_ORDER_QUANTITY   =  8;
+			  BUY_MARGIN_RATE      = 16;
+			  SELL_MARGIN_RATE     = 32;
+			  COMMISSION_FILL_RATE = 64;
+	                  }
+
+	 int32    template_id               = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+	repeated string   user_msg                  = 132760;    // PB_OFFSET + MNM_USER_MSG	
+	repeated string   rq_handler_rp_code        = 132764;    // PB_OFFSET + MNM_REQUEST_HANDLER_RESPONSE_CODE
+	repeated string   rp_code                   = 132766;    // PB_OFFSET + MNM_RESPONSE_CODE
+
+         uint32   presence_bits             = 153622;    // PB_OFFSET + MNM_FIELD_PRESENCE_BITS
+
+	 string   fcm_id                    = 154013;    // PB_OFFSET + MNM_FCM_ID
+	 string   ib_id                     = 154014;    // PB_OFFSET + MNM_IB_ID
+	 string   account_id                = 154008;    // PB_OFFSET + MNM_ACCOUNT_ID
+	 string   product_code              = 100749;    // PB_OFFSET + MNM_PRODUCT_CODE
+
+         double   loss_limit                = 154019;    // PB_OFFSET + MNM_LOSS_LIMIT
+         double   commission_fill_rate      = 156969;    // PB_OFFSET +	MNM_COMMISSION_FILL_RATE
+	 double   buy_margin_rate           = 157003;    // PB_OFFSET + MNM_BUY_MARGIN_RATE
+	 double   sell_margin_rate          = 157004;    // PB_OFFSET + MNM_SELL_MARGIN_RATE
+
+	 int32    buy_limit                 = 154009;    // PB_OFFSET + MNM_BUY_LIMIT
+	 int32    max_order_quantity        = 110105;    // PB_OFFSET + MNM_MAX_LIMIT_QUAN
+	 int32    sell_limit                = 154035;    // PB_OFFSET + MNM_SELL_LIMIT
+	}

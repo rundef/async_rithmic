@@ -1,7 +1,7 @@
 import asyncio
 
 from rithmic.plants.base import BasePlant, TEMPLATES_MAP
-from rithmic.enums import OrderType, OrderDuration
+from rithmic.enums import OrderType, OrderDuration, TransactionType
 import rithmic.protocol_buffers as pb
 from rithmic.logger import logger
 
@@ -71,7 +71,15 @@ class OrderPlant(BasePlant):
             template_id=304,
             fcm_id=self.login_info["fcm_id"],
             ib_id=self.login_info["ib_id"],
-            user_type=self.login_info["user_type"]
+            user_type=self.login_info["user_type"],
+        )
+
+    async def get_product_rms(self, **kwargs):
+        return await self._send_and_recv_many(
+            template_id=306,
+            fcm_id=self.login_info["fcm_id"],
+            ib_id=self.login_info["ib_id"],
+            account_id=self._get_account_id(**kwargs),
         )
 
     async def list_orders(self, **kwargs):
@@ -117,8 +125,8 @@ class OrderPlant(BasePlant):
         symbol: str,
         exchange: str,
         qty: int,
+        transaction_type: TransactionType,
         order_type: OrderType,
-        is_buy: bool,
         **kwargs
     ):
         kwargs.setdefault("duration", OrderDuration.DAY)
@@ -146,8 +154,7 @@ class OrderPlant(BasePlant):
             price_type=order_type,
             quantity=qty,
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
-            transaction_type=pb.request_new_order_pb2.RequestNewOrder.TransactionType.BUY if is_buy else \
-                pb.request_new_order_pb2.RequestNewOrder.TransactionType.SELL,
+            transaction_type=transaction_type,
             fcm_id=self.login_info["fcm_id"],
             ib_id=self.login_info["ib_id"],
             duration=kwargs["duration"],
@@ -159,9 +166,11 @@ class OrderPlant(BasePlant):
         if not order:
             raise Exception(f"Order {order_id} not found")
 
-        return await self._send_and_recv(
+        return await self._send_and_recv_many(
             template_id=316,
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            fcm_id=self.login_info["fcm_id"],
+            ib_id=self.login_info["ib_id"],
             basket_id=order.basket_id,
             account_id=order.account_id,
         )

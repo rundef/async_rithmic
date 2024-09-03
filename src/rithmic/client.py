@@ -67,17 +67,21 @@ class RithmicClient:
                     setattr(self, method_name, method)
 
     async def connect(self):
-        for plant_type, plant in self.plants.items():
-            await plant._connect()
-            await plant._login()
+        try:
+            for plant_type, plant in self.plants.items():
+                await plant._connect()
+                await plant._login()
 
-            logger.debug(f"Connected to {plant_type} plant")
+                logger.info(f"Connected to {plant_type} plant")
 
-            self.listeners.append(asyncio.create_task(plant._listen()))
+                self.listeners.append(asyncio.create_task(plant._listen()))
 
-            await asyncio.sleep(0.1)
+                await asyncio.sleep(0.1)
 
-        await self.on_connected.notify()
+            await self.on_connected.notify()
+
+        except:
+            logger.exception("Failed to connect")
 
     async def get_historical_tick_data(
         self,
@@ -106,9 +110,11 @@ class RithmicClient:
         await asyncio.gather(*self.listeners, return_exceptions=True)
         self.listeners = []
 
-        for plant in self.plants.values():
+        for plant_type, plant in self.plants.items():
             await plant._logout()
             await plant._disconnect()
+
+            logger.debug(f"Disconnected from {plant_type} plant")
 
     def get_listeners(self):
         return [

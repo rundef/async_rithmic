@@ -25,7 +25,7 @@ class PnlPlant(BasePlant):
 
     async def _login(self):
         await super()._login()
-        #await self._subscribe_to_position_updates()
+        await self._subscribe_to_position_updates()
 
     async def _subscribe_to_position_updates(self):
         for account in self._accounts:
