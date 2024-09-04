@@ -1,4 +1,5 @@
 import websockets
+from websockets import ConnectionClosedError, ConnectionClosedOK
 import asyncio
 import time
 import traceback
@@ -254,14 +255,20 @@ class BasePlant:
     async def _send_heartbeat(self):
         return await self._send_and_recv(template_id=18)
 
-    async def _listen(self):
+    async def _listen(self, max_iterations=None):
+        iteration_count = 0
+
         try:
             while True:
+                if max_iterations and iteration_count >= max_iterations:
+                    break
+
                 try:
                     async with self.lock:
                         message = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
 
                     await self._process_message(message)
+                    iteration_count += 1
 
                 except asyncio.TimeoutError:
                     current_time = time.time()
@@ -270,12 +277,12 @@ class BasePlant:
                     if current_time - self.last_message_time > self.heartbeat_interval-2:
                         await self._send_heartbeat()
 
-                except websockets.exceptions.ConnectionClosedError:
+                except ConnectionClosedError:
                     logger.exception("WebSocket connection closed with error")
                     if not await self._handle_reconnection():
                         break
 
-                except websockets.exceptions.ConnectionClosedOK as e:
+                except ConnectionClosedOK:
                     logger.info(f"WebSocket connection closed normally")
                     break
 
