@@ -33,9 +33,9 @@ class OrderPlant(BasePlant):
             user_type=response.user_type,
         )
         self.trade_routes = await self._list_trade_routes()
-        self.accounts = await self._list_accounts()
+        self.accounts = await self.list_accounts()
 
-    async def _list_accounts(self) -> list:
+    async def list_accounts(self) -> list:
         """
         Return list of user's accounts
         """

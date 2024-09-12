@@ -154,7 +154,10 @@ class BasePlant:
         return response
 
     async def _logout(self):
-        return await self._send_and_recv(template_id=12)
+        try:
+            return await self._send_and_recv(template_id=12)
+        except ConnectionClosedOK:
+            pass
 
     async def get_system_info(self):
         return await self._send_and_recv(template_id=16)
