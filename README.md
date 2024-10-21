@@ -1,5 +1,7 @@
 # Python Rithmic API
 
+![PyPI - Version](https://img.shields.io/pypi/v/async_rithmic)
+
 A robust, async-based Python API designed to interface seamlessly with the Rithmic Protocol Buffer API. This package is built to provide an efficient and reliable connection to Rithmic's trading infrastructure, catering to advanced trading strategies and real-time data handling.
 
 This was originally a fork of [pyrithmic](https://github.com/jacksonwoody/pyrithmic), but the code has been completely rewritten.
@@ -20,7 +22,7 @@ The most significant upgrade is the transition to an async architecture, providi
 ## Installation
 
 ```
-pip install git+https://github.com/rundef/pyrithmic.git#egg=pyrithmic
+pip install async_rithmic
 ```
 
 ## Market data
