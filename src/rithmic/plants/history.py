@@ -169,8 +169,6 @@ class HistoryPlant(BasePlant):
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)
 
-        print(response)
-
         if response.template_id == 203:
             # Historical time bar
             is_last_bar = response.rp_code == ['0'] or response.rq_handler_rp_code == []
