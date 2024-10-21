@@ -58,8 +58,16 @@ TEMPLATES_MAP = {
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
 
     # History Plant Infrastructure
+    200: pb.request_time_bar_update_pb2.RequestTimeBarUpdate,
+    201: pb.response_time_bar_update_pb2.ResponseTimeBarUpdate,
+    202: pb.request_time_bar_replay_pb2.RequestTimeBarReplay,
+    203: pb.response_time_bar_replay_pb2.ResponseTimeBarReplay,
+    204: pb.request_tick_bar_update_pb2.RequestTickBarUpdate,
+    205: pb.response_tick_bar_update_pb2.ResponseTickBarUpdate,
     206: pb.request_tick_bar_replay_pb2.RequestTickBarReplay,
     207: pb.response_tick_bar_replay_pb2.ResponseTickBarReplay,
+    250: pb.time_bar_pb2.TimeBar,
+    251: pb.tick_bar_pb2.TickBar,
 
     # PnL Plant Infrastructure
     400: pb.request_pnl_position_updates_pb2.RequestPnLPositionUpdates,

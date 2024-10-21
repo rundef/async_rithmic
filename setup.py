@@ -4,9 +4,8 @@ with open('README.md', 'r', encoding='utf-8') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='pyrithmic',
-    author='Jack Woodhead',
-    author_email='jack.woodhead@pm.me',
+    name='async_rithmic',
+    author='Mickael Burguet',
     description='Python API Integration with Rithmic Protocol Buffer API',
     keywords='python rithmic',
     long_description=long_description,

@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package rti;
+
+message TimeBar
+	{
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	enum BarType {
+    BARTYPE_UNSPECIFIED = 0;
+	              SECOND_BAR    =  1;
+		      MINUTE_BAR    =  2;
+		      DAILY_BAR     =  3;
+		      WEEKLY_BAR    =  4;
+	             }
+
+	int32   template_id                 = 154467;      // PB_OFFSET + MNM_TEMPLATE_ID
+
+	string  symbol                      = 110100;      // PB_OFFSET + MNM_SYMBOL
+	string  exchange                    = 110101;      // PB_OFFSET + MNM_EXCHANGE
+
+	BarType type                        = 119200;      // PB_OFFSET + MNM_DATA_BAR_TYPE
+	string  period                      = 119112;      // PB_OFFSET + MNM_TIME_BAR_PERIOD
+	int32   marker                      = 119100;      // PB_OFFSET + MNM_TIME_BAR_MARKER
+	uint64  num_trades                  = 119109;      // PB_OFFSET + MNM_TIME_BAR_NUM_TRADES
+	uint64  volume                      = 119110;      // PB_OFFSET + MNM_TIME_BAR_TRADE_VOLUME
+	uint64  bid_volume                  = 119117;      // PB_OFFSET + MNM_TIME_BAR_BID_VOLUME
+	uint64  ask_volume                  = 119118;      // PB_OFFSET + MNM_TIME_BAR_ASK_VOLUME
+	double  open_price                  = 100019;      // PB_OFFSET + MNM_OPEN_PRICE
+	double  close_price                 = 100021;      // PB_OFFSET + MNM_CLOSE_TRADE_PRICE
+	double  high_price                  = 100012;      // PB_OFFSET + MNM_HIGH_PRICE
+	double  low_price                   = 100013;      // PB_OFFSET + MNM_LOW_PRICE
+	double  settlement_price            = 100070;      // PB_OFFSET + MNM_SETTLEMENT_PRICE
+	bool    has_settlement_price        = 149138;      // PB_OFFSET + MNM_PRICING_INDICATOR
+	bool    must_clear_settlement_price = 154571;      // PB_OFFSET + MNM_DISPLAY_INDICATOR
+	}

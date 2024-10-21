@@ -13,6 +13,7 @@ This repo introduces several key improvements and new features over the original
 - **Account Selection**: Allows users to specify which account to use when calling trading functions, rather than being restricted to the primary account.
 - **STOP Orders**: Exposing STOP orders to users
 - **Best Bid Offer (BBO) Streaming**: Integrates real-time Best Bid Offer tick streaming. 
+- **Historical Time Bars + Time Bars Streaming**:
 
 The most significant upgrade is the transition to an async architecture, providing superior performance and responsiveness when dealing with real-time trading and market data.
 
@@ -22,7 +23,7 @@ The most significant upgrade is the transition to an async architecture, providi
 pip install git+https://github.com/rundef/pyrithmic.git#egg=pyrithmic
 ```
 
-## Ticker Data API
+## Market data
 
 ### Streaming Live Tick Data
 
@@ -53,6 +54,37 @@ async def main():
     # Wait 10 seconds, unsubscribe and disconnect
     await asyncio.sleep(10)
     await client.unsubscribe_from_market_data(security_code, exchange, data_type)
+    await client.disconnect()
+
+asyncio.run(main())
+```
+
+### Streaming Live Time Bars
+
+```python
+import asyncio
+from rithmic import RithmicClient, Gateway, TimeBarType
+
+async def callback(data: dict):
+    print("received", data)
+
+async def main():
+    client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
+    await client.connect()
+
+    # Request front month contract
+    symbol, exchange = "ES", "CME"
+    security_code = await client.get_front_month_contract(symbol, exchange)
+    
+    # Stream market data
+    print(f"Streaming market data for {security_code}")
+
+    client.on_time_bar += callback
+    await client.subscribe_to_time_bar_data(security_code, exchange, TimeBarType.SECOND_BAR, 6)
+
+    # Wait 10 seconds, unsubscribe and disconnect
+    await asyncio.sleep(20)
+    await client.unsubscribe_from_time_bar_data(security_code, exchange, TimeBarType.SECOND_BAR, 6)
     await client.disconnect()
 
 asyncio.run(main())
@@ -145,35 +177,59 @@ asyncio.run(main())
 
 ## History Data API
 
-### Downloading Historical Tick Data
+### Fetch Historical Tick Data
 
 The following example will fetch historical data, in a streaming fashion:
 
 ```python
 import asyncio
 from datetime import datetime
-import pytz
 from rithmic import RithmicClient, Gateway
-
-async def callback(data: dict):
-    print("received", data)
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
     await client.connect()
-    
-    client.on_historical_tick += callback
 
-    # Fetch historical data
-    await client.get_historical_tick_data(
-        "ESU4",
+    # Fetch historical tick data
+    ticks = await client.get_historical_tick_data(
+        "ESZ4",
         "CME",
-        datetime(2024, 8, 22, 13, 30, tzinfo=pytz.utc),
-        datetime(2024, 8, 22, 13, 31, tzinfo=pytz.utc)
+        datetime(2024, 10, 15, 15, 30),
+        datetime(2024, 10, 15, 15, 31),
     )
 
-    # Wait 10 seconds and disconnect
-    await asyncio.sleep(10)
+    print(f"Received {len(ticks)} ticks")
+    print(f"Last tick timestamp: {ticks[-1]['datetime']}")
+
+    await client.disconnect()
+
+asyncio.run(main())
+```
+
+### Fetch Historical Time Bars
+
+```python
+import asyncio
+from datetime import datetime
+from rithmic import RithmicClient, Gateway, TimeBarType
+
+async def main():
+    client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
+    await client.connect()
+
+    # Fetch historical time bar data
+    bars = await client.get_historical_time_bar(
+        "ESZ4",
+        "CME",
+        datetime(2024, 10, 15, 15, 30),
+        datetime(2024, 10, 15, 15, 31),
+        TimeBarType.SECOND_BAR,
+        6
+    )
+    
+    print(f"Received {len(bars)} bars")
+    print(f"Last bar timestamp: {bars[-1]['datetime']}")
+
     await client.disconnect()
 
 asyncio.run(main())
@@ -221,3 +277,4 @@ If you're interested in adding any of these features, please feel free to submit
 - Bracket Orders
 - One-Cancels-Other (OCO) Orders
 - Market depth
+- Tick bar historical & live data (Volume, Range or Tick bars)
