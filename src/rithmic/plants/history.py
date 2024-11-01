@@ -37,7 +37,7 @@ class HistoryPlant(BasePlant):
         return int(dt.timestamp())
 
     async def _on_historical_time_bar(self, data):
-        key = f"{data['symbol']}_{data['type']}_{data['period']}"
+        key = f"{data['symbol']}_{data['type']}"
         self.historical_time_bar_data[key].append(data)
 
     async def _on_historical_tick(self, data):
@@ -94,7 +94,7 @@ class HistoryPlant(BasePlant):
             data = self.historical_tick_data.pop(key)
             return data
 
-    async def get_historical_time_bar(
+    async def get_historical_time_bars(
         self,
         symbol: str,
         exchange: str,
@@ -120,7 +120,7 @@ class HistoryPlant(BasePlant):
 
         # Wait until all the historical data has been fetched before returning it
         if wait:
-            key = f"{symbol}_{bar_type}_{bar_type_periods}"
+            key = f"{symbol}_{bar_type}"
 
             try:
                 await asyncio.wait_for(self.historical_time_bar_event.wait(), 5.0)
@@ -177,7 +177,7 @@ class HistoryPlant(BasePlant):
                 return
 
             data = self._response_to_dict(response)
-            data["datetime"] = datetime.fromtimestamp(data['marker'])
+            data["bar_end_datetime"] = datetime.fromtimestamp(data['marker'])
 
             await self.client.on_historical_time_bar.notify(data)
 
@@ -197,7 +197,7 @@ class HistoryPlant(BasePlant):
         elif response.template_id == 250:
             # Time Bar
             data = self._response_to_dict(response)
-            data["datetime"] = datetime.fromtimestamp(data['marker'])
+            data["bar_end_datetime"] = datetime.fromtimestamp(data['marker'])
 
             await self.client.on_time_bar.notify(data)
 

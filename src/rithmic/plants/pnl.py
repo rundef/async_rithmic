@@ -8,7 +8,7 @@ class PnlPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.PNL_PLANT
 
     _position_list = []
-    _position_list_ready = False
+    _position_list_event = None
     _position_template_id = None
 
     @property
@@ -37,36 +37,41 @@ class PnlPlant(BasePlant):
                 request=pb.request_pnl_position_updates_pb2.RequestPnLPositionUpdates.Request.SUBSCRIBE
             )
 
-    async def _list_objects(self, response_template_id, **kwargs):
+    async def _list_objects(self, template_id, response_template_id, **kwargs):
         self._position_list = []
-        self._position_list_ready = False
+        self._position_list_event = asyncio.Event()
         self._position_template_id = response_template_id
+
+        account_id = self.client.plants["order"]._get_account_id(**kwargs)
+        kwargs.pop("account_id", None)
 
         async with self.lock:
             await self._send_request(
-                template_id=402,
+                template_id=template_id,
                 fcm_id=self._fcm_id,
                 ib_id=self._ib_id,
+                account_id=account_id,
                 **kwargs
             )
 
-        while not self._position_list_ready:
-            await asyncio.sleep(0.1)
-
+        await self._position_list_event.wait()
         return self._position_list
 
     async def list_positions(self, **kwargs):
-        return await self._list_objects(450, **kwargs)
+        return await self._list_objects(template_id=402, response_template_id=450, **kwargs)
 
     async def list_account_summary(self, **kwargs):
-        return await self._list_objects(451, **kwargs)
+        return await self._list_objects(template_id=402, response_template_id=451, **kwargs)
 
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)
 
         if response.template_id == 403:
             # Position snapshot Response
-            self._position_list_ready = True
+            self._position_list_event.set()
+
+            if len(response.rp_code) and response.rp_code[0] != '0':
+                logger.exception(f"Rithmic returned an error after request: {', '.join(response.rp_code)}")
 
         elif response.template_id in [450, 451]:
             if response.is_snapshot and response.template_id == self._position_template_id:

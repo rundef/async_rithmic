@@ -13,12 +13,16 @@ class OrderPlant(BasePlant):
     accounts = None
 
     _order_list = []
-    _order_list_ready = False
+    _order_list_event = None
 
     async def _login(self):
         await super()._login()
         await self._fetch_login_info()
-        await self._subscribe_to_order_updates()
+
+        # Order updates
+        await self._subscribe_to_updates(template_id=308)
+        # Bracket updates
+        #await self._subscribe_to_updates(template_id=336)
 
     async def _fetch_login_info(self):
         """
@@ -57,13 +61,13 @@ class OrderPlant(BasePlant):
             subscribe_for_updates=True,
         )
 
-    async def _subscribe_to_order_updates(self):
+    async def _subscribe_to_updates(self, **kwargs):
         for account in self.accounts:
             await self._send_and_recv(
-                template_id=308,
                 fcm_id=self.login_info["fcm_id"],
                 ib_id=self.login_info["ib_id"],
-                account_id=account.account_id
+                account_id=account.account_id,
+                **kwargs
             )
 
     async def get_account_rms(self):
@@ -84,7 +88,7 @@ class OrderPlant(BasePlant):
 
     async def list_orders(self, **kwargs):
         self._order_list = []
-        self._order_list_ready = False
+        self._order_list_event = asyncio.Event()
 
         async with self.lock:
             await self._send_request(
@@ -94,9 +98,7 @@ class OrderPlant(BasePlant):
                 account_id=self._get_account_id(**kwargs)
             )
 
-        while not self._order_list_ready:
-            await asyncio.sleep(0.1)
-
+        await self._order_list_event.wait()
         return self._order_list
 
     async def get_order(self, order_id: str, **kwargs):
@@ -146,8 +148,24 @@ class OrderPlant(BasePlant):
             raise Exception(f"No Valid Trade Route Exists for {exchange}")
         msg_kwargs["trade_route"] = filtered[0].trade_route
 
+        template_id = 312
+        # Stop or target specified: use template_id 330 for bracket orders
+        if "stop_ticks" in kwargs:
+            template_id = 330
+            msg_kwargs["stop_ticks"] = kwargs["stop_ticks"]
+            msg_kwargs["stop_quantity"] = 1
+            msg_kwargs["bracket_type"] = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.STOP_ONLY_STATIC
+        if "target_ticks" in kwargs:
+            template_id = 330
+            msg_kwargs["target_ticks"] = kwargs["target_ticks"]
+            msg_kwargs["target_quantity"] = 1
+            msg_kwargs["bracket_type"] = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.TARGET_AND_STOP_STATIC \
+                if "stop_ticks" in kwargs else pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.TARGET_ONLY_STATIC
+        if template_id == 330:
+            msg_kwargs["user_type"] = self.login_info["user_type"]
+
         return await self._send_and_recv_many(
-            template_id=312,
+            template_id=template_id,
             user_tag=order_id,
             symbol=symbol,
             exchange=exchange,
@@ -244,7 +262,7 @@ class OrderPlant(BasePlant):
 
         if response.template_id == 321:
             # Show Orders Response
-            self._order_list_ready = True
+            self._order_list_event.set()
 
         elif response.template_id == 351:
             # Rithmic order notification
@@ -256,6 +274,10 @@ class OrderPlant(BasePlant):
                 self._order_list.append(response)
             else:
                 await self.client.on_exchange_order_notification.notify(response)
+
+        elif response.template_id == 353:
+            # Bracket update
+            pass
 
         else:
             logger.warning(f"Order plant: unhandled inbound message with template_id={response.template_id}")

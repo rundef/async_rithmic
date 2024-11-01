@@ -52,10 +52,19 @@ TEMPLATES_MAP = {
     317: pb.response_cancel_order_pb2.ResponseCancelOrder,
     320: pb.request_show_orders_pb2.RequestShowOrders,
     321: pb.response_show_orders_pb2.ResponseShowOrders,
+    330: pb.request_bracket_order_pb2.RequestBracketOrder,
+    331: pb.response_bracket_order_pb2.ResponseBracketOrder,
+    332: pb.request_update_target_bracket_level_pb2.RequestUpdateTargetBracketLevel,
+    333: pb.response_update_target_bracket_level_pb2.ResponseUpdateTargetBracketLevel,
+    334: pb.request_update_stop_bracket_level_pb2.RequestUpdateStopBracketLevel,
+    335: pb.response_update_stop_bracket_level_pb2.ResponseUpdateStopBracketLevel,
+    336: pb.request_subscribe_to_bracket_updates_pb2.RequestSubscribeToBracketUpdates,
+    337: pb.response_subscribe_to_bracket_updates_pb2.ResponseSubscribeToBracketUpdates,
 
     350: pb.trade_route_pb2.TradeRoute,
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
+    353: pb.bracket_updates_pb2.BracketUpdates,
 
     # History Plant Infrastructure
     200: pb.request_time_bar_update_pb2.RequestTimeBarUpdate,
@@ -219,7 +228,7 @@ class BasePlant:
                 break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
-            raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
+            raise Exception(f"Rithmic returned an error after request {template_id}: {', '.join(response.rp_code)}")
 
         return response
 

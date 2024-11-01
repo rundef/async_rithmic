@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package rti;
+
+message BracketUpdates
+	{                                
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	int32    template_id               = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+
+	string   fcm_id                    = 154013;    // PB_OFFSET + MNM_FCM_ID
+	string   ib_id                     = 154014;    // PB_OFFSET + MNM_IB_ID
+	string   account_id                = 154008;    // PB_OFFSET + MNM_ACCOUNT_ID
+	string   basket_id                 = 110300;    // PB_OFFSET + MNM_BASKET_ID 
+
+	int32    stop_ticks                = 154458;    // PB_OFFSET + MNM_STOP_TICKS
+	int32    stop_quantity             = 154459;    // PB_OFFSET + MNM_STOP_QUANTITY
+	int32    stop_quantity_released    = 154466;    // PB_OFFSET + MNM_STOP_QUANTITY_RELEASED
+
+	int32    target_ticks              = 154456;    // PB_OFFSET + MNM_TARGET_TICKS
+	int32    target_quantity           = 154457;    // PB_OFFSET + MNM_TARGET_QUANTITY
+	int32    target_quantity_released  = 154460;    // PB_OFFSET + MNM_TARGET_QUANTITY_RELEASED
+	}

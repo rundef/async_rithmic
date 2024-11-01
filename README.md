@@ -127,6 +127,8 @@ async def main():
         order_type=OrderType.MARKET,
         transaction_type=TransactionType.SELL,
         #account_id="ABCD" # Mandatory if you have multiple accounts
+        #stop_ticks=20, # Optional: you can specify a stop loss and profit target in ticks
+        #target_ticks=40,
     )
     
     await asyncio.sleep(1)
@@ -165,7 +167,7 @@ async def main():
         qty=1,
         order_type=OrderType.LIMIT,
         transaction_type=TransactionType.BUY,
-        price=5300.
+        price=5300.,
     )
     
     await asyncio.sleep(1)
@@ -220,7 +222,7 @@ async def main():
     await client.connect()
 
     # Fetch historical time bar data
-    bars = await client.get_historical_time_bar(
+    bars = await client.get_historical_time_bars(
         "ESZ4",
         "CME",
         datetime(2024, 10, 15, 15, 30),
@@ -230,7 +232,7 @@ async def main():
     )
     
     print(f"Received {len(bars)} bars")
-    print(f"Last bar timestamp: {bars[-1]['datetime']}")
+    print(f"Last bar timestamp: {bars[-1]['bar_end_datetime']}")
 
     await client.disconnect()
 
@@ -276,7 +278,6 @@ Contributions are welcome!
 If you're interested in adding any of these features, please feel free to submit a Pull Request.
 
 - Search Symbols Endpoint
-- Bracket Orders
 - One-Cancels-Other (OCO) Orders
 - Market depth
 - Tick bar historical & live data (Volume, Range or Tick bars)
