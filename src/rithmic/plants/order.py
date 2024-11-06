@@ -136,7 +136,7 @@ class OrderPlant(BasePlant):
 
         if order_type in [OrderType.LIMIT, OrderType.STOP_MARKET]:
             if "price" not in kwargs:
-                raise Exception(f"Price must be specified for this order type orders")
+                raise Exception("Price must be specified for this order type")
 
             msg_kwargs["price"] = kwargs["price"]
 
@@ -153,12 +153,12 @@ class OrderPlant(BasePlant):
         if "stop_ticks" in kwargs:
             template_id = 330
             msg_kwargs["stop_ticks"] = kwargs["stop_ticks"]
-            msg_kwargs["stop_quantity"] = 1
+            msg_kwargs["stop_quantity"] = qty
             msg_kwargs["bracket_type"] = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.STOP_ONLY_STATIC
         if "target_ticks" in kwargs:
             template_id = 330
             msg_kwargs["target_ticks"] = kwargs["target_ticks"]
-            msg_kwargs["target_quantity"] = 1
+            msg_kwargs["target_quantity"] = qty
             msg_kwargs["bracket_type"] = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.TARGET_AND_STOP_STATIC \
                 if "stop_ticks" in kwargs else pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.TARGET_ONLY_STATIC
         if template_id == 330:
@@ -208,7 +208,7 @@ class OrderPlant(BasePlant):
 
         if order_type in [OrderType.LIMIT, OrderType.STOP_MARKET]:
             if "price" not in kwargs:
-                raise Exception(f"Price must be specified for this order type orders")
+                raise Exception("Price must be specified for this order type")
 
             msg_kwargs["price"] = kwargs["price"]
 

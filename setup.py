@@ -11,7 +11,7 @@ setuptools.setup(
     keywords='python rithmic',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/rundef/pyrithmic',
+    url='https://github.com/rundef/async_rithmic',
     project_urls={
         'Documentation': 'https://github.com/rundef/pyrithmic',
         'Bug Reports': 'https://github.com/rundef/pyrithmic/issues',
