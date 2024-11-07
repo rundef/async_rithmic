@@ -4,7 +4,7 @@ import pytz
 
 from rithmic.plants.base import BasePlant
 import rithmic.protocol_buffers as pb
-from rithmic.enums import DataType
+from rithmic.enums import DataType, SearchPattern
 from rithmic.logger import logger
 
 class TickerPlant(BasePlant):
@@ -56,6 +56,25 @@ class TickerPlant(BasePlant):
                 request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.UNSUBSCRIBE,
                 update_bits=data_type.value
             )
+
+    async def search_symbols(self, search_text, **kwargs):
+        """
+        Search symbols
+
+        :param search_text: (str)
+        :param product_code: (str)
+        :param exchange: (str)
+        :param instrument_type: (InstrumentType)
+        """
+
+        kwargs.setdefault("pattern", SearchPattern.CONTAINS)
+
+        response = await self._send_and_recv(
+            template_id=109,
+            search_text=search_text,
+            **kwargs
+        )
+        return response
 
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)

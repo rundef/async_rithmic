@@ -25,6 +25,8 @@ TEMPLATES_MAP = {
     # Market Data Infrastructure
     100: pb.request_market_data_update_pb2.RequestMarketDataUpdate,
     101: pb.response_market_data_update_pb2.ResponseMarketDataUpdate,
+    109: pb.request_search_symbols_pb2.RequestSearchSymbols,
+    110: pb.response_search_symbols_pb2.ResponseSearchSymbols,
     113: pb.request_front_month_contract_pb2.RequestFrontMonthContract,
     114: pb.response_front_month_contract_pb2.ResponseFrontMonthContract,
 

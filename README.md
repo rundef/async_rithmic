@@ -15,7 +15,7 @@ This repo introduces several key improvements and new features over the original
 - **Account Selection**: Allows users to specify which account to use when calling trading functions, rather than being restricted to the primary account.
 - **STOP Orders**: Exposing STOP orders to users
 - **Best Bid Offer (BBO) Streaming**: Integrates real-time Best Bid Offer tick streaming. 
-- **Historical Time Bars + Time Bars Streaming**:
+- **Historical Time Bars + Time Bars Streaming**
 
 The most significant upgrade is the transition to an async architecture, providing superior performance and responsiveness when dealing with real-time trading and market data.
 
@@ -245,14 +245,17 @@ This code snippet will list your account summary, session orders and positions:
 
 ```python
 import asyncio
-from rithmic import RithmicClient, Gateway
+from rithmic import RithmicClient, Gateway, InstrumentType
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
     await client.connect()
     
     account_id = "MY_ACCOUNT"
-
+    
+    result = await client.search_symbols("MCL", instrument_type=InstrumentType.FUTURE)
+    print("Search result:", result)
+    
     summary = await client.list_account_summary(account_id=account_id)
     print("Account summary:", summary[0])
     
@@ -277,7 +280,7 @@ The following features are currently not available in this package.
 Contributions are welcome!
 If you're interested in adding any of these features, please feel free to submit a Pull Request.
 
-- Search Symbols Endpoint
 - One-Cancels-Other (OCO) Orders
+- Stop loss / Take profit updates
 - Market depth
 - Tick bar historical & live data (Volume, Range or Tick bars)

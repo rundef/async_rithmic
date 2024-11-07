@@ -15,6 +15,9 @@ ExchangeOrderNotificationType = pb.exchange_order_notification_pb2.ExchangeOrder
 
 TimeBarType = pb.request_time_bar_replay_pb2.RequestTimeBarReplay.BarType
 
+InstrumentType = pb.request_search_symbols_pb2.RequestSearchSymbols.InstrumentType
+SearchPattern = pb.request_search_symbols_pb2.RequestSearchSymbols.Pattern
+
 class Gateway(enum.Enum):
     TEST = "rituz00100.rithmic.com:443"
 
