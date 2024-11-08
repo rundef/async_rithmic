@@ -171,7 +171,7 @@ async def main():
     )
     
     await asyncio.sleep(1)
-    await client.cancel_order(order_id)
+    await client.cancel_order(order_id=order_id)
     
     await asyncio.sleep(1)
     await client.disconnect()

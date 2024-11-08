@@ -101,9 +101,22 @@ class OrderPlant(BasePlant):
         await self._order_list_event.wait()
         return self._order_list
 
-    async def get_order(self, order_id: str, **kwargs):
+    async def get_order(self, **kwargs):
+        """
+        Get an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
+        """
+
+        order_id = kwargs.pop("order_id", None)
+        basket_id = kwargs.pop("basket_id", None)
+        if not order_id and not basket_id:
+            raise Exception("Expected order_id or basket_id")
+
         orders = await self.list_orders(**kwargs)
-        orders = [o for o in orders if o.user_tag == order_id]
+        if order_id:
+            orders = [o for o in orders if o.user_tag == order_id]
+        if basket_id:
+            orders = [o for o in orders if o.basket_id == basket_id]
+
         return orders[0] if orders else None
 
     def _get_account_id(self, **kwargs):
@@ -179,10 +192,13 @@ class OrderPlant(BasePlant):
             **msg_kwargs
         )
 
-    async def cancel_order(self, order_id: str, **kwargs):
-        order = await self.get_order(order_id, **kwargs)
+    async def cancel_order(self, **kwargs):
+        """
+        Cancel an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
+        """
+        order = await self.get_order(**kwargs)
         if not order:
-            raise Exception(f"Order {order_id} not found")
+            raise Exception("Order not found")
 
         return await self._send_and_recv_many(
             template_id=316,
@@ -200,7 +216,7 @@ class OrderPlant(BasePlant):
         order_type: OrderType,
         **kwargs
     ):
-        order = await self.get_order(order_id, **kwargs)
+        order = await self.get_order(order_id=order_id, **kwargs)
         if not order:
             raise Exception(f"Order {order_id} not found")
 

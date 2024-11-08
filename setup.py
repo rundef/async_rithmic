@@ -13,9 +13,9 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/rundef/async_rithmic',
     project_urls={
-        'Documentation': 'https://github.com/rundef/pyrithmic',
-        'Bug Reports': 'https://github.com/rundef/pyrithmic/issues',
-        'Source Code': 'https://github.com/rundef/pyrithmic',
+        'Documentation': 'https://github.com/rundef/async_rithmic',
+        'Bug Reports': 'https://github.com/rundef/async_rithmic/issues',
+        'Source Code': 'https://github.com/rundef/async_rithmic',
         # 'Funding': '',
         # 'Say Thanks!': '',
     },
