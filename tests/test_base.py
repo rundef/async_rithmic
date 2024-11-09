@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, AsyncMock, patch
 from websockets import ConnectionClosedError, ConnectionClosedOK
+from datetime import datetime
+import pytz
 
 from rithmic.plants import TickerPlant
 from rithmic.event import Event
@@ -102,3 +104,25 @@ async def test_handle_reconnection():
 
         # Ensure that the listener kept running after the first reconnection
         assert result is None
+
+def test_datetime_to_utc():
+
+    plant = TickerPlant(MagicMock())
+
+    ny_tz = pytz.timezone("America/New_York")
+    dt = ny_tz.localize(datetime(2024, 11, 8, 17, 29, 0))
+
+    dt = plant._datetime_to_utc(dt)
+    assert dt == datetime(2024, 11, 8, 22, 29, 0, tzinfo=pytz.utc)
+
+def test_ssboe_usecs_conversion():
+    plant = TickerPlant(MagicMock())
+
+    inputs = 1731092410, 164409
+
+    dt = plant._ssboe_usecs_to_datetime(*inputs)
+    assert dt == datetime(2024, 11, 8, 19, 0, 10, 164409, tzinfo=pytz.utc)
+
+    output = plant._datetime_to_ssboe_usecs(dt)
+    assert output == inputs
+

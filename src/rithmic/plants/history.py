@@ -2,7 +2,6 @@ from datetime import datetime
 import pytz
 import asyncio
 from collections import defaultdict
-from tzlocal import get_localzone
 
 from rithmic.plants.base import BasePlant
 import rithmic.protocol_buffers as pb
@@ -25,15 +24,7 @@ class HistoryPlant(BasePlant):
         self.client.on_historical_time_bar += self._on_historical_time_bar
 
     def _datetime_to_index(self, dt: datetime):
-        if dt.tzinfo is None:
-            # Use system timezone
-            system_timezone = pytz.timezone(str(get_localzone()))
-            dt = system_timezone.localize(dt)
-
-        if dt.tzinfo != pytz.utc:
-            # Convert to utc
-            dt = dt.astimezone(pytz.utc)
-
+        dt = self._datetime_to_utc(dt)
         return int(dt.timestamp())
 
     async def _on_historical_time_bar(self, data):
@@ -188,9 +179,8 @@ class HistoryPlant(BasePlant):
                 self.historical_tick_event.set()
                 return
 
-            ts = '{0}.{1}'.format(response.data_bar_ssboe[0], response.data_bar_usecs[0])
             data = self._response_to_dict(response)
-            data["datetime"] = datetime.fromtimestamp(float(ts))
+            data["datetime"] = self._ssboe_usecs_to_datetime(response.data_bar_ssboe[0], response.data_bar_usecs[0])
 
             await self.client.on_historical_tick.notify(data)
 

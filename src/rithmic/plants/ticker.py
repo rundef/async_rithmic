@@ -85,18 +85,16 @@ class TickerPlant(BasePlant):
 
         elif response.template_id == 150:
             # Market data stream: Last Trade
-            ts = '{0}.{1}'.format(response.ssboe, response.usecs)
             data = self._response_to_dict(response)
-            data["datetime"] = datetime.fromtimestamp(float(ts), tz=pytz.utc)
+            data["datetime"] = self._ssboe_usecs_to_datetime(response.ssboe, response.usecs)
             data["data_type"] = DataType.LAST_TRADE
 
             await self.client.on_tick.notify(data)
 
         elif response.template_id == 151:
             # Market data stream: Best Bid Offer
-            ts = '{0}.{1}'.format(response.ssboe, response.usecs)
             data = self._response_to_dict(response)
-            data["datetime"] = datetime.fromtimestamp(float(ts), tz=pytz.utc)
+            data["datetime"] = self._ssboe_usecs_to_datetime(response.ssboe, response.usecs)
             data["data_type"] = DataType.BBO
 
             await self.client.on_tick.notify(data)

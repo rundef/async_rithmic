@@ -3,6 +3,9 @@ from websockets import ConnectionClosedError, ConnectionClosedOK
 import asyncio
 import time
 import traceback
+from datetime import datetime
+import pytz
+from tzlocal import get_localzone
 from google.protobuf.descriptor import FieldDescriptor
 from google.protobuf.json_format import MessageToDict
 
@@ -350,3 +353,30 @@ class BasePlant:
 
     async def _process_message(self, message):
         raise NotImplementedError
+
+    def _datetime_to_utc(self, dt: datetime):
+        if dt.tzinfo is None:
+            # Use system timezone
+            system_timezone = pytz.timezone(str(get_localzone()))
+            dt = system_timezone.localize(dt)
+
+        if dt.tzinfo != pytz.utc:
+            # Convert to utc
+            dt = dt.astimezone(pytz.utc)
+
+        return dt
+
+    def _ssboe_usecs_to_datetime(self, ssboe: int, usecs: int):
+        ts = '{0}.{1}'.format(ssboe, usecs)
+        return datetime.fromtimestamp(float(ts), tz=pytz.utc)
+
+    def _datetime_to_ssboe_usecs(self, dt: datetime):
+        """
+        Split the timestamp into integer seconds (ssboe) and rounded microseconds (usecs)
+        """
+        timestamp = dt.timestamp()
+
+        ssboe = int(timestamp)
+        usecs = round((timestamp - ssboe) * 1_000_000)
+
+        return ssboe, usecs

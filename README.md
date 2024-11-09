@@ -129,6 +129,7 @@ async def main():
         #account_id="ABCD" # Mandatory if you have multiple accounts
         #stop_ticks=20, # Optional: you can specify a stop loss and profit target in ticks
         #target_ticks=40,
+        #cancel_at=datetime.now() + timedelta(minutes=2), # Optional: cancellation datetime
     )
     
     await asyncio.sleep(1)
@@ -273,14 +274,3 @@ asyncio.run(main())
 ## Testing
 
 To execute the tests, use the following command: `make tests`
-
-## Unimplemented
-
-The following features are currently not available in this package.
-Contributions are welcome!
-If you're interested in adding any of these features, please feel free to submit a Pull Request.
-
-- One-Cancels-Other (OCO) Orders
-- Stop loss / Take profit updates
-- Market depth
-- Tick bar historical & live data (Volume, Range or Tick bars)

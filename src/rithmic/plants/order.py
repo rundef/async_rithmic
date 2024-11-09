@@ -177,6 +177,17 @@ class OrderPlant(BasePlant):
         if template_id == 330:
             msg_kwargs["user_type"] = self.login_info["user_type"]
 
+        release_at = kwargs.pop("release_at", None)
+        cancel_at = kwargs.pop("cancel_at", None)
+        if release_at:
+            ssboe, usecs = self._datetime_to_ssboe_usecs(release_at)
+            msg_kwargs["release_at_ssboe"] = ssboe
+            msg_kwargs["release_at_usecs"] = usecs
+        if cancel_at:
+            ssboe, usecs = self._datetime_to_ssboe_usecs(cancel_at)
+            msg_kwargs["cancel_at_ssboe"] = ssboe
+            msg_kwargs["cancel_at_usecs"] = usecs
+
         return await self._send_and_recv_many(
             template_id=template_id,
             user_tag=order_id,
@@ -196,17 +207,29 @@ class OrderPlant(BasePlant):
         """
         Cancel an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
         """
-        order = await self.get_order(**kwargs)
-        if not order:
-            raise Exception("Order not found")
+
+        basket_id = kwargs.pop("basket_id", None)
+        if basket_id:
+            account_id = self._get_account_id(**kwargs)
+
+        elif "order_id" in kwargs:
+            order = await self.get_order(**kwargs)
+            if not order:
+                raise Exception("Order not found")
+
+            basket_id = order.basket_id
+            account_id = order.account_id
+
+        else:
+            raise Exception("Expected basket_id or order_id kwarg")
 
         return await self._send_and_recv_many(
             template_id=316,
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             fcm_id=self.login_info["fcm_id"],
             ib_id=self.login_info["ib_id"],
-            basket_id=order.basket_id,
-            account_id=order.account_id,
+            basket_id=basket_id,
+            account_id=account_id,
         )
 
     async def modify_order(
