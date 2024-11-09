@@ -1,8 +1,8 @@
 import asyncio
 
-from rithmic.plants.base import BasePlant
-import rithmic.protocol_buffers as pb
-from rithmic.logger import logger
+from .base import BasePlant
+from ..logger import logger
+from .. import protocol_buffers as pb
 
 class PnlPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.PNL_PLANT

@@ -33,7 +33,7 @@ Here's an example to get the front month contract for ES and stream market data:
 
 ```python
 import asyncio
-from rithmic import RithmicClient, Gateway, DataType, LastTradePresenceBits
+from async_rithmic import RithmicClient, Gateway, DataType, LastTradePresenceBits
 
 async def callback(data: dict):
     if data["presence_bits"] & LastTradePresenceBits.LAST_TRADE:
@@ -65,7 +65,7 @@ asyncio.run(main())
 
 ```python
 import asyncio
-from rithmic import RithmicClient, Gateway, TimeBarType
+from async_rithmic import RithmicClient, Gateway, TimeBarType
 
 async def callback(data: dict):
     print("received", data)
@@ -101,7 +101,7 @@ As a market order will be filled immediately, this script will submit the order 
 ```python
 import asyncio
 from datetime import datetime
-from rithmic import RithmicClient, Gateway, OrderType, ExchangeOrderNotificationType, TransactionType
+from async_rithmic import RithmicClient, Gateway, OrderType, ExchangeOrderNotificationType, TransactionType
 
 async def callback(notification):
   if notification.notify_type == ExchangeOrderNotificationType.FILL:
@@ -144,7 +144,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from datetime import datetime
-from rithmic import RithmicClient, Gateway, OrderType, TransactionType
+from async_rithmic import RithmicClient, Gateway, OrderType, TransactionType
 
 async def exchange_order_notification_callback(notification):
   print("exchange order notification", notification)
@@ -189,7 +189,7 @@ The following example will fetch historical data, in a streaming fashion:
 ```python
 import asyncio
 from datetime import datetime
-from rithmic import RithmicClient, Gateway
+from async_rithmic import RithmicClient, Gateway
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
@@ -216,7 +216,7 @@ asyncio.run(main())
 ```python
 import asyncio
 from datetime import datetime
-from rithmic import RithmicClient, Gateway, TimeBarType
+from async_rithmic import RithmicClient, Gateway, TimeBarType
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)
@@ -246,7 +246,7 @@ This code snippet will list your account summary, session orders and positions:
 
 ```python
 import asyncio
-from rithmic import RithmicClient, Gateway, InstrumentType
+from async_rithmic import RithmicClient, Gateway, InstrumentType
 
 async def main():
     client = RithmicClient(user="", password="", system_name="Rithmic Test", app_name="my_test_app", app_version="1.0", gateway=Gateway.TEST)

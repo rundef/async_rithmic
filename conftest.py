@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 
-from rithmic.plants import TickerPlant, PnlPlant, OrderPlant
+from async_rithmic.plants import TickerPlant, PnlPlant, OrderPlant
 
 @pytest.fixture
 def ticker_plant_mock():

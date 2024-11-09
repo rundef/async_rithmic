@@ -2,13 +2,13 @@ import ssl
 import asyncio
 from pathlib import Path
 
-from rithmic.plants.ticker import TickerPlant
-from rithmic.plants.history import HistoryPlant
-from rithmic.plants.order import OrderPlant
-from rithmic.plants.pnl import PnlPlant
-from rithmic.event import Event
-from rithmic.enums import Gateway
-from rithmic.logger import logger
+from .plants.ticker import TickerPlant
+from .plants.history import HistoryPlant
+from .plants.order import OrderPlant
+from .plants.pnl import PnlPlant
+from .event import Event
+from .enums import Gateway
+from .logger import logger
 
 def _setup_ssl_context():
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)

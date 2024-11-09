@@ -3,10 +3,10 @@ from websockets import ConnectionClosedError, ConnectionClosedOK
 from datetime import datetime
 import pytz
 
-from rithmic.plants import TickerPlant
-from rithmic.event import Event
+from async_rithmic.plants import TickerPlant
+from async_rithmic.event import Event
 
-import rithmic.protocol_buffers as pb
+from async_rithmic import protocol_buffers as pb
 from conftest import load_response_mock_from_filename
 
 def test_convert_request_to_bytes():

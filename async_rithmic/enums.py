@@ -1,6 +1,6 @@
 import enum
 
-import rithmic.protocol_buffers as pb
+from . import protocol_buffers as pb
 
 class DataType(enum.Enum):
     LAST_TRADE = 1

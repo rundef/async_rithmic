@@ -1,4 +1,4 @@
-from rithmic.logger import logger
+from .logger import logger
 
 class Event:
     def __init__(self):

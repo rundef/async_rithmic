@@ -1,9 +1,9 @@
 import asyncio
 
-from rithmic.plants.base import BasePlant, TEMPLATES_MAP
-from rithmic.enums import OrderType, OrderDuration, TransactionType
-import rithmic.protocol_buffers as pb
-from rithmic.logger import logger
+from .base import BasePlant, TEMPLATES_MAP
+from ..enums import OrderType, OrderDuration, TransactionType
+from ..logger import logger
+from .. import protocol_buffers as pb
 
 class OrderPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.ORDER_PLANT

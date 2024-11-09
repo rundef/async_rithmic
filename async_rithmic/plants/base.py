@@ -9,8 +9,8 @@ from tzlocal import get_localzone
 from google.protobuf.descriptor import FieldDescriptor
 from google.protobuf.json_format import MessageToDict
 
-import rithmic.protocol_buffers as pb
-from rithmic.logger import logger
+from .. import protocol_buffers as pb
+from ..logger import logger
 
 TEMPLATES_MAP = {
     # Shared

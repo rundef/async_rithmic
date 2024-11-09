@@ -7,5 +7,5 @@ protoc:
 	$(PROTOC_DIR)protoc -I=$(PROTO_PATH)source --python_out=$(PROTO_PATH) $(PROTO_PATH)source/*.proto
 
 tests:
-	PYTHONPATH=./src pytest -s -vv $(TESTS_PATH)
+	PYTHONPATH=. pytest -s -vv $(TESTS_PATH)
 
