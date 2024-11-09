@@ -19,8 +19,8 @@ setuptools.setup(
         # 'Funding': '',
         # 'Say Thanks!': '',
     },
-    package_dir={'': 'src'},
-    packages=setuptools.find_packages(where='src'),
+    package_dir={'': '.'},
+    packages=setuptools.find_packages(where='.'),
     include_package_data=True,
     classifiers=[
         # see https://pypi.org/classifiers/
