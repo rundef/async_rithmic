@@ -5,7 +5,7 @@ with open('README.md', 'r', encoding='utf-8') as fh:
 
 setuptools.setup(
     name='async_rithmic',
-    version='1.2.0',
+    version='1.2.1',
     author='Mickael Burguet',
     description='Python API Integration with Rithmic Protocol Buffer API',
     keywords='python rithmic',
