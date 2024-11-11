@@ -14,6 +14,9 @@ def _setup_ssl_context():
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     path = Path(__file__).parent / 'certificates'
     localhost_pem = path / 'rithmic_ssl_cert_auth_params'
+    if not localhost_pem.exists():
+        raise FileNotFoundError(f"SSL certificate file not found at: {localhost_pem}")
+
     ssl_context.load_verify_locations(localhost_pem)
     return ssl_context
 

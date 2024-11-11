@@ -21,6 +21,9 @@ setuptools.setup(
     },
     package_dir={'': '.'},
     packages=setuptools.find_packages(where='.'),
+    package_data={
+        '': ['certificates/*'],
+    },
     include_package_data=True,
     classifiers=[
         # see https://pypi.org/classifiers/

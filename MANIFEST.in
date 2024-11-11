@@ -1,5 +1,5 @@
 include pyproject.toml
 include *.md
 include LICENSE
-include src/rithmic/certificates/rithmic_ssl_cert_auth_params
+recursive-include certificates *
 recursive-include tests test*.py
