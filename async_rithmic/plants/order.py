@@ -223,7 +223,7 @@ class OrderPlant(BasePlant):
         else:
             raise Exception("Expected basket_id or order_id kwarg")
 
-        return await self._send_and_recv_many(
+        return await self._send_and_recv(
             template_id=316,
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             fcm_id=self.login_info["fcm_id"],
@@ -265,37 +265,6 @@ class OrderPlant(BasePlant):
             **msg_kwargs
         )
 
-    async def _send_and_recv_many(self, **kwargs):
-        """
-        Sends a request to the API and decode the response
-        """
-        template_id = kwargs["template_id"]
-
-        if template_id not in TEMPLATES_MAP:
-            raise Exception(f"Unknown request template id: {template_id}")
-
-        request = TEMPLATES_MAP[template_id]()
-        for k, v in kwargs.items():
-            self._set_pb_field(request, k, v)
-
-        results = []
-        async with self.lock:
-            await self._send(self._convert_request_to_bytes(request))
-
-            while True:
-                buffer = await self._recv()
-                response = self._convert_bytes_to_response(buffer)
-
-                if len(response.rp_code) > 0:
-                    if response.rp_code[0] != '0':
-                        raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
-
-                    break
-                else:
-                    results.append(response)
-
-        return results
-
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)
 
@@ -319,4 +288,5 @@ class OrderPlant(BasePlant):
             pass
 
         else:
+            print(response)
             logger.warning(f"Order plant: unhandled inbound message with template_id={response.template_id}")

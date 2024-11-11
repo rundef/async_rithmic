@@ -140,17 +140,18 @@ class BasePlant:
             ping_interval=10
         )
 
-        info = await self.get_system_info()
-        await self._disconnect()
+        if self.plant_type == "ticker":
+            info = await self.get_system_info()
+            await self._disconnect()
 
-        if self.credentials["system_name"] not in info.system_name:
-            raise Exception(f"You must specify valid SYSTEM_NAME in the credentials file: {info.system_name}")
+            if self.credentials["system_name"] not in info.system_name:
+                raise Exception(f"You must specify valid SYSTEM_NAME in the credentials file: {info.system_name}")
 
-        self.ws = await websockets.connect(
-            self.credentials["gateway"],
-            ssl=self.ssl_context,
-            ping_interval=10
-        )
+            self.ws = await websockets.connect(
+                self.credentials["gateway"],
+                ssl=self.ssl_context,
+                ping_interval=10
+            )
 
     async def _disconnect(self):
         if self.is_connected:
@@ -236,6 +237,38 @@ class BasePlant:
             raise Exception(f"Rithmic returned an error after request {template_id}: {', '.join(response.rp_code)}")
 
         return response
+
+    async def _send_and_recv_many(self, **kwargs):
+        """
+        Sends a request to the API and expect 1...n responses back
+        """
+
+        template_id = kwargs["template_id"]
+
+        if template_id not in TEMPLATES_MAP:
+            raise Exception(f"Unknown request template id: {template_id}")
+
+        request = TEMPLATES_MAP[template_id]()
+        for k, v in kwargs.items():
+            self._set_pb_field(request, k, v)
+
+        results = []
+        async with self.lock:
+            await self._send(self._convert_request_to_bytes(request))
+
+            while True:
+                buffer = await self._recv()
+                response = self._convert_bytes_to_response(buffer)
+
+                if len(response.rp_code) > 0:
+                    if response.rp_code[0] != '0':
+                        raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
+
+                    break
+                else:
+                    results.append(response)
+
+        return results
 
     def _convert_request_to_bytes(self, request):
         serialized = request.SerializeToString()

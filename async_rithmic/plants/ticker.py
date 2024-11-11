@@ -67,12 +67,11 @@ class TickerPlant(BasePlant):
 
         kwargs.setdefault("pattern", SearchPattern.CONTAINS)
 
-        response = await self._send_and_recv(
+        return await self._send_and_recv_many(
             template_id=109,
             search_text=search_text,
             **kwargs
         )
-        return response
 
     async def _process_message(self, message):
         response = self._convert_bytes_to_response(message)
