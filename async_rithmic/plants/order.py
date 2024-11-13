@@ -223,7 +223,7 @@ class OrderPlant(BasePlant):
         else:
             raise Exception("Expected basket_id or order_id kwarg")
 
-        return await self._send_and_recv_many(
+        return await self._send_and_recv(
             template_id=316,
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             fcm_id=self.login_info["fcm_id"],
@@ -285,6 +285,10 @@ class OrderPlant(BasePlant):
 
         elif response.template_id == 353:
             # Bracket update
+            pass
+
+        elif response.template_id == 317:
+            # Cancel order
             pass
 
         else:

@@ -260,7 +260,7 @@ class BasePlant:
                 buffer = await self._recv()
                 response = self._convert_bytes_to_response(buffer)
 
-                if hasattr(response, "rp_code") and len(response.rp_code) > 0:
+                if len(response.rp_code) > 0:
                     if response.rp_code[0] != '0':
                         raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
 
