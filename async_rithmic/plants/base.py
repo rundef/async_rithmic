@@ -235,8 +235,8 @@ class BasePlant:
                 buffer = await self._recv()
                 response = self._convert_bytes_to_response(buffer)
 
-                if not hasattr(response, "rp_code"):
-                    await self._process_message(buffer)
+                if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
+                    await self._process_response(response)
                     continue
 
                 break
@@ -267,6 +267,10 @@ class BasePlant:
             while True:
                 buffer = await self._recv()
                 response = self._convert_bytes_to_response(buffer)
+
+                if response.template_id != template_id + 1:
+                    await self._process_response(response)
+                    continue
 
                 if len(response.rp_code) > 0:
                     if response.rp_code[0] != '0':
@@ -331,9 +335,10 @@ class BasePlant:
 
                 try:
                     async with self.lock:
-                        message = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
+                        buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
 
-                    await self._process_message(message)
+                    response = self._convert_bytes_to_response(buffer)
+                    await self._process_response(response)
                     iteration_count += 1
 
                 except asyncio.TimeoutError:
@@ -392,7 +397,7 @@ class BasePlant:
 
         return data
 
-    async def _process_message(self, message):
+    async def _process_response(self, response):
         raise NotImplementedError
 
     def _datetime_to_utc(self, dt: datetime):

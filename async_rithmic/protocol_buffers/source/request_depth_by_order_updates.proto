@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestDepthByOrderUpdates
+	{          
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+ 
+        enum Request {
+    REQUEST_UNSPECIFIED = 0;
+		      SUBSCRIBE   = 1;
+		      UNSUBSCRIBE = 2;
+	             } 
+                            
+	int32    template_id  = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+	repeated string   user_msg     = 132760;    // PB_OFFSET + MNM_USER_MSG
+
+        Request  request      = 100000;    // PB_OFFSET + MNM_REQUEST
+
+	string   symbol       = 110100;    // PB_OFFSET + MNM_SYMBOL
+	string   exchange     = 110101;    // PB_OFFSET + MNM_EXCHANGE
+ 	double   depth_price  = 154405;    // PB_OFFSET + MNM_MARKET_DEPTH_PRICE
+	}

@@ -73,9 +73,7 @@ class TickerPlant(BasePlant):
             **kwargs
         )
 
-    async def _process_message(self, message):
-        response = self._convert_bytes_to_response(message)
-
+    async def _process_response(self, response):
         if response.template_id == 101:
             # Market data update response
             pass
@@ -95,7 +93,6 @@ class TickerPlant(BasePlant):
             data["data_type"] = DataType.BBO
 
             await self.client.on_tick.notify(data)
-
 
         else:
             logger.warning(f"Ticker plant: unhandled inbound message with template_id={response.template_id}")

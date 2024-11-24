@@ -63,9 +63,7 @@ class PnlPlant(BasePlant):
     async def list_account_summary(self, **kwargs):
         return await self._list_objects(template_id=402, response_template_id=451, **kwargs)
 
-    async def _process_message(self, message):
-        response = self._convert_bytes_to_response(message)
-
+    async def _process_response(self, response):
         if response.template_id == 403:
             # Position snapshot Response
             self._position_list_event.set()
@@ -79,4 +77,3 @@ class PnlPlant(BasePlant):
 
         else:
             logger.warning(f"Pnl plant: unhandled inbound message with template_id={response.template_id}")
-

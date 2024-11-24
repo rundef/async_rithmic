@@ -1,3 +1,5 @@
+import asyncio
+
 from .logger import logger
 
 class Event:
@@ -15,7 +17,9 @@ class Event:
     async def notify(self, *args, **kwargs):
         for callback in self._subscribers:
             try:
-                await callback(*args, **kwargs)
+                if asyncio.iscoroutinefunction(callback):
+                    await callback(*args, **kwargs)
+                else:
+                    callback(*args, **kwargs)
             except:
-                logger.error(f"Error in callback")
-                raise
+                logger.exception("Error in callback function")

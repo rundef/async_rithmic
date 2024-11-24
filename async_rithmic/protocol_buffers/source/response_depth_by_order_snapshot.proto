@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseDepthByOrderSnapshot
+	{                       
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+        enum TransactionType {
+    TRANSACTIONTYPE_UNSPECIFIED = 0;
+	                      BUY  = 1;
+		              SELL = 2;
+	                     }
+              
+	int32             template_id            = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+	repeated string            user_msg               = 132760;    // PB_OFFSET + MNM_USER_MSG	
+	repeated string            rq_handler_rp_code     = 132764;    // PB_OFFSET + MNM_REQUEST_HANDLER_RESPONSE_CODE
+	repeated string            rp_code                = 132766;    // PB_OFFSET + MNM_RESPONSE_CODE
+
+	string            exchange               = 110101;    // PB_OFFSET + MNM_EXCHANGE
+	string            symbol                 = 110100;    // PB_OFFSET + MNM_SYMBOL
+	uint64            sequence_number        = 112002;    // PB_OFFSET + MNM_SEQUENCE_NUMBER
+
+	TransactionType   depth_side             = 153612;    // PB_OFFSET + MNM_MARKET_DEPTH_SIDE
+	double            depth_price            = 154405;    // PB_OFFSET + MNM_MARKET_DEPTH_PRICE
+	repeated int32             depth_size             = 154406;    // PB_OFFSET + MNM_MARKET_DEPTH_SIZE
+	repeated uint64            depth_order_priority   = 153613;    // PB_OFFSET + MNM_MARKET_DEPTH_ORDER_PRIORITY
+	repeated string            exchange_order_id      = 149238;    // PB_OFFSET + MNM_EXCH_ORD_ID
+	}

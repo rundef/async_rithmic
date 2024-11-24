@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package rti;
+
+message DepthByOrderEndEvent
+	{                                     
+	// PB_OFFSET = 100000 , is the offset added for each MNM field id
+
+	int32    template_id      = 154467;     // PB_OFFSET + MNM_TEMPLATE_ID
+
+	repeated string   symbol           = 110100;     // PB_OFFSET + MNM_SYMBOL
+	repeated string   exchange         = 110101;     // PB_OFFSET + MNM_EXCHANGE
+	uint64   sequence_number  = 112002;     // PB_OFFSET + MNM_SEQUENCE_NUMBER
+
+	int32    ssboe            = 150100;     // PB_OFFSET + MNM_SECONDS_SINCE_BOE
+	int32    usecs            = 150101;     // PB_OFFSET + MNM_USECS
+	}

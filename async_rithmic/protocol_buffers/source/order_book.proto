@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package rti;
+
+message OrderBook
+	{                                     
+	// PB_OFFSET = 100000 , is the offset added for each MNM field id
+
+	// below enum is just for reference only, not used in this message
+	enum PresenceBits {
+    PRESENCEBITS_UNSPECIFIED = 0;
+	                   BID    = 1;
+	                   ASK    = 2;
+                          }
+
+        enum UpdateType {
+    UPDATETYPE_UNSPECIFIED = 0;
+	                 CLEAR_ORDER_BOOK   = 1;
+			 NO_BOOK            = 2;
+			 SNAPSHOT_IMAGE     = 3;
+			 BEGIN              = 4;
+		         MIDDLE             = 5;
+		         END                = 6;
+		         SOLO               = 7;
+                        }
+
+	int32      template_id        = 154467;        // PB_OFFSET + MNM_TEMPLATE_ID
+	string     symbol             = 110100;        // PB_OFFSET + MNM_SYMBOL
+	string     exchange           = 110101;        // PB_OFFSET + MNM_EXCHANGE
+
+	uint32     presence_bits      = 149138;        // PB_OFFSET + MNM_PRICING_INDICATOR
+	UpdateType update_type        = 157608;        // PB_OFFSET + MNM_MARKET_DEPTH_UPDATE_TYPE
+
+	repeated double     bid_price          = 154282;        // PB_OFFSET + MNM_MARKET_DEPTH_BID_PRICE
+	repeated int32      bid_size           = 154283;        // PB_OFFSET + MNM_MARKET_DEPTH_BID_SIZE
+	repeated int32      bid_orders         = 154401;        // PB_OFFSET + MNM_MARKET_DEPTH_BID_NO_OF_ORDERS
+	repeated int32      impl_bid_size      = 154412;        // PB_OFFSET + MNM_MARKET_DEPTH_IMPLICIT_BID_SIZE
+
+	repeated double     ask_price          = 154284;        // PB_OFFSET + MNM_MARKET_DEPTH_ASK_PRICE
+	repeated int32      ask_size           = 154285;        // PB_OFFSET + MNM_MARKET_DEPTH_ASK_SIZE
+	repeated int32      ask_orders         = 154402;        // PB_OFFSET + MNM_MARKET_DEPTH_ASK_NO_OF_ORDERS
+	repeated int32      impl_ask_size      = 154415;        // PB_OFFSET + MNM_MARKET_DEPTH_IMPLICIT_ASK_SIZE
+
+	int32      ssboe              = 150100;        // PB_OFFSET + MNM_SECONDS_SINCE_BOE
+	int32      usecs              = 150101;        // PB_OFFSET + MNM_USECS
+	}

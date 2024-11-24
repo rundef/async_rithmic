@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock, AsyncMock, patch
-from websockets import ConnectionClosedError, ConnectionClosedOK
+from websockets import ConnectionClosedError
 from datetime import datetime
 import pytz
 
 from async_rithmic.plants import TickerPlant
 from async_rithmic.event import Event
-
 from async_rithmic import protocol_buffers as pb
+
 from conftest import load_response_mock_from_filename
 
 def test_convert_request_to_bytes():
@@ -37,7 +37,7 @@ def test_convert_bytes_to_response():
 
 async def test_event_callback():
     my_callback1 = AsyncMock()
-    my_callback2 = AsyncMock()
+    my_callback2 = MagicMock()
 
     e = Event()
     e += my_callback1
@@ -75,7 +75,7 @@ async def test_handle_reconnection():
     plant = TickerPlant(MagicMock())
     plant.lock = AsyncMock()
     plant._recv = AsyncMock()
-    plant._process_message = AsyncMock()
+    plant._process_response = AsyncMock()
     plant._send_heartbeat = AsyncMock()
     plant._connect = AsyncMock()
     plant._login = AsyncMock()

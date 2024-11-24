@@ -265,9 +265,7 @@ class OrderPlant(BasePlant):
             **msg_kwargs
         )
 
-    async def _process_message(self, message):
-        response = self._convert_bytes_to_response(message)
-
+    async def _process_response(self, response):
         if response.template_id == 321:
             # Show Orders Response
             self._order_list_event.set()

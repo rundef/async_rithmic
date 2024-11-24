@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package rti;
+
+message DepthByOrder
+	{                                     
+	// PB_OFFSET = 100000 , is the offset added for each MNM field id
+
+        enum TransactionType {
+TRANSACTIONTYPE_UNSPECIFIED = 0;
+	                      BUY  = 1;
+		              SELL = 2;
+	                     }
+
+	enum UpdateType {
+UPDATETYPE_UNSPECIFIED = 0;
+	     		 NEW    = 1;
+                         CHANGE = 2;
+                         DELETE = 3;
+                        }
+
+	int32            template_id            = 154467;     // PB_OFFSET + MNM_TEMPLATE_ID
+
+	string           symbol                 = 110100;     // PB_OFFSET + MNM_SYMBOL
+	string           exchange               = 110101;     // PB_OFFSET + MNM_EXCHANGE
+	uint64           sequence_number        = 112002;     // PB_OFFSET + MNM_SEQUENCE_NUMBER
+
+	repeated UpdateType       update_type            = 110121;     // PB_OFFSET + MNM_UPDATE_TYPE
+	repeated TransactionType  transaction_type       = 153612;     // PB_OFFSET + MNM_MARKET_DEPTH_SIDE
+
+	repeated double           depth_price            = 154405;     // PB_OFFSET + MNM_MARKET_DEPTH_PRICE
+	repeated double           prev_depth_price       = 154906;     // PB_OFFSET + MNM_PREVIOUS_MARKET_DEPTH_PRICE
+	repeated bool             prev_depth_price_flag  = 154930;     // PB_OFFSET + MNM_PREVIOUS_MARKET_DEPTH_PRICE_FLAG
+	repeated int32            depth_size             = 154406;     // PB_OFFSET + MNM_MARKET_DEPTH_SIZE
+	repeated uint64           depth_order_priority   = 153613;     // PB_OFFSET + MNM_MARKET_DEPTH_ORDER_PRIORITY
+	repeated string           exchange_order_id      = 149238;     // PB_OFFSET + MNM_EXCH_ORD_ID
+
+	int32            ssboe                  = 150100;     // PB_OFFSET + MNM_SECONDS_SINCE_BOE
+	int32            usecs                  = 150101;     // PB_OFFSET + MNM_USECS
+
+	int32            source_ssboe           = 150400;     // PB_OFFSET + MNM_SOURCE_SSBOE
+	int32            source_usecs           = 150401;     // PB_OFFSET + MNM_SOURCE_USECS
+	int32            source_nsecs           = 150404;     // PB_OFFSET + MNM_SOURCE_NSECS
+
+	int32            jop_ssboe              = 150600;     // PB_OFFSET + MNM_JOP_SSBOE
+	int32            jop_nsecs              = 150604;     // PB_OFFSET + MNM_JOP_NSECS
+	}
