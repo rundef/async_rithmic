@@ -46,6 +46,7 @@ setuptools.setup(
         'websockets>=9.0',
         'protobuf==4.25.4',
         'pytz>=2022.5',
+        'tzlocal>=5.2',
     ],
     extras_require={
         'dev': ['check-manifest'],
