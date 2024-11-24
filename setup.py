@@ -45,6 +45,7 @@ setuptools.setup(
     install_requires=[
         'websockets>=9.0',
         'protobuf==4.25.4',
+        'pytz>=2022.5',
     ],
     extras_require={
         'dev': ['check-manifest'],
