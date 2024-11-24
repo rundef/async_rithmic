@@ -21,5 +21,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Install test dependencies
+        run: pip install -r requirements.test.txt
+
       - name: Run tests
         run: make tests
