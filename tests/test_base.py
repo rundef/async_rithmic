@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, AsyncMock, patch
 from websockets import ConnectionClosedError
+from websockets.frames import Close
 from datetime import datetime
 import pytz
 
@@ -85,7 +86,7 @@ async def test_handle_reconnection():
     ])
 
     plant._recv.side_effect = [
-        ConnectionClosedError(rcvd=100, sent=200),
+        ConnectionClosedError(rcvd=Close(code=1000, reason='Normal closure'), sent=Close(code=1000, reason='Normal closure')),
         responses[0],
     ]
 
