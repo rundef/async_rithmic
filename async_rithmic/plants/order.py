@@ -1,6 +1,6 @@
 import asyncio
 
-from .base import BasePlant, TEMPLATES_MAP
+from .base import BasePlant
 from ..enums import OrderType, OrderDuration, TransactionType
 from ..logger import logger
 from .. import protocol_buffers as pb
@@ -134,6 +134,31 @@ class OrderPlant(BasePlant):
                 raise Exception(f"Account {kwargs['account_id']} not found")
             return matches[0].account_id
 
+    def _validate_price_fields(self, order_type, **kwargs):
+        """
+        Validates that the correct price fields are passed via kwargs for a given order type
+        """
+
+        required_price_fields = set()
+        if order_type in [OrderType.STOP_LIMIT, OrderType.LIMIT_IF_TOUCHED]:
+            required_price_fields.add("trigger_price")
+            required_price_fields.add("price")
+
+        elif order_type in [OrderType.STOP_MARKET, OrderType.MARKET_IF_TOUCHED]:
+            required_price_fields.add("trigger_price")
+
+        elif order_type == OrderType.LIMIT:
+            required_price_fields.add("price")
+
+        for key in required_price_fields:
+            if key not in kwargs:
+                raise Exception(f"{key} must be specified for this order type")
+
+        return {
+            key: kwargs[key]
+            for key in required_price_fields
+        }
+
     async def submit_order(
         self,
         order_id: str,
@@ -145,14 +170,8 @@ class OrderPlant(BasePlant):
         **kwargs
     ):
         kwargs.setdefault("duration", OrderDuration.DAY)
-        msg_kwargs = {}
 
-        if order_type in [OrderType.LIMIT, OrderType.STOP_MARKET]:
-            if "price" not in kwargs:
-                raise Exception("Price must be specified for this order type")
-
-            msg_kwargs["price"] = kwargs["price"]
-
+        msg_kwargs = self._validate_price_fields(order_type, **kwargs)
         msg_kwargs["account_id"] = self._get_account_id(**kwargs)
 
         # Get trade route
@@ -243,13 +262,7 @@ class OrderPlant(BasePlant):
         if not order:
             raise Exception(f"Order {order_id} not found")
 
-        msg_kwargs = {}
-
-        if order_type in [OrderType.LIMIT, OrderType.STOP_MARKET]:
-            if "price" not in kwargs:
-                raise Exception("Price must be specified for this order type")
-
-            msg_kwargs["price"] = kwargs["price"]
+        msg_kwargs = self._validate_price_fields(order_type, **kwargs)
 
         return await self._send_and_recv(
             template_id=314,
