@@ -1,5 +1,6 @@
 import websockets
 from websockets import ConnectionClosedError, ConnectionClosedOK
+from websockets.protocol import OPEN
 import asyncio
 import time
 import traceback
@@ -115,7 +116,7 @@ class BasePlant:
 
     @property
     def is_connected(self) -> bool:
-        return self.ws is not None and self.ws.open
+        return self.ws is not None and self.ws.state == OPEN
 
     @property
     def credentials(self):

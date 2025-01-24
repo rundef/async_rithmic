@@ -43,7 +43,7 @@ setuptools.setup(
     ],
     python_requires='>=3.8',
     install_requires=[
-        'websockets>=9.0',
+        'websockets>=11.0,<15.0',
         'protobuf==4.25.4',
         'pytz>=2022.5',
         'tzlocal>=5.2',
