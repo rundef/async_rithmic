@@ -27,6 +27,9 @@ The most significant upgrade is the transition to an async architecture, providi
 pip install async_rithmic
 ```
 
+> ⚠ **Test Environment Limitation**:
+The test environment does not include historical market data.
+
 ## Market data
 
 ### Streaming Live Tick Data
@@ -186,7 +189,7 @@ asyncio.run(main())
 
 ### Fetch Historical Tick Data
 
-The following example will fetch historical data, in a streaming fashion:
+The following example will fetch historical data:
 
 ```python
 import asyncio
