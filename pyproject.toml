@@ -48,4 +48,4 @@ Issues = "https://github.com/rundef/async_rithmic/issues"
 packages = ["async_rithmic"]
 
 [tool.setuptools.package-data]
-"" = ["certificates/*"]
+"async_rithmic" = ["certificates/*"]
