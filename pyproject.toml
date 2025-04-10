@@ -40,9 +40,9 @@ dev = ["check-manifest"]
 test = ["coverage", "pytest"]
 
 [project.urls]
-Documentation = "https://github.com/rundef/async_rithmic"
-Bug Reports = "https://github.com/rundef/async_rithmic/issues"
-Source Code = "https://github.com/rundef/async_rithmic"
+Homepage = "https://github.com/rundef/async_rithmic"
+Repository = "https://github.com/rundef/async_rithmic"
+Issues = "https://github.com/rundef/async_rithmic/issues"
 
 [tool.setuptools]
 packages = ["async_rithmic"]
