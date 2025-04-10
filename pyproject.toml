@@ -44,8 +44,8 @@ Homepage = "https://github.com/rundef/async_rithmic"
 Repository = "https://github.com/rundef/async_rithmic"
 Issues = "https://github.com/rundef/async_rithmic/issues"
 
-[tool.setuptools]
-packages = ["async_rithmic"]
-
 [tool.setuptools.package-data]
 "async_rithmic" = ["certificates/*"]
+
+[tool.setuptools.packages.find]
+where = ["."]
