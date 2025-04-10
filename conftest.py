@@ -27,3 +27,10 @@ def load_response_mock_from_filename(name):
     else:
         with open(f"./tests/response_mocks/{name}.bin", "rb") as f:
             return f.read()
+
+def _convert_proto_message_to_bytes(proto_message):
+    serialized = proto_message.SerializeToString()
+    length = len(serialized)
+    buffer = length.to_bytes(4, byteorder='big', signed=True)
+    buffer += serialized
+    return buffer

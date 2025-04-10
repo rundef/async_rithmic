@@ -136,7 +136,3 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
-
-# Environment Credentials
-/src/rithmic/config/envs/RITHMIC_TEST.ini
-/src/rithmic/config/envs/RITHMIC_PAPER_TRADING.ini

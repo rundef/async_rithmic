@@ -1,12 +1,12 @@
 import ssl
 import asyncio
 from pathlib import Path
+from pattern_kit import DelegateMixin, Event
 
 from .plants.ticker import TickerPlant
 from .plants.history import HistoryPlant
 from .plants.order import OrderPlant
 from .plants.pnl import PnlPlant
-from .event import Event
 from .enums import Gateway
 from .logger import logger
 
@@ -20,7 +20,7 @@ def _setup_ssl_context():
     ssl_context.load_verify_locations(localhost_pem)
     return ssl_context
 
-class RithmicClient:
+class RithmicClient(DelegateMixin):
     on_connected = Event()
     on_tick = Event()
     on_time_bar = Event()
@@ -59,17 +59,7 @@ class RithmicClient:
         }
 
         for plant in self.plants.values():
-            self._map_methods(plant)
-
-    def _map_methods(self, plant):
-        """
-        Binds plant's public methods to the current class instance
-        """
-        for method_name in dir(plant):
-            if not method_name.startswith('_'):
-                method = getattr(plant, method_name)
-                if callable(method):
-                    setattr(self, method_name, method)
+            self._delegate_methods(plant)
 
     async def connect(self):
         try:
@@ -83,7 +73,7 @@ class RithmicClient:
 
                 await asyncio.sleep(0.1)
 
-            await self.on_connected.notify()
+            await self.on_connected.call_async()
 
         except:
             logger.exception("Failed to connect")

@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, AsyncMock
+from pattern_kit import Event
 
-from async_rithmic.event import Event
 from async_rithmic import protocol_buffers as pb
 
 from conftest import load_response_mock_from_filename

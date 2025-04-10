@@ -84,7 +84,7 @@ class TickerPlant(BasePlant):
             data["datetime"] = self._ssboe_usecs_to_datetime(response.ssboe, response.usecs)
             data["data_type"] = DataType.LAST_TRADE
 
-            await self.client.on_tick.notify(data)
+            await self.client.on_tick.call_async(data)
 
         elif response.template_id == 151:
             # Market data stream: Best Bid Offer
@@ -92,7 +92,7 @@ class TickerPlant(BasePlant):
             data["datetime"] = self._ssboe_usecs_to_datetime(response.ssboe, response.usecs)
             data["data_type"] = DataType.BBO
 
-            await self.client.on_tick.notify(data)
+            await self.client.on_tick.call_async(data)
 
         else:
             logger.warning(f"Ticker plant: unhandled inbound message with template_id={response.template_id}")

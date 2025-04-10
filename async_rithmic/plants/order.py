@@ -285,14 +285,14 @@ class OrderPlant(BasePlant):
 
         elif response.template_id == 351:
             # Rithmic order notification
-            await self.client.on_rithmic_order_notification.notify(response)
+            await self.client.on_rithmic_order_notification.call_async(response)
 
         elif response.template_id == 352:
             # Exchange order notification
             if response.is_snapshot:
                 self._order_list.append(response)
             else:
-                await self.client.on_exchange_order_notification.notify(response)
+                await self.client.on_exchange_order_notification.call_async(response)
 
         elif response.template_id == 353:
             # Bracket update

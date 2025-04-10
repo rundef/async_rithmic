@@ -1,3 +1,51 @@
 [build-system]
-requires = ["setuptools>=46.4.0", "wheel"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "async_rithmic"
+version = "1.2.7"
+description = "Python API Integration with Rithmic Protocol Buffer API"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Mickael Burguet" }
+]
+keywords = ["python", "rithmic"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+dependencies = [
+    "pattern_kit==1.3.0",
+    "websockets>=11.0,<15.0",
+    "protobuf==4.25.4",
+    "pytz>=2022.5",
+    "tzlocal>=5.2"
+]
+
+[project.optional-dependencies]
+dev = ["check-manifest"]
+test = ["coverage", "pytest"]
+
+[project.urls]
+Documentation = "https://github.com/rundef/async_rithmic"
+Bug Reports = "https://github.com/rundef/async_rithmic/issues"
+Source Code = "https://github.com/rundef/async_rithmic"
+
+[tool.setuptools]
+packages = ["async_rithmic"]
+
+[tool.setuptools.package-data]
+"" = ["certificates/*"]

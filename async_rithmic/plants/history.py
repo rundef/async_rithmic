@@ -167,7 +167,7 @@ class HistoryPlant(BasePlant):
             data = self._response_to_dict(response)
             data["bar_end_datetime"] = datetime.fromtimestamp(data['marker'])
 
-            await self.client.on_historical_time_bar.notify(data)
+            await self.client.on_historical_time_bar.call_async(data)
 
         elif response.template_id == 207:
             # Historical tick bar
@@ -179,14 +179,14 @@ class HistoryPlant(BasePlant):
             data = self._response_to_dict(response)
             data["datetime"] = self._ssboe_usecs_to_datetime(response.data_bar_ssboe[0], response.data_bar_usecs[0])
 
-            await self.client.on_historical_tick.notify(data)
+            await self.client.on_historical_tick.call_async(data)
 
         elif response.template_id == 250:
             # Time Bar
             data = self._response_to_dict(response)
             data["bar_end_datetime"] = datetime.fromtimestamp(data['marker'])
 
-            await self.client.on_time_bar.notify(data)
+            await self.client.on_time_bar.call_async(data)
 
         else:
             logger.warning(f"History plant: unhandled inbound message with template_id={response.template_id}")
