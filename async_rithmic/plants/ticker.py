@@ -73,6 +73,49 @@ class TickerPlant(BasePlant):
             **kwargs
         )
 
+    async def request_depth(
+        self,
+        symbol: str,
+        exchange: str,
+        depth_price: float
+    ):
+        return await self._send_and_recv_many(
+            template_id=115,
+            symbol=symbol,
+            exchange=exchange,
+            depth_price=depth_price
+        )
+
+    async def subscribe_depth(
+        self,
+        symbol: str,
+        exchange: str,
+        depth_price: float
+    ):
+        async with self.lock:
+            await self._send_request(
+                template_id=100,
+                symbol=symbol,
+                exchange=exchange,
+                depth_price=depth_price,
+                request=pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates.Request.SUBSCRIBE,
+            )
+
+    async def unsubscribe_depth(
+        self,
+        symbol: str,
+        exchange: str,
+        depth_price: float
+    ):
+        async with self.lock:
+            await self._send_request(
+                template_id=100,
+                symbol=symbol,
+                exchange=exchange,
+                depth_price=depth_price,
+                request=pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates.Request.UNSUBSCRIBE,
+            )
+
     async def _process_response(self, response):
         if response.template_id == 101:
             # Market data update response
@@ -96,3 +139,4 @@ class TickerPlant(BasePlant):
 
         else:
             logger.warning(f"Ticker plant: unhandled inbound message with template_id={response.template_id}")
+            print(response)

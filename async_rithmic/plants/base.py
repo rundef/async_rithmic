@@ -25,6 +25,8 @@ TEMPLATES_MAP = {
     17: pb.response_rithmic_system_info_pb2.ResponseRithmicSystemInfo,
     18: pb.request_heartbeat_pb2.RequestHeartbeat,
     19: pb.response_heartbeat_pb2.ResponseHeartbeat,
+    75: pb.reject_pb2.Reject,
+    77: pb.forced_logout_pb2.ForcedLogout,
 
     # Market Data Infrastructure
     100: pb.request_market_data_update_pb2.RequestMarketDataUpdate,
@@ -34,10 +36,10 @@ TEMPLATES_MAP = {
     113: pb.request_front_month_contract_pb2.RequestFrontMonthContract,
     114: pb.response_front_month_contract_pb2.ResponseFrontMonthContract,
 
-    #115: pb.request_depth_by_order_snapshot_pb2.RequestDepthByOrderSnapshot,
-    #116: pb.response_depth_by_order_snapshot_pb2.ResponseDepthByOrderSnapshot,
-    #117: pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates,
-    #118: pb.response_depth_by_order_updates_pb2.ResponseDepthByOrderUpdates,
+    115: pb.request_depth_by_order_snapshot_pb2.RequestDepthByOrderSnapshot,
+    116: pb.response_depth_by_order_snapshot_pb2.ResponseDepthByOrderSnapshot,
+    117: pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates,
+    118: pb.response_depth_by_order_updates_pb2.ResponseDepthByOrderUpdates,
 
     150: pb.last_trade_pb2.LastTrade,
     151: pb.best_bid_offer_pb2.BestBidOffer,
