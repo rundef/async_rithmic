@@ -1,4 +1,6 @@
 import asyncio
+import uuid
+from collections import defaultdict
 
 from .base import BasePlant
 from ..enums import OrderType, OrderDuration, TransactionType
@@ -12,8 +14,9 @@ class OrderPlant(BasePlant):
     trade_routes = None
     accounts = None
 
-    _order_list = []
-    _order_list_event = None
+    _order_list = defaultdict(list)
+    _order_list_event = defaultdict(asyncio.Event)
+    _order_account_to_request_id = {}
 
     async def _login(self):
         await super()._login()
@@ -87,19 +90,35 @@ class OrderPlant(BasePlant):
         )
 
     async def list_orders(self, **kwargs):
-        self._order_list = []
-        self._order_list_event = asyncio.Event()
+        account_id = self.client.plants["order"]._get_account_id(**kwargs)
+        kwargs.pop("account_id", None)
+
+        if account_id in self._order_account_to_request_id:
+            raise Exception(
+                f"There's already an active request for account_id={account_id}. "
+                "Cannot send simultaneous requests for the same account."
+            )
+
+        request_id = str(uuid.uuid4())
+
+        self._order_account_to_request_id[account_id] = request_id
 
         async with self.lock:
             await self._send_request(
                 template_id=320,
+                user_msg=request_id,
                 fcm_id=self.login_info["fcm_id"],
                 ib_id=self.login_info["ib_id"],
-                account_id=self._get_account_id(**kwargs)
+                account_id=account_id,
             )
 
-        await self._order_list_event.wait()
-        return self._order_list
+        await self._order_list_event[request_id].wait()
+
+        # Clean up
+        del self._order_list_event[request_id]
+        del self._order_account_to_request_id[account_id]
+
+        return self._order_list.pop(request_id, [])
 
     async def get_order(self, **kwargs):
         """
@@ -281,7 +300,12 @@ class OrderPlant(BasePlant):
     async def _process_response(self, response):
         if response.template_id == 321:
             # Show Orders Response
-            self._order_list_event.set()
+            request_id = response.user_msg[0]
+
+            if request_id in self._order_list_event:
+                self._order_list_event[request_id].set()
+            else:
+                logger.error(f"Unknown request id = {request_id}")
 
         elif response.template_id == 351:
             # Rithmic order notification
@@ -290,7 +314,8 @@ class OrderPlant(BasePlant):
         elif response.template_id == 352:
             # Exchange order notification
             if response.is_snapshot:
-                self._order_list.append(response)
+                request_id = self._order_account_to_request_id[response.account_id]
+                self._order_list[request_id].append(response)
             else:
                 await self.client.on_exchange_order_notification.call_async(response)
 
@@ -303,5 +328,4 @@ class OrderPlant(BasePlant):
             pass
 
         else:
-            print(response)
             logger.warning(f"Order plant: unhandled inbound message with template_id={response.template_id}")

@@ -1,6 +1,6 @@
 .PHONY: protoc tests
 
-PROTO_PATH=src/rithmic/protocol_buffers/
+PROTO_PATH=async_rithmic/protocol_buffers/
 TESTS_PATH?=tests
 
 protoc:
