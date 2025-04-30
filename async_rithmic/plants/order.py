@@ -14,11 +14,6 @@ class OrderPlant(BasePlant):
     trade_routes = None
     accounts = None
 
-    _object_list = defaultdict(list)
-    _object_list_event = defaultdict(asyncio.Event)
-    _object_response_template_id = {}
-    _object_account_to_request_id = {}
-
     async def _login(self):
         await super()._login()
         await self._fetch_login_info()
@@ -33,7 +28,12 @@ class OrderPlant(BasePlant):
         Fetch extended login details for order management, accounts, trade routes etc
         """
 
-        response = await self._send_and_recv(template_id=300)
+        responses = await self._send_and_collect(
+            template_id=300,
+            expected_response=dict(template_id=301),
+            account_id=None,
+        )
+        response = self._first(responses)
 
         self.login_info = dict(
             fcm_id=response.fcm_id,
@@ -48,11 +48,13 @@ class OrderPlant(BasePlant):
         Return list of user's accounts
         """
 
-        return await self._send_and_recv_many(
+        return await self._send_and_collect(
             template_id=302,
+            expected_response=dict(template_id=303),
             fcm_id=self.login_info["fcm_id"],
             ib_id=self.login_info["ib_id"],
-            user_type=self.login_info["user_type"]
+            user_type=self.login_info["user_type"],
+            account_id=None,
         )
 
     async def _list_trade_routes(self) -> list:
@@ -60,44 +62,12 @@ class OrderPlant(BasePlant):
         Returns list of trade routes configured for user
         """
 
-        return await self._send_and_recv_many(
+        return await self._send_and_collect(
             template_id=310,
+            expected_response=dict(template_id=311),
             subscribe_for_updates=True,
+            account_id=None,
         )
-
-    async def _list_objects(self, template_id, response_template_id, **kwargs):
-        account_id = self._get_account_id(**kwargs)
-        kwargs.pop("account_id", None)
-
-        if account_id in self._object_account_to_request_id:
-            raise Exception(
-                f"There's already an active request for account_id={account_id}. "
-                "Cannot send simultaneous requests for the same account."
-            )
-
-        request_id = str(uuid.uuid4())
-
-        self._object_response_template_id[request_id] = response_template_id
-        self._object_account_to_request_id[account_id] = request_id
-
-        async with self.lock:
-            await self._send_request(
-                user_msg=request_id,
-                template_id=template_id,
-                fcm_id=self.login_info["fcm_id"],
-                ib_id=self.login_info["ib_id"],
-                account_id=account_id,
-                **kwargs
-            )
-
-        await self._object_list_event[request_id].wait()
-
-        # Clean up
-        del self._object_list_event[request_id]
-        del self._object_response_template_id[request_id]
-        del self._object_account_to_request_id[account_id]
-
-        return self._object_list.pop(request_id, [])
 
     async def _subscribe_to_updates(self, **kwargs):
         for account in self.accounts:
@@ -109,23 +79,28 @@ class OrderPlant(BasePlant):
             )
 
     async def get_account_rms(self):
-        return await self._send_and_recv_many(
+        return await self._send_and_collect(
             template_id=304,
+            expected_response=dict(template_id=305),
             fcm_id=self.login_info["fcm_id"],
             ib_id=self.login_info["ib_id"],
             user_type=self.login_info["user_type"],
+            account_id=None,
         )
 
     async def get_product_rms(self, **kwargs):
-        return await self._send_and_recv_many(
+        return await self._send_and_collect(
             template_id=306,
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
-            account_id=self._get_account_id(**kwargs),
+            expected_response=dict(template_id=307),
+            **kwargs
         )
 
     async def list_orders(self, **kwargs):
-        return await self._list_objects(template_id=320, response_template_id=452, **kwargs)
+        return await self._send_and_collect(
+            template_id=320,
+            expected_response=dict(template_id=352, is_snapshot=True),
+            **kwargs
+        )
 
     async def get_order(self, **kwargs):
         """
@@ -146,11 +121,15 @@ class OrderPlant(BasePlant):
         return orders[0] if orders else None
 
     def _get_account_id(self, **kwargs):
+        """
+        Returns the account id if there's only one
+        Else, check that it's passed in the kwargs and valid
+        """
         if len(self.accounts) == 1:
             return self.accounts[0].account_id
 
         elif "account_id" not in kwargs:
-            raise Exception(f"You must specify an account_id for the order: {[a.account_id for a in self.accounts]}")
+            raise Exception(f"You must specify an account_id for this endpoint: {[a.account_id for a in self.accounts]}")
 
         else:
             matches = [
@@ -198,7 +177,7 @@ class OrderPlant(BasePlant):
         kwargs.setdefault("duration", OrderDuration.DAY)
 
         msg_kwargs = self._validate_price_fields(order_type, **kwargs)
-        msg_kwargs["account_id"] = self._get_account_id(**kwargs)
+        msg_kwargs["account_id"] = kwargs.pop("account_id", None)
 
         # Get trade route
         filtered = [r for r in self.trade_routes if r.exchange == exchange]
@@ -233,8 +212,9 @@ class OrderPlant(BasePlant):
             msg_kwargs["cancel_at_ssboe"] = ssboe
             msg_kwargs["cancel_at_usecs"] = usecs
 
-        return await self._send_and_recv_many(
+        return await self._send_and_collect(
             template_id=template_id,
+            expected_response=dict(template_id=template_id + 1),
             user_tag=order_id,
             symbol=symbol,
             exchange=exchange,
@@ -242,8 +222,6 @@ class OrderPlant(BasePlant):
             quantity=qty,
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             transaction_type=transaction_type,
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
             duration=kwargs["duration"],
             **msg_kwargs
         )
@@ -308,45 +286,36 @@ class OrderPlant(BasePlant):
         """
         Show Order History Dates
         """
-        return await self._send_and_recv(template_id=318)
+
+        return await self._send_and_collect(
+            template_id=318,
+            expected_response=dict(template_id=319),
+            account_id=None,
+        )
 
     async def show_order_history_summary(self, date: str, **kwargs):
         """
         Show Order History Summary
         `date` should be in YYYYMMDD format
         """
-
-        return await self._list_objects(
+        return await self._send_and_collect(
             template_id=324,
-            response_template_id=452,
             date=date,
+            expected_response=dict(template_id=452),
             **kwargs
         )
 
     async def _process_response(self, response):
-        if response.template_id in [321, 325]:
-            # Show Orders Response / Show Order History Summary Response
-            request_id = response.user_msg[0]
+        if await super()._process_response(response):
+            return True
 
-            if request_id in self._object_list_event:
-                self._object_list_event[request_id].set()
-            else:
-                logger.error(f"Unknown request id = {request_id}")
-
-            if len(response.rp_code) and response.rp_code[0] != '0':
-                logger.exception(f"Rithmic returned an error after request: {', '.join(response.rp_code)}")
-
-        elif response.template_id == 351:
+        if response.template_id == 351:
             # Rithmic order notification
             await self.client.on_rithmic_order_notification.call_async(response)
 
         elif response.template_id == 352:
             # Exchange order notification
-            if response.is_snapshot:
-                request_id = self._object_account_to_request_id[response.account_id]
-                self._object_list[request_id].append(response)
-            else:
-                await self.client.on_exchange_order_notification.call_async(response)
+            await self.client.on_exchange_order_notification.call_async(response)
 
         elif response.template_id == 353:
             # Bracket update
@@ -354,10 +323,6 @@ class OrderPlant(BasePlant):
 
         elif response.template_id == 317:
             # Cancel order
-            pass
-
-        elif response.template_id == 319:
-            # Show Order History Dates
             pass
 
         else:
