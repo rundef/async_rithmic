@@ -1,10 +1,5 @@
-import asyncio
-import uuid
-from collections import defaultdict
-
 from .base import BasePlant
 from ..enums import OrderType, OrderDuration, TransactionType
-from ..logger import logger
 from .. import protocol_buffers as pb
 
 class OrderPlant(BasePlant):
@@ -326,4 +321,4 @@ class OrderPlant(BasePlant):
             pass
 
         else:
-            logger.warning(f"Order plant: unhandled inbound message with template_id={response.template_id}")
+            self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")

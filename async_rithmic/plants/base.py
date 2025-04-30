@@ -1,5 +1,5 @@
 import websockets
-from websockets import ConnectionClosedError, ConnectionClosedOK
+from websockets import ConnectionClosedOK
 from websockets.protocol import OPEN
 import asyncio
 import time
@@ -286,13 +286,16 @@ class BasePlant:
             kwargs["fcm_id"] = login_info["fcm_id"]
             kwargs["ib_id"] = login_info["ib_id"]
 
-        request_id = str(uuid.uuid4())
+        request_id = self._generate_request_id()
 
         return await self.request_manager.send_and_collect(
             user_msg=request_id,
             template_id=template_id,
             **kwargs
         )
+
+    def _generate_request_id(self):
+        return str(uuid.uuid4())
 
     def _convert_request_to_bytes(self, request):
         """
@@ -351,14 +354,9 @@ class BasePlant:
     async def _send_heartbeat(self):
         return await self._send_and_recv(template_id=18)
 
-    async def _listen(self, max_iterations=None):
-        iteration_count = 0
-
+    async def _listen(self):
         try:
             while True:
-                if max_iterations and iteration_count >= max_iterations:
-                    break
-
                 try:
                     async with self.lock:
                         async with DisconnectionHandler(self):
@@ -368,7 +366,6 @@ class BasePlant:
                     self.logger.debug(f"Received message {MessageToDict(response)}")
 
                     await self._process_response(response)
-                    iteration_count += 1
 
                 except asyncio.TimeoutError:
                     current_time = time.time()

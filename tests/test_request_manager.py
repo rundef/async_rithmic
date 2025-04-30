@@ -11,6 +11,13 @@ FakeResponse = namedtuple("FakeResponse", ["template_id", "account_id"])
 class FakePlant:
     def __init__(self):
         self.lock = asyncio.Lock()
+        self.logger = MagicMock(
+            info=print,
+            error=print,
+            exception=print,
+            warning=print,
+            debug=print,
+        )
 
     async def _send_request(self, **kwargs):
         # Simulate network send latency

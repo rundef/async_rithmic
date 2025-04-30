@@ -2,8 +2,6 @@ import asyncio
 import time
 from collections import defaultdict
 
-from ..logger import logger
-
 
 class RequestManager:
     """
@@ -38,11 +36,11 @@ class RequestManager:
             expected_response["user_tag"] = kwargs["user_tag"]
 
         elif "account_id" in kwargs:
-            # Else, it will contain the account id
+            # Else, it will contain the same account id as the request
             expected_response["account_id"] = kwargs["account_id"]
 
         async with self.plant.lock:
-            logger.debug(f"Sending request {request_id}")
+            self.plant.logger.debug(f"Sending request {request_id}")
 
             self.start(request_id, expected_response)
 
@@ -52,7 +50,7 @@ class RequestManager:
             await asyncio.wait_for(self.done_events[request_id].wait(), timeout=timeout)
 
         except asyncio.TimeoutError:
-            logger.exception(f"Timeout waiting for complete response stream for request_id={request_id}")
+            self.plant.logger.exception(f"Timeout waiting for complete response stream for request_id={request_id}")
             self.done_events.pop(request_id, None)
             self.expected_responses.pop(request_id, None)
             raise
@@ -70,7 +68,7 @@ class RequestManager:
             if not all(getattr(response, k) == v for k, v in expected_response.items()):
                 continue
             self.responses[request_id].append(response)
-            return
+            return True
 
     def mark_complete(self, request_id: str):
         """
@@ -80,7 +78,7 @@ class RequestManager:
             elapsed = time.time() - self.start_times[request_id]
             num_responses = len(self.responses[request_id])
 
-            logger.debug(
+            self.plant.logger.debug(
                 f"Completed request {request_id} "
                 f"in {elapsed * 1000:.2f} ms with {num_responses} response(s)"
             )
@@ -92,7 +90,7 @@ class RequestManager:
             self.expected_responses.pop(request_id, None)
             self.start_times.pop(request_id, None)
         else:
-            logger.error(f"Unknown request {request_id}")
+            self.plant.logger.error(f"Unknown request {request_id}")
 
     def has_pending(self, request_id: str):
         return request_id in self.responses

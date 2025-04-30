@@ -102,4 +102,4 @@ class TickerPlant(BasePlant):
             await self.client.on_tick.call_async(data)
 
         else:
-            logger.warning(f"Ticker plant: unhandled inbound message with template_id={response.template_id}")
+            self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")

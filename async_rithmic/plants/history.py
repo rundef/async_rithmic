@@ -189,4 +189,4 @@ class HistoryPlant(BasePlant):
             await self.client.on_time_bar.call_async(data)
 
         else:
-            logger.warning(f"History plant: unhandled inbound message with template_id={response.template_id}")
+            self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")
