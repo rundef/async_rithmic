@@ -14,9 +14,10 @@ class OrderPlant(BasePlant):
     trade_routes = None
     accounts = None
 
-    _order_list = defaultdict(list)
-    _order_list_event = defaultdict(asyncio.Event)
-    _order_account_to_request_id = {}
+    _object_list = defaultdict(list)
+    _object_list_event = defaultdict(asyncio.Event)
+    _object_response_template_id = {}
+    _object_account_to_request_id = {}
 
     async def _login(self):
         await super()._login()
@@ -64,6 +65,40 @@ class OrderPlant(BasePlant):
             subscribe_for_updates=True,
         )
 
+    async def _list_objects(self, template_id, response_template_id, **kwargs):
+        account_id = self._get_account_id(**kwargs)
+        kwargs.pop("account_id", None)
+
+        if account_id in self._object_account_to_request_id:
+            raise Exception(
+                f"There's already an active request for account_id={account_id}. "
+                "Cannot send simultaneous requests for the same account."
+            )
+
+        request_id = str(uuid.uuid4())
+
+        self._object_response_template_id[request_id] = response_template_id
+        self._object_account_to_request_id[account_id] = request_id
+
+        async with self.lock:
+            await self._send_request(
+                user_msg=request_id,
+                template_id=template_id,
+                fcm_id=self.login_info["fcm_id"],
+                ib_id=self.login_info["ib_id"],
+                account_id=account_id,
+                **kwargs
+            )
+
+        await self._object_list_event[request_id].wait()
+
+        # Clean up
+        del self._object_list_event[request_id]
+        del self._object_response_template_id[request_id]
+        del self._object_account_to_request_id[account_id]
+
+        return self._object_list.pop(request_id, [])
+
     async def _subscribe_to_updates(self, **kwargs):
         for account in self.accounts:
             await self._send_and_recv(
@@ -90,35 +125,7 @@ class OrderPlant(BasePlant):
         )
 
     async def list_orders(self, **kwargs):
-        account_id = self.client.plants["order"]._get_account_id(**kwargs)
-        kwargs.pop("account_id", None)
-
-        if account_id in self._order_account_to_request_id:
-            raise Exception(
-                f"There's already an active request for account_id={account_id}. "
-                "Cannot send simultaneous requests for the same account."
-            )
-
-        request_id = str(uuid.uuid4())
-
-        self._order_account_to_request_id[account_id] = request_id
-
-        async with self.lock:
-            await self._send_request(
-                template_id=320,
-                user_msg=request_id,
-                fcm_id=self.login_info["fcm_id"],
-                ib_id=self.login_info["ib_id"],
-                account_id=account_id,
-            )
-
-        await self._order_list_event[request_id].wait()
-
-        # Clean up
-        del self._order_list_event[request_id]
-        del self._order_account_to_request_id[account_id]
-
-        return self._order_list.pop(request_id, [])
+        return await self._list_objects(template_id=320, response_template_id=452, **kwargs)
 
     async def get_order(self, **kwargs):
         """
@@ -297,15 +304,37 @@ class OrderPlant(BasePlant):
             **msg_kwargs
         )
 
+    async def show_order_history_dates(self):
+        """
+        Show Order History Dates
+        """
+        return await self._send_and_recv(template_id=318)
+
+    async def show_order_history_summary(self, date: str, **kwargs):
+        """
+        Show Order History Summary
+        `date` should be in YYYYMMDD format
+        """
+
+        return await self._list_objects(
+            template_id=324,
+            response_template_id=452,
+            date=date,
+            **kwargs
+        )
+
     async def _process_response(self, response):
-        if response.template_id == 321:
-            # Show Orders Response
+        if response.template_id in [321, 325]:
+            # Show Orders Response / Show Order History Summary Response
             request_id = response.user_msg[0]
 
-            if request_id in self._order_list_event:
-                self._order_list_event[request_id].set()
+            if request_id in self._object_list_event:
+                self._object_list_event[request_id].set()
             else:
                 logger.error(f"Unknown request id = {request_id}")
+
+            if len(response.rp_code) and response.rp_code[0] != '0':
+                logger.exception(f"Rithmic returned an error after request: {', '.join(response.rp_code)}")
 
         elif response.template_id == 351:
             # Rithmic order notification
@@ -314,8 +343,8 @@ class OrderPlant(BasePlant):
         elif response.template_id == 352:
             # Exchange order notification
             if response.is_snapshot:
-                request_id = self._order_account_to_request_id[response.account_id]
-                self._order_list[request_id].append(response)
+                request_id = self._object_account_to_request_id[response.account_id]
+                self._object_list[request_id].append(response)
             else:
                 await self.client.on_exchange_order_notification.call_async(response)
 
@@ -325,6 +354,10 @@ class OrderPlant(BasePlant):
 
         elif response.template_id == 317:
             # Cancel order
+            pass
+
+        elif response.template_id == 319:
+            # Show Order History Dates
             pass
 
         else:
