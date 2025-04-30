@@ -14,6 +14,7 @@ from google.protobuf.json_format import MessageToDict
 from .. import protocol_buffers as pb
 from ..logger import logger
 from ..helpers.request_manager import RequestManager
+from ..helpers.connectivity import DisconnectionHandler
 
 TEMPLATES_MAP = {
     # Shared
@@ -250,7 +251,9 @@ class BasePlant:
             template_id = await self._send_request(**kwargs)
 
             while True:
-                buffer = await self._recv()
+                async with DisconnectionHandler(self):
+                    buffer = await self._recv()
+
                 response = self._convert_bytes_to_response(buffer)
 
                 self.logger.debug(f"Received message {MessageToDict(response)}")
@@ -358,7 +361,8 @@ class BasePlant:
 
                 try:
                     async with self.lock:
-                        buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
+                        async with DisconnectionHandler(self):
+                            buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
 
                     response = self._convert_bytes_to_response(buffer)
                     self.logger.debug(f"Received message {MessageToDict(response)}")
@@ -373,46 +377,9 @@ class BasePlant:
                     if current_time - self.last_message_time > self.heartbeat_interval-2:
                         await self._send_heartbeat()
 
-                except ConnectionClosedError:
-                    self.logger.exception("WebSocket connection closed with error")
-                    if not await self._handle_reconnection():
-                        self.logger.info("Failed to reconnect")
-                        break
-
-                except ConnectionClosedOK:
-                    self.logger.info(f"WebSocket connection closed normally")
-                    break
-
         except Exception as e:
             self.logger.error(f"Exception in listener: {e}")
             traceback.print_exc()
-
-    async def _handle_reconnection(self, max_retries=10, attempt=1):
-        """
-        Attempts to reconnect to the plant, up to {max_retries} time
-        """
-        wait_time = min(2 ** attempt, 120)
-
-        self.logger.info(f"Reconnection attempt #{attempt} in {wait_time} seconds...")
-        await asyncio.sleep(wait_time)
-
-        try:
-            # Attempt to reconnect this specific plant
-            await self._connect()
-            await self._login()
-
-            self.logger.info(f"{self.plant_type} plant reconnection successful.")
-            return True
-
-        except Exception as e:
-            if attempt < max_retries:
-                self.logger.warning(f"{self.plant_type} plant reconnection failed: {e}. Retrying...")
-                return await self._handle_reconnection(max_retries, attempt + 1)
-            else:
-                self.logger.error(f"{self.plant_type} plant max reconnection attempts reached. Could not reconnect: {e}")
-
-        return False
-
 
     def _response_to_dict(self, response):
         data = MessageToDict(response, preserving_proto_field_name=True, use_integers_for_enums=True)

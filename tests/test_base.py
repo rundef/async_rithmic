@@ -1,5 +1,4 @@
-from unittest.mock import MagicMock, AsyncMock, patch
-from websockets import ConnectionClosedError
+from unittest.mock import MagicMock
 from datetime import datetime
 import pytz
 
@@ -50,41 +49,6 @@ async def test_get_reference_data(ticker_plant_mock):
     assert response.currency == "USD"
     assert response.expiration_date == "20240920"
     assert response.min_qprice_change == 0.25
-
-
-async def test_handle_reconnection():
-    plant = TickerPlant(MagicMock())
-    plant.lock = AsyncMock()
-    plant._recv = AsyncMock()
-    plant._process_response = AsyncMock()
-    plant._send_heartbeat = AsyncMock()
-    plant._connect = AsyncMock()
-    plant._login = AsyncMock()
-
-    responses = load_response_mock_from_filename([
-        "reference_data_ES",
-    ])
-
-    plant._recv.side_effect = [
-        ConnectionClosedError(rcvd=None, sent=None),
-        responses[0],
-    ]
-
-    # Patch sleep to avoid actual delay
-    with patch('asyncio.sleep', return_value=None) as mock_sleep:
-        result = await plant._listen(max_iterations=2)
-
-        # Check that the reconnection logic was triggered
-        plant._connect.assert_called()
-        plant._login.assert_called()
-        mock_sleep.assert_called()  # Reconnection delay
-
-        # Verify that reconnection attempts were made
-        assert plant._connect.call_count == 1
-        assert plant._login.call_count == 1
-
-        # Ensure that the listener kept running after the first reconnection
-        assert result is None
 
 def test_datetime_to_utc():
 
