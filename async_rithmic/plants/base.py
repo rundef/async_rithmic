@@ -394,7 +394,7 @@ class BasePlant:
         Handles async responses
         """
 
-        if hasattr(response, "user_msg") and response.user_msg is not None:
+        if hasattr(response, "user_msg") and response.user_msg is not None and len(response.user_msg) > 0:
             request_id = response.user_msg[0]
 
             if self.request_manager.has_pending(request_id):
