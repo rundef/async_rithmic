@@ -66,7 +66,8 @@ class OrderPlant(BasePlant):
 
     async def _subscribe_to_updates(self, **kwargs):
         for account in self.accounts:
-            await self._send_and_recv(
+            await self._send_and_collect(
+                expected_response=dict(template_id=kwargs["template_id"] + 1),
                 fcm_id=self.login_info["fcm_id"],
                 ib_id=self.login_info["ib_id"],
                 account_id=account.account_id,

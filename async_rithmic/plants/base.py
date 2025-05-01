@@ -177,8 +177,10 @@ class BasePlant:
             await self.ws.close(1000, "Closing Connection")
 
     async def _login(self):
-        response = await self._send_and_recv(
+        responses = await self._send_and_collect(
             template_id=10,
+            expected_response=dict(template_id=11),
+            account_id=None,
             template_version="3.9",
             user=self.credentials["user"],
             password=self.credentials["password"],
@@ -187,6 +189,7 @@ class BasePlant:
             app_version=self.credentials["app_version"],
             infra_type=self.infra_type,
         )
+        response = self._first(responses)
 
         self.heartbeat_interval = response.heartbeat_interval
 
@@ -197,7 +200,9 @@ class BasePlant:
 
     async def _logout(self):
         try:
-            return await self._send_and_recv(template_id=12)
+            async with self.lock:
+                await self._send_request(template_id=12)
+
         except ConnectionClosedOK:
             pass
 
@@ -352,7 +357,8 @@ class BasePlant:
                 raise
 
     async def _send_heartbeat(self):
-        return await self._send_and_recv(template_id=18)
+        async with self.lock:
+            await self._send_request(template_id=18)
 
     async def _listen(self):
         try:
@@ -394,6 +400,13 @@ class BasePlant:
         Handles async responses
         """
 
+        if response.template_id in [13, 19, 401]:
+            # Ignore
+            # - logout responses
+            # - heartbeat responses
+            # - pnl subscription responses
+            return True
+
         if hasattr(response, "user_msg") and response.user_msg is not None and len(response.user_msg) > 0:
             request_id = response.user_msg[0]
 
@@ -404,7 +417,7 @@ class BasePlant:
                         raise Exception(f"Server returned an error: {MessageToDict(response)}")
 
                     else:
-                        if response.template_id in [15, 114, 301]:
+                        if response.template_id in [11, 15, 114, 301]:
                             # We expect a single response containing `rp_code` for these endpoints
                             self.request_manager.handle_response(response)
 

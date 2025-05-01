@@ -67,6 +67,7 @@ class RequestManager:
         for request_id, expected_response in self.expected_responses.items():
             if not all(getattr(response, k) == v for k, v in expected_response.items()):
                 continue
+
             self.responses[request_id].append(response)
             return True
 

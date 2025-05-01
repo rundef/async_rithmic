@@ -21,14 +21,15 @@ class PnlPlant(BasePlant):
         await self._subscribe_to_position_updates()
 
     async def _subscribe_to_position_updates(self):
-        for account in self._accounts:
-            await self._send_and_recv(
-                template_id=400,
-                fcm_id=self._fcm_id,
-                ib_id=self._ib_id,
-                account_id=account.account_id,
-                request=pb.request_pnl_position_updates_pb2.RequestPnLPositionUpdates.Request.SUBSCRIBE
-            )
+        async with self.lock:
+            for account in self._accounts:
+                await self._send_request(
+                    template_id=400,
+                    fcm_id=self._fcm_id,
+                    ib_id=self._ib_id,
+                    account_id=account.account_id,
+                    request=pb.request_pnl_position_updates_pb2.RequestPnLPositionUpdates.Request.SUBSCRIBE
+                )
 
     async def list_positions(self, **kwargs):
         return await self._send_and_collect(
