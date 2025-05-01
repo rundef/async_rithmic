@@ -247,22 +247,21 @@ class BasePlant:
         Sends a request to the API and decode the response
         """
 
-        async with self.lock:
-            template_id = await self._send_request(**kwargs)
+        async with DisconnectionHandler(self):
+            async with self.lock:
+                template_id = await self._send_request(**kwargs)
 
-            while True:
-                async with DisconnectionHandler(self):
+                while True:
                     buffer = await self._recv()
+                    response = self._convert_bytes_to_response(buffer)
 
-                response = self._convert_bytes_to_response(buffer)
+                    self.logger.debug(f"Received message {MessageToDict(response)}")
 
-                self.logger.debug(f"Received message {MessageToDict(response)}")
+                    if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
+                        await self._process_response(response)
+                        continue
 
-                if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
-                    await self._process_response(response)
-                    continue
-
-                break
+                    break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
             raise Exception(f"Rithmic returned an error after request {template_id}: {', '.join(response.rp_code)}")
@@ -358,20 +357,20 @@ class BasePlant:
         try:
             while True:
                 try:
-                    async with self.lock:
-                        async with DisconnectionHandler(self):
+                    async with DisconnectionHandler(self):
+                        async with self.lock:
                             buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
 
-                    response = self._convert_bytes_to_response(buffer)
-                    self.logger.debug(f"Received message {MessageToDict(response)}")
+                        response = self._convert_bytes_to_response(buffer)
+                        self.logger.debug(f"Received message {MessageToDict(response)}")
 
-                    await self._process_response(response)
+                        await self._process_response(response)
 
                 except asyncio.TimeoutError:
                     current_time = time.time()
 
                     # Send regular heartbeats
-                    if current_time - self.last_message_time > self.heartbeat_interval-2:
+                    if self.last_message_time and current_time - self.last_message_time > self.heartbeat_interval-2:
                         await self._send_heartbeat()
 
         except Exception as e:
