@@ -247,21 +247,22 @@ class BasePlant:
         Sends a request to the API and decode the response
         """
 
-        async with DisconnectionHandler(self):
-            async with self.lock:
-                template_id = await self._send_request(**kwargs)
+        async with self.lock:
+            template_id = await self._send_request(**kwargs)
 
-                while True:
+        while True:
+            async with DisconnectionHandler(self):
+                async with self.lock:
                     buffer = await self._recv()
-                    response = self._convert_bytes_to_response(buffer)
 
-                    self.logger.debug(f"Received message {MessageToDict(response)}")
+                response = self._convert_bytes_to_response(buffer)
+                self.logger.debug(f"Received message {MessageToDict(response)}")
 
-                    if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
-                        await self._process_response(response)
-                        continue
+                if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
+                    await self._process_response(response)
+                    continue
 
-                    break
+                break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
             raise Exception(f"Rithmic returned an error after request {template_id}: {', '.join(response.rp_code)}")

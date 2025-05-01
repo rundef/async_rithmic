@@ -89,7 +89,11 @@ async def test_disconnection_handler_gives_up_after_max_retries():
     assert plant._connect.call_count > 0
 
 @patch("async_rithmic.helpers.connectivity.compute_backoff", MagicMock(return_value=0.01))
-async def test_no_deadlock_on_reconnect(ticker_plant_mock):
+@pytest.mark.parametrize("function_name", [
+    "_listen",
+    "_send_and_recv",
+])
+async def test_no_deadlock_on_reconnect(ticker_plant_mock, function_name):
     plant = ticker_plant_mock
 
     recv_mock = AsyncMock()
@@ -105,14 +109,16 @@ async def test_no_deadlock_on_reconnect(ticker_plant_mock):
 
     plant._connect = fake_connect
     plant._login = AsyncMock()
+    plant._send_request = AsyncMock()
 
     # Start the infinite listener
-    listener_task = asyncio.create_task(plant._listen())
+    fn = getattr(plant, function_name)
+    listener_task = asyncio.create_task(fn())
 
     await asyncio.sleep(0.3)
 
     assert recv_mock.call_count >= 2, "Listener is likely deadlocked: _recv not called after reconnect"
 
     listener_task.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
+    with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
         await listener_task
