@@ -3,6 +3,7 @@ import asyncio
 import uuid
 import random
 from collections import namedtuple
+from unittest.mock import MagicMock
 
 from async_rithmic.helpers.request_manager import RequestManager
 

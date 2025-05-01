@@ -1,4 +1,6 @@
 import pytest
+import asyncio
+import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 from websockets.exceptions import ConnectionClosedError
 from async_rithmic.helpers.connectivity import DisconnectionHandler, _try_to_reconnect
@@ -85,3 +87,32 @@ async def test_disconnection_handler_gives_up_after_max_retries():
         await trigger_recv()
 
     assert plant._connect.call_count > 0
+
+@patch("async_rithmic.helpers.connectivity.compute_backoff", MagicMock(return_value=0.01))
+async def test_no_deadlock_on_reconnect(ticker_plant_mock):
+    plant = ticker_plant_mock
+
+    recv_mock = AsyncMock()
+    recv_mock.side_effect = [
+        ConnectionClosedError(rcvd=None, sent=None),
+    ]
+    plant._recv = recv_mock
+
+    async def fake_connect():
+        # Simulate reconnect path that also acquires the lock
+        async with plant.lock:
+            await asyncio.sleep(0.1)
+
+    plant._connect = fake_connect
+    plant._login = AsyncMock()
+
+    # Start the infinite listener
+    listener_task = asyncio.create_task(plant._listen())
+
+    await asyncio.sleep(0.3)
+
+    assert recv_mock.call_count >= 2, "Listener is likely deadlocked: _recv not called after reconnect"
+
+    listener_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await listener_task

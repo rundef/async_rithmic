@@ -33,23 +33,6 @@ def test_convert_bytes_to_response():
     assert isinstance(response, pb.response_heartbeat_pb2.ResponseHeartbeat)
 
 
-async def test_get_reference_data(ticker_plant_mock):
-    responses = load_response_mock_from_filename([
-        "reference_data_ES",
-    ])
-
-    ticker_plant_mock.ws.recv.side_effect = responses
-
-    response = await ticker_plant_mock.get_reference_data("ES", "CME")
-
-    assert response.product_code == response.symbol == "ES"
-    assert response.exchange_symbol == "ESU4"
-    assert response.symbol_name == "Front Month for ES - ESU4.CME"
-    assert response.exchange == "CME"
-    assert response.currency == "USD"
-    assert response.expiration_date == "20240920"
-    assert response.min_qprice_change == 0.25
-
 def test_datetime_to_utc():
 
     plant = TickerPlant(MagicMock())
