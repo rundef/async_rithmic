@@ -65,12 +65,11 @@ class RithmicClient(DelegateMixin):
         try:
             for plant_type, plant in self.plants.items():
                 await plant._connect()
-                await plant._login()
 
                 logger.info(f"Connected to {plant_type} plant")
 
                 self.listeners.append(asyncio.create_task(plant._listen()))
-
+                await plant._login()
                 await asyncio.sleep(0.1)
 
             await self.on_connected.call_async()

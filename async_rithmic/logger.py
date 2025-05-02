@@ -17,4 +17,4 @@ class Logger:
     def get_logger(self):
         return self.logger
 
-logger = Logger(level=logging.DEBUG).get_logger()
+logger = Logger(level=logging.INFO).get_logger()

@@ -17,13 +17,15 @@ class TickerPlant(BasePlant):
         :return: (str) the front month futures contract
         """
 
-        response = await self._send_and_recv(
+        responses = await self._send_and_collect(
             template_id=113,
+            expected_response=dict(template_id=114),
             symbol=symbol,
             exchange=exchange,
-            user_msg=[symbol]
+            account_id=None,
         )
-        return response.trading_symbol
+        response = self._first(responses)
+        return response.trading_symbol if response else None
 
     async def subscribe_to_market_data(
         self,
@@ -67,13 +69,18 @@ class TickerPlant(BasePlant):
 
         kwargs.setdefault("pattern", SearchPattern.CONTAINS)
 
-        return await self._send_and_recv_many(
+        return await self._send_and_collect(
             template_id=109,
+            expected_response=dict(template_id=110),
             search_text=search_text,
+            account_id=None,
             **kwargs
         )
 
     async def _process_response(self, response):
+        if await super()._process_response(response):
+            return True
+
         if response.template_id == 101:
             # Market data update response
             pass
@@ -95,4 +102,4 @@ class TickerPlant(BasePlant):
             await self.client.on_tick.call_async(data)
 
         else:
-            logger.warning(f"Ticker plant: unhandled inbound message with template_id={response.template_id}")
+            self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")

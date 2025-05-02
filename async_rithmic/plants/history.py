@@ -157,6 +157,9 @@ class HistoryPlant(BasePlant):
         )
 
     async def _process_response(self, response):
+        if await super()._process_response(response):
+            return True
+
         if response.template_id == 203:
             # Historical time bar
             is_last_bar = response.rp_code == ['0'] or response.rq_handler_rp_code == []
@@ -189,4 +192,4 @@ class HistoryPlant(BasePlant):
             await self.client.on_time_bar.call_async(data)
 
         else:
-            logger.warning(f"History plant: unhandled inbound message with template_id={response.template_id}")
+            self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")

@@ -7,6 +7,8 @@ from async_rithmic.plants import TickerPlant, PnlPlant, OrderPlant
 def ticker_plant_mock():
     plant = TickerPlant(MagicMock())
     plant.ws = AsyncMock()
+    plant.heartbeat_interval = 5
+    plant._send_heartbeat = AsyncMock()
     return plant
 
 @pytest.fixture

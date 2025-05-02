@@ -89,7 +89,7 @@ async def main():
     client.on_time_bar += callback
     await client.subscribe_to_time_bar_data(security_code, exchange, TimeBarType.SECOND_BAR, 6)
 
-    # Wait 10 seconds, unsubscribe and disconnect
+    # Wait 20 seconds, unsubscribe and disconnect
     await asyncio.sleep(20)
     await client.unsubscribe_from_time_bar_data(security_code, exchange, TimeBarType.SECOND_BAR, 6)
     await client.disconnect()
