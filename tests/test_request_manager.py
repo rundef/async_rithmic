@@ -53,7 +53,7 @@ class TestRequestManager:
         tasks = []
 
         for i in range(num_requests):
-            template_id = random.randint(100, 500)
+            template_id = random.randint(1000, 5000)
             account_id = accounts[i]
             total_messages = random.randint(3, 7)
             request_id = str(uuid.uuid4())
