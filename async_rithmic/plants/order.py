@@ -92,6 +92,8 @@ class OrderPlant(BasePlant):
         )
 
     async def list_orders(self, **kwargs):
+        kwargs.setdefault("account_id", None)
+
         return await self._send_and_collect(
             template_id=320,
             expected_response=dict(template_id=352, is_snapshot=True),
@@ -297,7 +299,7 @@ class OrderPlant(BasePlant):
         return await self._send_and_collect(
             template_id=324,
             date=date,
-            expected_response=dict(template_id=452),
+            expected_response=dict(template_id=352, is_snapshot=True),
             **kwargs
         )
 
