@@ -1,5 +1,6 @@
 from .base import BasePlant
 from ..enums import OrderType, OrderDuration, TransactionType
+from ..exceptions import InvalidRequestError
 from .. import protocol_buffers as pb
 
 class OrderPlant(BasePlant):
@@ -92,8 +93,6 @@ class OrderPlant(BasePlant):
         )
 
     async def list_orders(self, **kwargs):
-        kwargs.setdefault("account_id", None)
-
         return await self._send_and_collect(
             template_id=320,
             expected_response=dict(template_id=352, is_snapshot=True),
@@ -108,7 +107,7 @@ class OrderPlant(BasePlant):
         order_id = kwargs.pop("order_id", None)
         basket_id = kwargs.pop("basket_id", None)
         if not order_id and not basket_id:
-            raise Exception("Expected order_id or basket_id")
+            raise InvalidRequestError("Missing arguments: order_id or basket_id")
 
         orders = await self.list_orders(**kwargs)
         if order_id:
@@ -127,14 +126,14 @@ class OrderPlant(BasePlant):
             return self.accounts[0].account_id
 
         elif "account_id" not in kwargs:
-            raise Exception(f"You must specify an account_id for this endpoint: {[a.account_id for a in self.accounts]}")
+            raise InvalidRequestError(f"Missing argument: account_id (possible values are: {','.join([a.account_id for a in self.accounts])})")
 
         else:
             matches = [
                 a for a in self.accounts if a.account_id == kwargs["account_id"]
             ]
             if not matches:
-                raise Exception(f"Account {kwargs['account_id']} not found")
+                raise InvalidRequestError(f"Invalid account_id specified (possible values are: {','.join([a.account_id for a in self.accounts])})")
             return matches[0].account_id
 
     def _validate_price_fields(self, order_type, **kwargs):
@@ -155,7 +154,7 @@ class OrderPlant(BasePlant):
 
         for key in required_price_fields:
             if key not in kwargs:
-                raise Exception(f"{key} must be specified for this order type")
+                raise InvalidRequestError(f"Missing argument: {key} is mandatory for this order type")
 
         return {
             key: kwargs[key]
@@ -242,7 +241,7 @@ class OrderPlant(BasePlant):
             account_id = order.account_id
 
         else:
-            raise Exception("Expected basket_id or order_id kwarg")
+            raise InvalidRequestError("Missing arguments: order_id or basket_id")
 
         return await self._send_and_recv(
             template_id=316,
