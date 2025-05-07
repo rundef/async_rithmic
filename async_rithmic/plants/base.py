@@ -3,7 +3,6 @@ from websockets import ConnectionClosedOK
 from websockets.protocol import OPEN
 import asyncio
 import time
-import traceback
 import uuid
 from datetime import datetime
 import pytz
@@ -13,6 +12,7 @@ from google.protobuf.json_format import MessageToDict
 
 from .. import protocol_buffers as pb
 from ..logger import logger
+from ..exceptions import RithmicErrorResponse
 from ..helpers.request_manager import RequestManager
 from ..helpers.connectivity import DisconnectionHandler
 
@@ -270,7 +270,7 @@ class BasePlant:
                 break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
-            raise Exception(f"Rithmic returned an error after request {template_id}: {', '.join(response.rp_code)}")
+            raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
 
         return response
 
@@ -361,28 +361,32 @@ class BasePlant:
             await self._send_request(template_id=18)
 
     async def _listen(self):
-        try:
-            while True:
-                try:
-                    async with DisconnectionHandler(self):
-                        async with self.lock:
-                            buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
+        while True:
+            try:
+                async with DisconnectionHandler(self):
+                    async with self.lock:
+                        buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
 
-                        response = self._convert_bytes_to_response(buffer)
-                        self.logger.debug(f"Received message {MessageToDict(response)}")
+                    response = self._convert_bytes_to_response(buffer)
+                    self.logger.debug(f"Received message {MessageToDict(response)}")
 
-                        await self._process_response(response)
+                    await self._process_response(response)
 
-                except asyncio.TimeoutError:
-                    current_time = time.time()
+            except asyncio.TimeoutError:
+                pass
 
-                    # Send regular heartbeats
-                    if self.last_message_time and current_time - self.last_message_time > self.heartbeat_interval-2:
-                        await self._send_heartbeat()
+            except asyncio.CancelledError:
+                break
 
-        except Exception as e:
-            self.logger.error(f"Exception in listener: {e}")
-            traceback.print_exc()
+            except:
+                self.logger.exception("Exception in background listener")
+
+            if not self.last_message_time or not self.heartbeat_interval:
+                continue
+
+            # Send regular heartbeats
+            if time.time() - self.last_message_time > self.heartbeat_interval - 2:
+                await self._send_heartbeat()
 
     def _response_to_dict(self, response):
         data = MessageToDict(response, preserving_proto_field_name=True, use_integers_for_enums=True)
@@ -413,8 +417,9 @@ class BasePlant:
             if self.request_manager.has_pending(request_id):
                 if response.rp_code:
                     if response.rp_code[0] != '0':
+                        request = self.request_manager.requests.get(request_id)
                         self.request_manager.mark_complete(request_id)
-                        raise Exception(f"Server returned an error: {MessageToDict(response)}")
+                        raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}")
 
                     else:
                         if response.template_id in [11, 15, 114, 301]:
