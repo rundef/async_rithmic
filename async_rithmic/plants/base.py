@@ -376,20 +376,17 @@ class BasePlant:
                 pass
 
             except asyncio.CancelledError:
-                return
+                break
 
             except:
                 self.logger.exception("Exception in background listener")
 
-            finally:
-                if not self.last_message_time or not self.heartbeat_interval:
-                    continue
+            if not self.last_message_time or not self.heartbeat_interval:
+                continue
 
-                # Send regular heartbeats
-                if time.time() - self.last_message_time > self.heartbeat_interval - 2:
-                    await self._send_heartbeat()
-
-
+            # Send regular heartbeats
+            if time.time() - self.last_message_time > self.heartbeat_interval - 2:
+                await self._send_heartbeat()
 
     def _response_to_dict(self, response):
         data = MessageToDict(response, preserving_proto_field_name=True, use_integers_for_enums=True)

@@ -1,5 +1,5 @@
 class RithmicErrorResponse(Exception):
-    """Raise when Rithmic returns an error."""
+    """Raised when Rithmic returns an error."""
     pass
 
 
