@@ -104,18 +104,31 @@ class OrderPlant(BasePlant):
         Get an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
         """
 
-        order_id = kwargs.pop("order_id", None)
-        basket_id = kwargs.pop("basket_id", None)
+        order_id = kwargs.get("order_id")
+        basket_id = kwargs.get("basket_id")
         if not order_id and not basket_id:
-            raise InvalidRequestError("Missing arguments: order_id or basket_id")
+            raise InvalidRequestError("Missing argument: order_id or basket_id")
 
-        orders = await self.list_orders(**kwargs)
-        if order_id:
-            orders = [o for o in orders if o.user_tag == order_id]
-        if basket_id:
-            orders = [o for o in orders if o.basket_id == basket_id]
+        # Check if the user specified an account_id
+        account_ids = []
+        if kwargs.get("account_id"):
+            account_ids.append(kwargs.get("account_id"))
+        else:
+            account_ids = [a.account_id for a in self.accounts]
 
-        return orders[0] if orders else None
+        # Fetch order from each sub account
+        for account_id in account_ids:
+            orders = await self.list_orders(account_id=account_id)
+
+            if order_id:
+                orders = [o for o in orders if o.user_tag == order_id]
+            if basket_id:
+                orders = [o for o in orders if o.basket_id == basket_id]
+
+            if orders:
+                return orders[0]
+
+        return None
 
     def _get_account_id(self, **kwargs):
         """
@@ -228,20 +241,16 @@ class OrderPlant(BasePlant):
         Cancel an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
         """
 
-        basket_id = kwargs.pop("basket_id", None)
-        if basket_id:
-            account_id = self._get_account_id(**kwargs)
+        basket_id = kwargs.get("basket_id")
+        account_id = kwargs.get("account_id")
 
-        elif "order_id" in kwargs:
+        if not basket_id or not account_id:
             order = await self.get_order(**kwargs)
             if not order:
-                raise Exception("Order not found")
+                raise Exception(f"Order not found: {kwargs}")
 
             basket_id = order.basket_id
             account_id = order.account_id
-
-        else:
-            raise InvalidRequestError("Missing arguments: order_id or basket_id")
 
         return await self._send_and_recv(
             template_id=316,
@@ -270,7 +279,7 @@ class OrderPlant(BasePlant):
             fcm_id=self.login_info["fcm_id"],
             ib_id=self.login_info["ib_id"],
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
-            account_id=self._get_account_id(**kwargs),
+            account_id=order.account_id,
             basket_id=order.basket_id,
             symbol=order.symbol,
             exchange=order.exchange,
