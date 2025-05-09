@@ -161,7 +161,7 @@ class BasePlant:
 
         if self.plant_type == "ticker":
             info = await self.get_system_info()
-            await self._disconnect()
+            await self._disconnect(trigger_event=False)
 
             if self.credentials["system_name"] not in info.system_name:
                 raise Exception(f"You must specify valid SYSTEM_NAME in the credentials: {info.system_name}")
@@ -172,9 +172,14 @@ class BasePlant:
                 ping_interval=10
             )
 
-    async def _disconnect(self):
+        self.client.on_connected.call_async(self.plant_type)
+
+    async def _disconnect(self, trigger_event=True):
         if self.is_connected:
             await self.ws.close(1000, "Closing Connection")
+
+            if trigger_event:
+                self.client.on_disconnected.call_async(self.plant_type)
 
     async def _login(self):
         responses = await self._send_and_collect(

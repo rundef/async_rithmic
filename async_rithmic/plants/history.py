@@ -3,7 +3,6 @@ import asyncio
 from collections import defaultdict
 
 from .base import BasePlant
-from ..logger import logger
 from ..enums import TimeBarType
 from .. import protocol_buffers as pb
 
