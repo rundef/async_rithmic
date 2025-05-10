@@ -271,6 +271,8 @@ class BasePlant:
         Sends a request to the API and decode the response
         """
 
+        # TODO: Remove. Use _send_and_collect instead.
+
         template_id = await self._send_request(**kwargs)
 
         while True:

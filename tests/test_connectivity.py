@@ -52,20 +52,6 @@ async def test_disconnection_handler_retries_and_succeeds(fail_on_attempt):
     assert plant._connect.call_count == fail_on_attempt
 
 
-async def test_disconnection_handler_gives_up_after_max_retries():
-    plant = FakePlant()
-
-    async def always_fail():
-        raise ConnectionClosedError(rcvd=None, sent=None)
-
-    with pytest.raises(RuntimeError, match="Unable to reconnect WebSocket"):
-        async with DisconnectionHandler(plant):
-            await always_fail()
-
-    assert plant._connect.call_count > 0
-    assert plant._login.call_count == plant._connect.call_count
-
-
 async def test_try_to_reconnect_success():
     plant = FakePlant()
 
@@ -74,9 +60,15 @@ async def test_try_to_reconnect_success():
     assert plant._connect.call_count == 1
     assert plant._login.call_count == 1
 
+
 async def test_disconnection_handler_gives_up_after_max_retries():
     plant = FakePlant()
     plant._connect = AsyncMock(side_effect=Exception("fail_connect"))
+    plant.client.reconnection_settings = ReconnectionSettings(
+        backoff_type="constant",
+        interval=0.01,
+        max_retries=20,
+    )
 
     async def trigger_recv():
         async with DisconnectionHandler(plant):
@@ -173,7 +165,7 @@ async def test_send_retries_after_reconnect_success(ticker_plant_mock):
     plant.ws.send = AsyncMock(side_effect=[ConnectionClosedError(rcvd=None, sent=None), None])
 
     # Mock try_to_reconnect to succeed
-    with patch("async_rithmic.helpers.connectivity.try_to_reconnect", new=AsyncMock(return_value=True)):
+    with patch("async_rithmic.plants.base.try_to_reconnect", new=AsyncMock(return_value=True)):
         await plant._send(b"test-message")
 
     assert plant.ws.send.call_count == 2

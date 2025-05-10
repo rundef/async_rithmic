@@ -11,9 +11,6 @@ class ReconnectionSettings:
     jitter_range: tuple = None
 
     def get_delay(self, attempt: int) -> float:
-        if self.max_retries is not None and attempt > self.max_retries:
-            raise StopIteration
-
         if self.backoff_type == "constant":
             delay = self.interval
 
