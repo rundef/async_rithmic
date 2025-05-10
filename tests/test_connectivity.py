@@ -3,7 +3,8 @@ import asyncio
 import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 from websockets.exceptions import ConnectionClosedError
-from async_rithmic.helpers.connectivity import DisconnectionHandler, _try_to_reconnect
+from async_rithmic.helpers.connectivity import DisconnectionHandler, try_to_reconnect
+from async_rithmic import ReconnectionSettings
 
 class FakePlant:
     def __init__(self):
@@ -16,10 +17,14 @@ class FakePlant:
         )
         self._connect = AsyncMock()
         self._login = AsyncMock()
+        self.client = MagicMock()
+        self.client.reconnection_settings = ReconnectionSettings(
+            backoff_type="constant",
+            interval=0.01,
+            max_retries=20,
+        )
 
-@patch("async_rithmic.helpers.connectivity.compute_backoff", MagicMock(return_value=0.01))
 @pytest.mark.parametrize("fail_on_attempt", [1, 3, 5])
-@pytest.mark.asyncio
 async def test_disconnection_handler_retries_and_succeeds(fail_on_attempt):
     plant = FakePlant()
     attempt = 0
@@ -47,19 +52,23 @@ async def test_disconnection_handler_retries_and_succeeds(fail_on_attempt):
     assert plant._connect.call_count == fail_on_attempt
 
 
-@patch("async_rithmic.helpers.connectivity.compute_backoff", MagicMock(return_value=0.01))
 async def test_try_to_reconnect_success():
     plant = FakePlant()
 
-    result = await _try_to_reconnect(plant, max_retries=3)
+    result = await try_to_reconnect(plant)
     assert result is True
     assert plant._connect.call_count == 1
     assert plant._login.call_count == 1
 
-@patch("async_rithmic.helpers.connectivity.compute_backoff", MagicMock(return_value=0.01))
+
 async def test_disconnection_handler_gives_up_after_max_retries():
     plant = FakePlant()
     plant._connect = AsyncMock(side_effect=Exception("fail_connect"))
+    plant.client.reconnection_settings = ReconnectionSettings(
+        backoff_type="constant",
+        interval=0.01,
+        max_retries=20,
+    )
 
     async def trigger_recv():
         async with DisconnectionHandler(plant):
@@ -70,13 +79,17 @@ async def test_disconnection_handler_gives_up_after_max_retries():
 
     assert plant._connect.call_count > 0
 
-@patch("async_rithmic.helpers.connectivity.compute_backoff", MagicMock(return_value=0.01))
 @pytest.mark.parametrize("function_name", [
     "_listen",
     "_send_and_recv",
 ])
 async def test_no_deadlock_on_reconnect(ticker_plant_mock, function_name):
     plant = ticker_plant_mock
+    plant.client.reconnection_settings = ReconnectionSettings(
+        backoff_type="constant",
+        interval=0.01,
+        max_retries=20,
+    )
 
     plant._recv = AsyncMock()
     plant.heartbeat_interval = None
@@ -112,3 +125,47 @@ async def test_no_deadlock_on_reconnect(ticker_plant_mock, function_name):
     listener_task.cancel()
     with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
         await listener_task
+
+
+@pytest.mark.parametrize("settings, attempt, expected_range", [
+    # === CONSTANT BACKOFF ===
+    (ReconnectionSettings(max_retries=5, backoff_type="constant", interval=10), 1, (10, 10)),
+    (ReconnectionSettings(max_retries=5, backoff_type="constant", interval=10), 3, (10, 10)),
+    (ReconnectionSettings(max_retries=5, backoff_type="constant", interval=10, jitter_range=(0.1, 0.5)), 1, (10.1, 10.5)),
+
+
+    # === LINEAR BACKOFF ===
+    (ReconnectionSettings(max_retries=5, backoff_type="linear", interval=10, max_delay=100), 3, (30, 30)),
+    (ReconnectionSettings(max_retries=5, backoff_type="linear", interval=25, max_delay=60), 3, (60, 60)),  # capped
+    (ReconnectionSettings(max_retries=5, backoff_type="linear", interval=15, max_delay=1000, jitter_range=(0.2, 1.2)), 4, (60.2, 61.2)),
+
+    # === EXPONENTIAL BACKOFF ===
+    (ReconnectionSettings(max_retries=5, backoff_type="exponential", interval=2, max_delay=100), 3, (8, 8)),
+    (ReconnectionSettings(max_retries=5, backoff_type="exponential", interval=3, max_delay=100), 4, (81, 81)),
+    (ReconnectionSettings(max_retries=5, backoff_type="exponential", interval=5, max_delay=100), 4, (100, 100)),  # capped: 5^4 = 625 > 100
+    (ReconnectionSettings(max_retries=5, backoff_type="exponential", interval=2, max_delay=1000, jitter_range=(1, 2)), 5, (32 + 1, 32 + 2)),
+
+])
+def test_get_delay(settings, attempt, expected_range):
+    delay = settings.get_delay(attempt)
+    assert expected_range[0] <= delay <= expected_range[1], (
+        f"Backoff delay {delay} not in expected range {expected_range} "
+        f"for type={settings.backoff_type}, attempt={attempt}"
+    )
+
+async def test_send_retries_after_reconnect_success(ticker_plant_mock):
+    plant = ticker_plant_mock
+    plant.client.reconnection_settings = ReconnectionSettings(
+        backoff_type="constant",
+        interval=0.01,
+        max_retries=20,
+    )
+
+    # First call to send raises, second call succeeds
+    plant.ws.send = AsyncMock(side_effect=[ConnectionClosedError(rcvd=None, sent=None), None])
+
+    # Mock try_to_reconnect to succeed
+    with patch("async_rithmic.plants.base.try_to_reconnect", new=AsyncMock(return_value=True)):
+        await plant._send(b"test-message")
+
+    assert plant.ws.send.call_count == 2

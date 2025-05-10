@@ -1,5 +1,4 @@
 import asyncio
-import random
 from contextlib import asynccontextmanager
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
@@ -14,43 +13,38 @@ async def DisconnectionHandler(plant):
     except (ConnectionClosedError, ConnectionClosedOK) as e:
         plant.logger.warning("WebSocket connection closed unexpectedly")
 
-        if not await _try_to_reconnect(plant):
+        if not await try_to_reconnect(plant):
             plant.logger.error("Failed to reconnect - giving up")
             raise RuntimeError("Unable to reconnect WebSocket") from e
 
-async def _try_to_reconnect(plant, max_retries=20, attempt=1):
+async def try_to_reconnect(plant, attempt=1):
     """
     Attempts to reconnect to a plant, up to {max_retries} time
     """
 
-    wait_time = compute_backoff(attempt=attempt)
+    settings = plant.client.reconnection_settings
 
-    plant.logger.info(f"Reconnection attempt #{attempt} in {wait_time} seconds...")
-    await asyncio.sleep(wait_time)
+    while True:
+        if settings.max_retries is not None and attempt > settings.max_retries:
+            plant.logger.error("Max reconnection attempts reached. Could not reconnect.")
+            return False
 
-    try:
-        await asyncio.wait_for(plant._connect(), timeout=10)
-        await asyncio.wait_for(plant._login(), timeout=10)
+        wait_time = plant.client.reconnection_settings.get_delay(attempt)
 
-        plant.logger.info("Reconnection successful.")
-        return True
+        plant.logger.info(f"Reconnection attempt #{attempt} in {wait_time} seconds...")
+        await asyncio.sleep(wait_time)
 
-    except asyncio.TimeoutError:
-        plant.logger.warning("Reconnection attempt timed out. Retrying ...")
+        try:
+            await asyncio.wait_for(plant._connect(), timeout=10)
+            await asyncio.wait_for(plant._login(), timeout=10)
 
-    except Exception as e:
-        plant.logger.warning(f"Reconnection failed: {e}. Retrying...")
+            plant.logger.info("Reconnection successful.")
+            return True
 
-    if attempt < max_retries:
-        return await _try_to_reconnect(plant, max_retries, attempt + 1)
+        except asyncio.TimeoutError:
+            plant.logger.warning("Reconnection attempt timed out. Retrying ...")
 
-    plant.logger.error("Max reconnection attempts reached. Could not reconnect.")
-    return False
+        except Exception as e:
+            plant.logger.warning(f"Reconnection failed: {e}. Retrying...")
 
-def compute_backoff(base=2, attempt=1, max_value=120, jitter_range=(0, 1.5)):
-    """
-    Computes exponential backoff with jitter.
-    """
-    base_delay = min(base ** attempt, max_value)
-    jitter = random.uniform(*jitter_range)
-    return base_delay + jitter
+        attempt += 1

@@ -1,5 +1,5 @@
 import websockets
-from websockets import ConnectionClosedOK
+from websockets import ConnectionClosedError, ConnectionClosedOK
 from websockets.protocol import OPEN
 import asyncio
 import time
@@ -14,7 +14,7 @@ from .. import protocol_buffers as pb
 from ..logger import logger
 from ..exceptions import RithmicErrorResponse
 from ..helpers.request_manager import RequestManager
-from ..helpers.connectivity import DisconnectionHandler
+from ..helpers.connectivity import DisconnectionHandler, try_to_reconnect
 
 TEMPLATES_MAP = {
     # Shared
@@ -161,7 +161,7 @@ class BasePlant:
 
         if self.plant_type == "ticker":
             info = await self.get_system_info()
-            await self._disconnect()
+            await self._disconnect(trigger_event=False)
 
             if self.credentials["system_name"] not in info.system_name:
                 raise Exception(f"You must specify valid SYSTEM_NAME in the credentials: {info.system_name}")
@@ -172,9 +172,14 @@ class BasePlant:
                 ping_interval=10
             )
 
-    async def _disconnect(self):
+        await self.client.on_connected.call_async(self.plant_type)
+
+    async def _disconnect(self, trigger_event=True):
         if self.is_connected:
             await self.ws.close(1000, "Closing Connection")
+
+            if trigger_event:
+                await self.client.on_disconnected.call_async(self.plant_type)
 
     async def _login(self):
         responses = await self._send_and_collect(
@@ -200,8 +205,7 @@ class BasePlant:
 
     async def _logout(self):
         try:
-            async with self.lock:
-                await self._send_request(template_id=12)
+            await self._send_request(template_id=12)
 
         except ConnectionClosedOK:
             pass
@@ -220,7 +224,21 @@ class BasePlant:
         return self._first(responses)
 
     async def _send(self, message: bytes):
-        await self.ws.send(message)
+        try:
+            async with self.lock:
+                await self.ws.send(message)
+
+        except (ConnectionClosedError, ConnectionClosedOK) as e:
+            self.logger.warning("WebSocket connection closed unexpectedly while sending a message")
+
+            if not await try_to_reconnect(self):
+                self.logger.error("Failed to reconnect - giving up")
+                raise RuntimeError("Unable to reconnect WebSocket") from e
+
+            self.logger.info("Retrying send after successful reconnect")
+
+            async with self.lock:
+                await self.ws.send(message)
 
     async def _recv(self):
         buffer = await self.ws.recv()
@@ -243,6 +261,7 @@ class BasePlant:
         self.logger.debug(f"Sending message {MessageToDict(request)}")
 
         buffer = self._convert_request_to_bytes(request)
+
         await self._send(buffer)
 
         return template_id
@@ -252,8 +271,9 @@ class BasePlant:
         Sends a request to the API and decode the response
         """
 
-        async with self.lock:
-            template_id = await self._send_request(**kwargs)
+        # TODO: Remove. Use _send_and_collect instead.
+
+        template_id = await self._send_request(**kwargs)
 
         while True:
             async with DisconnectionHandler(self):
@@ -357,8 +377,7 @@ class BasePlant:
                 raise
 
     async def _send_heartbeat(self):
-        async with self.lock:
-            await self._send_request(template_id=18)
+        await self._send_request(template_id=18)
 
     async def _listen(self):
         while True:

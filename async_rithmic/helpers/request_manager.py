@@ -41,12 +41,10 @@ class RequestManager:
             # Else, it will contain the same account id as the request
             expected_response["account_id"] = kwargs["account_id"]
 
-        async with self.plant.lock:
-            self.plant.logger.debug(f"Sending request {request_id}")
 
-            self.start(request_id, kwargs, expected_response)
-
-            await self.plant._send_request(**kwargs)
+        self.plant.logger.debug(f"Sending request {request_id}")
+        self.start(request_id, kwargs, expected_response)
+        await self.plant._send_request(**kwargs)
 
         try:
             await asyncio.wait_for(self.done_events[request_id].wait(), timeout=timeout)

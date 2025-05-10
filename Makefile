@@ -1,4 +1,4 @@
-.PHONY: protoc tests
+.PHONY: protoc tests docs
 
 PROTO_PATH=async_rithmic/protocol_buffers/
 TESTS_PATH?=tests
@@ -8,4 +8,7 @@ protoc:
 
 tests:
 	PYTHONPATH=. pytest -s -vv $(TESTS_PATH)
+
+docs:
+	rm -rf docs/_build && $(MAKE) -C docs html
 

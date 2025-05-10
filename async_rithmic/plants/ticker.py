@@ -33,14 +33,13 @@ class TickerPlant(BasePlant):
         exchange: str,
         data_type: DataType
     ):
-        async with self.lock:
-            await self._send_request(
-                template_id=100,
-                symbol=symbol,
-                exchange=exchange,
-                request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.SUBSCRIBE,
-                update_bits=data_type.value
-            )
+        await self._send_request(
+            template_id=100,
+            symbol=symbol,
+            exchange=exchange,
+            request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.SUBSCRIBE,
+            update_bits=data_type.value
+        )
 
     async def unsubscribe_from_market_data(
         self,
@@ -48,14 +47,13 @@ class TickerPlant(BasePlant):
         exchange: str,
         data_type: DataType
     ):
-        async with self.lock:
-            await self._send_request(
-                template_id=100,
-                symbol=symbol,
-                exchange=exchange,
-                request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.UNSUBSCRIBE,
-                update_bits=data_type.value
-            )
+        await self._send_request(
+            template_id=100,
+            symbol=symbol,
+            exchange=exchange,
+            request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.UNSUBSCRIBE,
+            update_bits=data_type.value
+        )
 
     async def search_symbols(self, search_text, **kwargs):
         """
