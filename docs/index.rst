@@ -3,7 +3,7 @@ async_rithmic
 
 `async_rithmic` is an asynchronous Python client for connecting to Rithmic's Protocol Buffer API using asyncio.
 
-Rithmic’s API is structured around four separate WebSocket endpoints (called *plants*), each responsible for a different category of functionality:
+Rithmic's API is structured around four separate WebSocket endpoints (called *plants*), each responsible for a different category of functionality:
 
 - **TICKER_PLANT** - live market data
 - **ORDER_PLANT** – order routing and updates

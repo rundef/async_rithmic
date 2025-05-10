@@ -29,9 +29,6 @@ The most significant architectural shift is the adoption of an async-first desig
 pip install async_rithmic
 ```
 
-> ⚠ **Test Environment Limitation**:
-The test environment does not include historical market data.
-
 ## Documentation
 
 [See the official documentation for usage examples](https://async-rithmic.readthedocs.io/en/latest/)

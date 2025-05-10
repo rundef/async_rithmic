@@ -6,6 +6,16 @@ Basic Connection
 
 To connect to Rithmic, instantiate a `RithmicClient` with your credentials and call `await client.connect()`:
 
+.. note::
+
+   If you are using a **paper trading** or a **live account**, make sure to use a gateway
+   that is geographically close to your current location. This helps reduce latency
+   and improves connection stability.
+
+   For a list of available gateways, refer to the following file:
+
+   https://github.com/rundef/async_rithmic/blob/main/async_rithmic/enums.py
+
 .. code-block:: python
 
     import asyncio
