@@ -3,7 +3,7 @@ import asyncio
 import contextlib
 from unittest.mock import AsyncMock, MagicMock, patch
 from websockets.exceptions import ConnectionClosedError
-from async_rithmic.helpers.connectivity import DisconnectionHandler, _try_to_reconnect
+from async_rithmic.helpers.connectivity import DisconnectionHandler, try_to_reconnect
 from async_rithmic import ReconnectionSettings
 
 class FakePlant:
@@ -69,7 +69,7 @@ async def test_disconnection_handler_gives_up_after_max_retries():
 async def test_try_to_reconnect_success():
     plant = FakePlant()
 
-    result = await _try_to_reconnect(plant)
+    result = await try_to_reconnect(plant)
     assert result is True
     assert plant._connect.call_count == 1
     assert plant._login.call_count == 1
@@ -160,3 +160,20 @@ def test_get_delay(settings, attempt, expected_range):
         f"Backoff delay {delay} not in expected range {expected_range} "
         f"for type={settings.backoff_type}, attempt={attempt}"
     )
+
+async def test_send_retries_after_reconnect_success(ticker_plant_mock):
+    plant = ticker_plant_mock
+    plant.client.reconnection_settings = ReconnectionSettings(
+        backoff_type="constant",
+        interval=0.01,
+        max_retries=20,
+    )
+
+    # First call to send raises, second call succeeds
+    plant.ws.send = AsyncMock(side_effect=[ConnectionClosedError(rcvd=None, sent=None), None])
+
+    # Mock try_to_reconnect to succeed
+    with patch("async_rithmic.helpers.connectivity.try_to_reconnect", new=AsyncMock(return_value=True)):
+        await plant._send(b"test-message")
+
+    assert plant.ws.send.call_count == 2

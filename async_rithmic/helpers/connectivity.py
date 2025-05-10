@@ -13,11 +13,11 @@ async def DisconnectionHandler(plant):
     except (ConnectionClosedError, ConnectionClosedOK) as e:
         plant.logger.warning("WebSocket connection closed unexpectedly")
 
-        if not await _try_to_reconnect(plant):
+        if not await try_to_reconnect(plant):
             plant.logger.error("Failed to reconnect - giving up")
             raise RuntimeError("Unable to reconnect WebSocket") from e
 
-async def _try_to_reconnect(plant, attempt=1):
+async def try_to_reconnect(plant, attempt=1):
     """
     Attempts to reconnect to a plant, up to {max_retries} time
     """
@@ -44,4 +44,4 @@ async def _try_to_reconnect(plant, attempt=1):
     except Exception as e:
         plant.logger.warning(f"Reconnection failed: {e}. Retrying...")
 
-    return await _try_to_reconnect(plant, attempt + 1)
+    return await try_to_reconnect(plant, attempt + 1)
