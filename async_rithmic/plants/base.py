@@ -29,6 +29,11 @@ TEMPLATES_MAP = {
     18: pb.request_heartbeat_pb2.RequestHeartbeat,
     19: pb.response_heartbeat_pb2.ResponseHeartbeat,
 
+    # Template 75 is a generic message sent in case of failures. (e.g. trying to place an order before logging in)
+    75: pb.reject_pb2.Reject,
+    # Forced logout occurs when a user exceeds the maximum number of concurrent sessions
+    77: pb.forced_logout_pb2.ForcedLogout,
+
     # Market Data Infrastructure
     100: pb.request_market_data_update_pb2.RequestMarketDataUpdate,
     101: pb.response_market_data_update_pb2.ResponseMarketDataUpdate,
@@ -81,6 +86,8 @@ TEMPLATES_MAP = {
     335: pb.response_update_stop_bracket_level_pb2.ResponseUpdateStopBracketLevel,
     336: pb.request_subscribe_to_bracket_updates_pb2.RequestSubscribeToBracketUpdates,
     337: pb.response_subscribe_to_bracket_updates_pb2.ResponseSubscribeToBracketUpdates,
+    342: pb.request_list_exchange_permissions_pb2.RequestListExchangePermissions,
+    343: pb.response_list_exchange_permissions_pb2.ResponseListExchangePermissions,
 
     350: pb.trade_route_pb2.TradeRoute,
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
@@ -428,6 +435,17 @@ class BasePlant:
             # - logout responses
             # - heartbeat responses
             # - pnl subscription responses
+            return True
+
+        if response.template_id == 77:
+            # Forced logout
+            self.logger.warning("Received a ForcedLogout message from Rithmic - did you reach the maximum number of concurrent sessions ?")
+
+            # Reconnection will happen automatically
+            return True
+
+        if response.template_id == 75:
+            self.logger.warning(f"Received a Reject message from Rithmic: {', '.join(response.rp_code)}")
             return True
 
         if hasattr(response, "user_msg") and response.user_msg is not None and len(response.user_msg) > 0:

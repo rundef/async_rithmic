@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package rti;
+
+message ForcedLogout
+	{       
+	// PB_OFFSET = 100000 , is the offset added for each MNM field id
+
+	int32  template_id     = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
+	}

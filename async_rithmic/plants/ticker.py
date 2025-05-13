@@ -2,11 +2,18 @@ from typing import Union
 
 from .base import BasePlant
 from ..enums import DataType, SearchPattern
-from ..logger import logger
 from .. import protocol_buffers as pb
 
 class TickerPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.TICKER_PLANT
+
+    async def list_exchanges(self):
+        return await self._send_and_collect(
+            template_id=342,
+            user=self.credentials["user"],
+            expected_response=dict(template_id=343),
+            account_id=None,
+        )
 
     async def get_front_month_contract(self, symbol: str, exchange: str) -> Union[str, None]:
         """
@@ -31,28 +38,32 @@ class TickerPlant(BasePlant):
         self,
         symbol: str,
         exchange: str,
-        data_type: DataType
+        data_type: DataType | int
     ):
+        update_bits = data_type.value if isinstance(data_type, DataType) else int(data_type)
+
         await self._send_request(
             template_id=100,
             symbol=symbol,
             exchange=exchange,
             request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.SUBSCRIBE,
-            update_bits=data_type.value
+            update_bits=update_bits,
         )
 
     async def unsubscribe_from_market_data(
         self,
         symbol: str,
         exchange: str,
-        data_type: DataType
+        data_type: DataType | int
     ):
+        update_bits = data_type.value if isinstance(data_type, DataType) else int(data_type)
+
         await self._send_request(
             template_id=100,
             symbol=symbol,
             exchange=exchange,
             request=pb.request_market_data_update_pb2.RequestMarketDataUpdate.Request.UNSUBSCRIBE,
-            update_bits=data_type.value
+            update_bits=update_bits,
         )
 
     async def search_symbols(self, search_text, **kwargs):

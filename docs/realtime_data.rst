@@ -1,19 +1,94 @@
-Market Data
-===========
+Market Data API
+===============
+
+This section documents the available functions to access market data, such as listing exchanges, searching for symbols, and retrieving front-month contracts.
+
+
+Listing exchanges
+-----------------
+
+Use `list_exchanges()` to retrieve all supported exchanges.
+
+.. code-block:: python
+
+    exchanges = await client.list_exchanges()
+
+The result is a list of response objects, for example:
+
+.. code-block:: python
+
+    [
+        Object(exchange="CME", entitlement_flag=1),
+        Object(exchange="EUREX", entitlement_flag=2)
+    ]
+
+- `exchange`: The name of the exchange.
+- `entitlement_flag`:
+  - `1`: You are entitled to access this exchange.
+  - `2`: You are **not** entitled to access this exchange.
+
+
+Searching symbols
+-----------------
+
+Use `search_symbols()` to find tradable instruments by name, type, and exchange.
+
+.. code-block:: python
+
+    results = await client.search_symbols("SILVER", instrument_type=InstrumentType.FUTURE, exchange="COMEX")
+
+The result is a list of response objects, for example:
+
+.. code-block:: python
+
+    [
+        Object(symbol="SIM5", exchange="COMEX", symbol_name="COMEX Silver Futures", product_code="SI", instrument_type="Future", expiration_date="20250626")
+    ]
+
+
+Retrieving front month contract
+-------------------------------
+
+Use `get_front_month_contract()` to get the active front-month contract for a given symbol and exchange.
+
+.. code-block:: python
+
+    contract = await client.get_front_month_contract("ES", "CME")
+
+This returns a string such as:
+
+.. code-block:: python
+
+    "ESM5"
+
+Where:
+
+- `ES`: The root symbol.
+
+- `M`: The contract month code.
+
+- `5`: The year (e.g., `5` = 2025).
 
 Streaming Live Tick Data
 ------------------------
 
-Here's an example that gets the front month contract for ES and stream market data:
+Here's an example that gets the front month contract for ES and stream market data (trade data and best bid and offer):
 
 .. code-block:: python
 
     import asyncio
-    from async_rithmic import RithmicClient, Gateway, DataType, LastTradePresenceBits
+    from async_rithmic import RithmicClient, Gateway, DataType, LastTradePresenceBits, BestBidOfferPresenceBits
 
     async def callback(data: dict):
-        if data["presence_bits"] & LastTradePresenceBits.LAST_TRADE:
-            print("received", data)
+        if data["data_type"] == DataType.LAST_TRADE:
+            if data["presence_bits"] & LastTradePresenceBits.LAST_TRADE:
+                print("received trade data", data)
+
+        elif data["data_type"] == DataType.BBO:
+            if data["presence_bits"] & BestBidOfferPresenceBits.BID:
+                print("BEST BID", data)
+            elif data["presence_bits"] & BestBidOfferPresenceBits.ASK:
+                print("BEST ASK", data)
 
     async def main():
         client = RithmicClient(
@@ -32,7 +107,7 @@ Here's an example that gets the front month contract for ES and stream market da
 
         # Stream market data
         print(f"Streaming market data for {security_code}")
-        data_type = DataType.LAST_TRADE
+        data_type = DataType.LAST_TRADE | DataType.BBO
         client.on_tick += callback
         await client.subscribe_to_market_data(security_code, exchange, data_type)
 
@@ -45,6 +120,8 @@ Here's an example that gets the front month contract for ES and stream market da
 
 Streaming Live Time Bars
 ------------------------
+
+The possible time bar types are: `SECOND_BAR`, `MINUTE_BAR`, `DAILY_BAR` and `WEEKLY_BAR`.
 
 .. code-block:: python
 
