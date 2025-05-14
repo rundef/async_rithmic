@@ -1,7 +1,11 @@
+import asyncio
+
 from .base import BasePlant
 from ..enums import OrderType, OrderDuration, TransactionType
 from ..exceptions import InvalidRequestError
 from .. import protocol_buffers as pb
+
+BracketType = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType
 
 class OrderPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.ORDER_PLANT
@@ -17,7 +21,7 @@ class OrderPlant(BasePlant):
         # Order updates
         await self._subscribe_to_updates(template_id=308)
         # Bracket updates
-        #await self._subscribe_to_updates(template_id=336)
+        await self._subscribe_to_updates(template_id=336)
 
     async def _fetch_login_info(self):
         """
@@ -69,8 +73,6 @@ class OrderPlant(BasePlant):
         for account in self.accounts:
             await self._send_and_collect(
                 expected_response=dict(template_id=kwargs["template_id"] + 1),
-                fcm_id=self.login_info["fcm_id"],
-                ib_id=self.login_info["ib_id"],
                 account_id=account.account_id,
                 **kwargs
             )
@@ -201,13 +203,13 @@ class OrderPlant(BasePlant):
             template_id = 330
             msg_kwargs["stop_ticks"] = kwargs["stop_ticks"]
             msg_kwargs["stop_quantity"] = qty
-            msg_kwargs["bracket_type"] = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.STOP_ONLY_STATIC
+            msg_kwargs["bracket_type"] = BracketType.STOP_ONLY_STATIC
         if "target_ticks" in kwargs:
             template_id = 330
             msg_kwargs["target_ticks"] = kwargs["target_ticks"]
             msg_kwargs["target_quantity"] = qty
-            msg_kwargs["bracket_type"] = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.TARGET_AND_STOP_STATIC \
-                if "stop_ticks" in kwargs else pb.request_bracket_order_pb2.RequestBracketOrder.BracketType.TARGET_ONLY_STATIC
+            msg_kwargs["bracket_type"] = BracketType.TARGET_AND_STOP_STATIC \
+                if "stop_ticks" in kwargs else BracketType.TARGET_ONLY_STATIC
         if template_id == 330:
             msg_kwargs["user_type"] = self.login_info["user_type"]
 
@@ -252,32 +254,81 @@ class OrderPlant(BasePlant):
             basket_id = order.basket_id
             account_id = order.account_id
 
-        return await self._send_and_recv(
+        return await self._send_and_collect(
             template_id=316,
+            expected_response=dict(template_id=317),
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
             basket_id=basket_id,
             account_id=account_id,
         )
 
-    async def modify_order(
-        self,
-        order_id: str,
-        qty: int,
-        order_type: OrderType,
-        **kwargs
-    ):
-        order = await self.get_order(order_id=order_id, **kwargs)
+    async def cancel_all_orders(self, **kwargs):
+        """
+        Cancel all orders
+        """
+        return await self._send_and_collect(
+            template_id=346,
+            expected_response=dict(template_id=347),
+            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            user_type=self.login_info["user_type"],
+            account_id=self._get_account_id(**kwargs)
+        )
+
+    async def modify_order(self, **kwargs):
+        """
+        Modify an existing order with updated parameters.
+
+        Supported attributes:
+        - `qty`: New quantity
+        - `order_type`: Order type (e.g., "MKT", "LMT", "STOP LMT", etc.)
+        - `price`: Updated price (for limit or stop-limit orders)
+        - `trigger_price`: Updated trigger price (for stop orders)
+        - `stop_ticks`: New stop-loss in ticks
+        - `target_ticks`: New take-profit in ticks
+        """
+
+        order = await self.get_order(**kwargs)
         if not order:
-            raise Exception(f"Order {order_id} not found")
+            raise Exception(f"Order not found: {kwargs}")
 
+        order_type: OrderType = kwargs.pop("order_type", order.price_type)
+        qty: int = kwargs.pop("qty", order.quantity)
+
+        tasks = []
+
+        # Update the stop
+        if "stop_ticks" in kwargs:
+            #if order.bracket_type not in [BracketType.STOP_ONLY_STATIC, BracketType.TARGET_AND_STOP_STATIC]:
+            #    raise Exception(f"Cannot set new stop loss: initial order didn't have a stop loss")
+            tasks.append(
+                self._send_and_collect(
+                    template_id=334,
+                    expected_response=dict(template_id=335),
+                    account_id=order.account_id,
+                    basket_id=order.basket_id,
+                    #level=0,
+                    stop_ticks=kwargs["stop_ticks"],
+                )
+            )
+
+        # Update the target
+        if "target_ticks" in kwargs:
+            tasks.append(
+                self._send_and_collect(
+                    template_id=332,
+                    expected_response=dict(template_id=333),
+                    account_id=order.account_id,
+                    basket_id=order.basket_id,
+                    #level=0,
+                    target_ticks=kwargs["target_ticks"],
+                )
+            )
+
+        # Update the actual order
         msg_kwargs = self._validate_price_fields(order_type, **kwargs)
-
-        return await self._send_and_recv(
+        tasks.append(self._send_and_collect(
             template_id=314,
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
+            expected_response=dict(template_id=315),
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             account_id=order.account_id,
             basket_id=order.basket_id,
@@ -286,7 +337,10 @@ class OrderPlant(BasePlant):
             quantity=qty,
             price_type=order_type,
             **msg_kwargs
-        )
+        ))
+
+        results = await asyncio.gather(*tasks)
+        return results[-1]
 
     async def show_order_history_dates(self):
         """
@@ -325,11 +379,11 @@ class OrderPlant(BasePlant):
 
         elif response.template_id == 353:
             # Bracket update
-            pass
+            await self.client.on_bracket_update.call_async(response)
 
-        elif response.template_id == 317:
-            # Cancel order
-            pass
+        #elif response.template_id == 317:
+        #    # Cancel order
+        #    pass
 
         else:
             self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")

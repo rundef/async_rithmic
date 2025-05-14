@@ -24,8 +24,8 @@ The result is a list of response objects, for example:
 
 - `exchange`: The name of the exchange.
 - `entitlement_flag`:
-  - `1`: You are entitled to access this exchange.
-  - `2`: You are **not** entitled to access this exchange.
+    - `1`: You are entitled to access this exchange.
+    - `2`: You are **not** entitled to access this exchange.
 
 
 Searching symbols

@@ -1,6 +1,44 @@
 Order API
 =========
 
+Listing accounts
+----------------
+
+Use `list_accounts()` to retrieve all supported exchanges.
+
+.. code-block:: python
+
+    accounts = await client.list_accounts()
+
+The result is a list of response objects, for example:
+
+.. code-block:: python
+
+    [
+        Object(account_id="123", account_name="123", account_currency="USD", account_auto_liquidate="enabled")
+    ]
+
+
+List Orders
+-----------
+
+To retrieve a list of currently active orders, use the `list_orders` method:
+
+.. code-block:: python
+
+    await client.list_orders()
+
+Show Order History Summary
+--------------------------
+
+You can view your order history for a specific day using the `show_order_history_summary` method:
+
+.. code-block:: python
+
+    orders = await client.show_order_history_summary(date="20250513)
+
+The `date` parameter must be a string in `YYYYMMDD` format.
+
 Placing a Market Order
 ----------------------
 
@@ -102,8 +140,38 @@ This example places a limit order and cancels it shortly after:
         )
 
         await asyncio.sleep(1)
-        await client.cancel_order(order_id=order_id)
         await asyncio.sleep(1)
         await client.disconnect()
 
     asyncio.run(main())
+
+Cancelling an order
+-------------------
+
+To cancel a specific order, use the `cancel_order` method. You can provide either:
+
+- `order_id`: The custom order ID you specified when placing the order.
+- `basket_id`: The system-generated ID assigned by Rithmic.
+
+.. code-block:: python
+
+    await client.cancel_order(order_id=order_id)
+
+Cancelling all orders
+---------------------
+
+To cancel all open orders:
+
+.. code-block:: python
+    await client.cancel_all_orders()
+
+Modifying an order
+------------------
+
+TODO
+
+price_type (lmt, mkt, etc...)
+
+quantity/price/trigger_price
+
+stop_ticks / target_ticks: only if they were specified during order creation?

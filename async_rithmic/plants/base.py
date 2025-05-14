@@ -88,6 +88,8 @@ TEMPLATES_MAP = {
     337: pb.response_subscribe_to_bracket_updates_pb2.ResponseSubscribeToBracketUpdates,
     342: pb.request_list_exchange_permissions_pb2.RequestListExchangePermissions,
     343: pb.response_list_exchange_permissions_pb2.ResponseListExchangePermissions,
+    346: pb.request_cancel_all_orders_pb2.RequestCancelAllOrders,
+    347: pb.response_cancel_all_orders_pb2.ResponseCancelAllOrders,
 
     350: pb.trade_route_pb2.TradeRoute,
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
