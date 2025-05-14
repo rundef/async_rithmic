@@ -254,11 +254,9 @@ class BasePlant:
         Create Request class instance, convert it to bytes and send it to the server
         """
         request = self._build_request(**kwargs)
-
         self.logger.debug(f"Sending message {MessageToDict(request)}")
 
         buffer = self._convert_request_to_bytes(request)
-
         await self._send(buffer)
 
         return kwargs["template_id"]
@@ -319,22 +317,18 @@ class BasePlant:
         template_id = await self._send_request(**kwargs)
 
         while True:
-            buffer = None
             async with DisconnectionHandler(self):
                 async with try_acquire_lock(self, context="send_and_recv"):
                     buffer = await self._recv()
 
-            if buffer is None:
-                continue
+                response = self._convert_bytes_to_response(buffer)
+                self.logger.debug(f"Received message {MessageToDict(response)}")
 
-            response = self._convert_bytes_to_response(buffer)
-            self.logger.debug(f"Received message {MessageToDict(response)}")
+                if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
+                    await self._process_response(response)
+                    continue
 
-            if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
-                await self._process_response(response)
-                continue
-
-            break
+                break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
             raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
