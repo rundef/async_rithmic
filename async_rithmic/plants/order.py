@@ -24,20 +24,18 @@ class OrderPlant(BasePlant):
         Fetch extended login details for order management, accounts, trade routes etc
         """
 
-        responses = await self._send_and_collect(
-            template_id=300,
-            expected_response=dict(template_id=301),
-            account_id=None,
-        )
-        response = self._first(responses)
+        response = await self._send_and_recv_immediate(template_id=300)
 
         self.login_info = dict(
             fcm_id=response.fcm_id,
             ib_id=response.ib_id,
             user_type=response.user_type,
         )
-        self.trade_routes = await self._list_trade_routes()
-        self.accounts = await self.list_accounts()
+
+        if self.trade_routes is None:
+            self.trade_routes = await self._list_trade_routes()
+        if self.accounts is None:
+            self.accounts = await self.list_accounts()
 
     async def list_accounts(self) -> list:
         """

@@ -15,6 +15,7 @@ from ..logger import logger
 from ..exceptions import RithmicErrorResponse
 from ..helpers.request_manager import RequestManager
 from ..helpers.connectivity import DisconnectionHandler, try_to_reconnect
+from ..helpers.concurrency import try_acquire_lock
 
 TEMPLATES_MAP = {
     # Shared
@@ -189,10 +190,8 @@ class BasePlant:
                 await self.client.on_disconnected.call_async(self.plant_type)
 
     async def _login(self):
-        responses = await self._send_and_collect(
+        response = await self._send_and_recv_immediate(
             template_id=10,
-            expected_response=dict(template_id=11),
-            account_id=None,
             template_version="3.9",
             user=self.credentials["user"],
             password=self.credentials["password"],
@@ -201,14 +200,11 @@ class BasePlant:
             app_version=self.credentials["app_version"],
             infra_type=self.infra_type,
         )
-        response = self._first(responses)
 
         self.heartbeat_interval = response.heartbeat_interval
 
         # Upon making a successful login, clients are expected to send at least a heartbeat request to the server
         await self._send_heartbeat()
-
-        return response
 
     async def _logout(self):
         try:
@@ -218,7 +214,7 @@ class BasePlant:
             pass
 
     async def get_system_info(self):
-        return await self._send_and_recv(template_id=16)
+        return await self._send_and_recv_immediate(template_id=16)
 
     async def get_reference_data(self, symbol: str, exchange: str):
         responses = await self._send_and_collect(
@@ -230,13 +226,14 @@ class BasePlant:
         )
         return self._first(responses)
 
-    async def _send(self, message: bytes):
+    async def _send(self, message: bytes, **kwargs):
+
         try:
-            async with self.lock:
+            async with try_acquire_lock(self, context="send"):
                 await self.ws.send(message)
 
         except (ConnectionClosedError, ConnectionClosedOK) as e:
-            self.logger.warning("WebSocket connection closed unexpectedly while sending a message")
+            self.logger.exception("WebSocket connection closed unexpectedly while sending a message")
 
             if not await try_to_reconnect(self):
                 self.logger.error("Failed to reconnect - giving up")
@@ -244,7 +241,7 @@ class BasePlant:
 
             self.logger.info("Retrying send after successful reconnect")
 
-            async with self.lock:
+            async with try_acquire_lock(self, context="retry after send"):
                 await self.ws.send(message)
 
     async def _recv(self):
@@ -256,6 +253,17 @@ class BasePlant:
         """
         Create Request class instance, convert it to bytes and send it to the server
         """
+        request = self._build_request(**kwargs)
+
+        self.logger.debug(f"Sending message {MessageToDict(request)}")
+
+        buffer = self._convert_request_to_bytes(request)
+
+        await self._send(buffer)
+
+        return kwargs["template_id"]
+
+    def _build_request(self, **kwargs):
         template_id = kwargs["template_id"]
 
         if template_id not in TEMPLATES_MAP:
@@ -265,36 +273,68 @@ class BasePlant:
         for k, v in kwargs.items():
             self._set_pb_field(request, k, v)
 
-        self.logger.debug(f"Sending message {MessageToDict(request)}")
+        return request
 
-        buffer = self._convert_request_to_bytes(request)
+    async def _send_and_recv_immediate(self, **kwargs):
+        """
+        Sends a request and waits synchronously for the matching response.
 
-        await self._send(buffer)
+        This function should be used only in contexts where it is critical
+        to receive the response directly (e.g. login), bypassing the background
+        listener task to avoid deadlocks.
 
-        return template_id
+        Acquires a lock around both send and receive to ensure exclusive access.
+        """
+        async with try_acquire_lock(self, context="send_and_recv"):
+
+            request = self._build_request(**kwargs)
+            self.logger.debug(f"Sending message {MessageToDict(request)}")
+
+            buffer = self._convert_request_to_bytes(request)
+            await self.ws.send(buffer)
+
+            while True:
+                buffer = await self.ws.recv()
+
+                response = self._convert_bytes_to_response(buffer)
+                self.logger.debug(f"Received message {MessageToDict(response)}")
+
+                if not hasattr(response, "rp_code") or response.template_id != kwargs["template_id"] + 1:
+                    await self._process_response(response)
+                    continue
+
+                break
+
+            if len(response.rp_code) and response.rp_code[0] != '0':
+                raise RithmicErrorResponse(
+                    f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
+
+            return response
 
     async def _send_and_recv(self, **kwargs):
         """
         Sends a request to the API and decode the response
         """
 
-        # TODO: Remove. Use _send_and_collect instead.
-
         template_id = await self._send_request(**kwargs)
 
         while True:
+            buffer = None
             async with DisconnectionHandler(self):
-                async with self.lock:
+                async with try_acquire_lock(self, context="send_and_recv"):
                     buffer = await self._recv()
 
-                response = self._convert_bytes_to_response(buffer)
-                self.logger.debug(f"Received message {MessageToDict(response)}")
+            if buffer is None:
+                continue
 
-                if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
-                    await self._process_response(response)
-                    continue
+            response = self._convert_bytes_to_response(buffer)
+            self.logger.debug(f"Received message {MessageToDict(response)}")
 
-                break
+            if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
+                await self._process_response(response)
+                continue
+
+            break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
             raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
@@ -390,13 +430,19 @@ class BasePlant:
         while True:
             try:
                 async with DisconnectionHandler(self):
-                    async with self.lock:
-                        buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
+                    buffer = None
 
-                    response = self._convert_bytes_to_response(buffer)
-                    self.logger.debug(f"Received message {MessageToDict(response)}")
+                    async with try_acquire_lock(self, context="listen_recv"):
+                        try:
+                            buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
+                        except asyncio.TimeoutError:
+                            pass
 
-                    await self._process_response(response)
+                    if buffer is not None:
+                        response = self._convert_bytes_to_response(buffer)
+                        self.logger.debug(f"Received message {MessageToDict(response)}")
+
+                        await self._process_response(response)
 
             except asyncio.TimeoutError:
                 pass
