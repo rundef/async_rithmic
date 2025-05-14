@@ -24,6 +24,7 @@ Designed with reliability and extensibility in mind, `async_rithmic` is a strong
 - 🛠️ **Robust architecture**: Built-in reconnection & fault-tolerance.
 - 👥 **Multi-account support**
 - 📊 **Historical + Live Time Bars**: Ideal for time-based strategies.
+- 🎯 **Live Tick Data & Best Bid/Ask Streaming**: Fine-grained market data for real-time decision-making.
 - ⚡ **Async-first design**: Better scalability & responsiveness.
 
 ## 📦 Installation

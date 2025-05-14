@@ -33,6 +33,7 @@ class RithmicClient(DelegateMixin):
     # Order updates events
     on_rithmic_order_notification = Event()
     on_exchange_order_notification = Event()
+    on_bracket_update = Event()
 
     # Historical data events
     on_historical_tick = Event()
