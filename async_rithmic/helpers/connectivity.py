@@ -19,7 +19,25 @@ async def DisconnectionHandler(plant):
 
 async def try_to_reconnect(plant, attempt=1):
     """
-    Attempts to reconnect to a plant, up to {max_retries} time
+    A wrapper around the reconnection logic that ensures no simultaneous reconnection attempts.
+    """
+
+    async with plant._reconnect_lock:
+        if not plant._reconnect_event.is_set():
+            plant.logger.info("Waiting for another reconnect to complete...")
+            await plant._reconnect_event.wait()
+            return True
+
+        plant._reconnect_event.clear()
+
+        try:
+            return await _try_to_reconnect(plant, attempt)
+        finally:
+            plant._reconnect_event.set()
+
+async def _try_to_reconnect(plant, attempt):
+    """
+    Attempts to reconnect to a plant
     """
 
     settings = plant.client.reconnection_settings

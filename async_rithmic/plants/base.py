@@ -132,6 +132,10 @@ class BasePlant:
 
         self.logger = logger.getChild(f"plant.{self.plant_type}")
 
+        self._reconnect_lock = asyncio.Lock()
+        self._reconnect_event = asyncio.Event()
+        self._reconnect_event.set()
+
     @property
     def is_connected(self) -> bool:
         return self.ws is not None and self.ws.state == OPEN
