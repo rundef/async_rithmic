@@ -24,7 +24,8 @@ class OrderPlant(BasePlant):
         Fetch extended login details for order management, accounts, trade routes etc
         """
 
-        response = await self._send_and_recv_immediate(template_id=300)
+        responses = await self._send_and_recv_immediate(template_id=300)
+        response = self._first(responses)
 
         self.login_info = dict(
             fcm_id=response.fcm_id,
@@ -32,6 +33,7 @@ class OrderPlant(BasePlant):
             user_type=response.user_type,
         )
 
+        # Note: when reconnecting, we can't call `_send_and_collect` b/c the background recv task might be blocked
         if self.trade_routes is None:
             self.trade_routes = await self._list_trade_routes()
         if self.accounts is None:
@@ -231,6 +233,8 @@ class OrderPlant(BasePlant):
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             transaction_type=transaction_type,
             duration=kwargs["duration"],
+            fcm_id=self.login_info["fcm_id"],
+            ib_id=self.login_info["ib_id"],
             **msg_kwargs
         )
 
@@ -250,11 +254,10 @@ class OrderPlant(BasePlant):
             basket_id = order.basket_id
             account_id = order.account_id
 
-        return await self._send_and_recv(
+        return await self._send_and_recv_immediate(
             template_id=316,
+            expected_response=dict(template_id=317),
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
             basket_id=basket_id,
             account_id=account_id,
         )
@@ -309,6 +312,20 @@ class OrderPlant(BasePlant):
             **kwargs
         )
 
+    async def exit_position(self, **kwargs):
+        """
+        Exit positions
+
+        You can pass `symbol` and `exchange` to target a specific position, otherwise all the account positions will
+        be exited.
+        """
+        return await self._send_and_collect(
+            template_id=3504,
+            expected_response=dict(template_id=3505),
+            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            **kwargs
+        )
+
     async def _process_response(self, response):
         if await super()._process_response(response):
             return True
@@ -323,10 +340,6 @@ class OrderPlant(BasePlant):
 
         elif response.template_id == 353:
             # Bracket update
-            pass
-
-        elif response.template_id == 317:
-            # Cancel order
             pass
 
         else:
