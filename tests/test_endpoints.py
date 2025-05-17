@@ -1,5 +1,6 @@
 import asyncio
 from unittest.mock import patch, MagicMock
+from contextlib import suppress
 
 from conftest import load_response_mock_from_filename
 
@@ -19,16 +20,16 @@ async def test_get_front_month_contract(ticker_plant_mock):
 
         ticker_plant_mock.ws.recv.side_effect = mock_recv
 
-        listener_task = asyncio.create_task(ticker_plant_mock._listen())
+        recv_task = asyncio.create_task(ticker_plant_mock._recv_loop())
+        process_task = asyncio.create_task(ticker_plant_mock._process_loop())
         await asyncio.sleep(0.1)
-
 
         result = await future
         assert result == "NQU4"
 
-    listener_task.cancel()
-    try:
-        await listener_task
-    except asyncio.CancelledError:
-        pass
+    recv_task.cancel()
+    process_task.cancel()
+    for task in [recv_task, process_task]:
+        with suppress(asyncio.CancelledError):
+            await task
 

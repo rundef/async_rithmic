@@ -2,7 +2,6 @@ import websockets
 from websockets import ConnectionClosedError, ConnectionClosedOK
 from websockets.protocol import OPEN
 import asyncio
-import time
 import uuid
 from datetime import datetime
 import pytz
@@ -16,6 +15,7 @@ from ..exceptions import RithmicErrorResponse
 from ..helpers.request_manager import RequestManager
 from ..helpers.connectivity import DisconnectionHandler, try_to_reconnect
 from ..helpers.concurrency import try_acquire_lock
+from ..helpers.background_task_mixin import BackgroundTaskMixin
 
 TEMPLATES_MAP = {
     # Shared
@@ -95,6 +95,9 @@ TEMPLATES_MAP = {
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
     353: pb.bracket_updates_pb2.BracketUpdates,
 
+    3504: pb.request_exit_position_pb2.RequestExitPosition,
+    3505: pb.response_exit_position_pb2.ResponseExitPosition,
+
     # History Plant Infrastructure
     200: pb.request_time_bar_update_pb2.RequestTimeBarUpdate,
     201: pb.response_time_bar_update_pb2.ResponseTimeBarUpdate,
@@ -116,19 +119,20 @@ TEMPLATES_MAP = {
     451: pb.account_pnl_position_update_pb2.AccountPnLPositionUpdate,
 }
 
-class BasePlant:
+class BasePlant(BackgroundTaskMixin):
     infra_type = None
 
     def __init__(self, client, listen_interval=0.1):
+        super().__init__()
+
         self.ws = None
         self.client = client
         self.lock = asyncio.Lock()
         self.request_manager = RequestManager(self)
 
         # Heartbeats has to be sent every {interval} seconds, unless an update was received
-        self.heartbeat_interval = None
+        self.heartbeat_interval = 30
         self.listen_interval = listen_interval
-        self.last_message_time = None
 
         self.logger = logger.getChild(f"plant.{self.plant_type}")
 
@@ -194,7 +198,7 @@ class BasePlant:
                 await self.client.on_disconnected.call_async(self.plant_type)
 
     async def _login(self):
-        response = await self._send_and_recv_immediate(
+        responses = await self._send_and_recv_immediate(
             template_id=10,
             template_version="3.9",
             user=self.credentials["user"],
@@ -204,6 +208,7 @@ class BasePlant:
             app_version=self.credentials["app_version"],
             infra_type=self.infra_type,
         )
+        response = self._first(responses)
 
         self.heartbeat_interval = response.heartbeat_interval
 
@@ -218,7 +223,8 @@ class BasePlant:
             pass
 
     async def get_system_info(self):
-        return await self._send_and_recv_immediate(template_id=16)
+        responses = await self._send_and_recv_immediate(template_id=16)
+        return self._first(responses)
 
     async def get_reference_data(self, symbol: str, exchange: str):
         responses = await self._send_and_collect(
@@ -230,14 +236,14 @@ class BasePlant:
         )
         return self._first(responses)
 
-    async def _send(self, message: bytes, **kwargs):
+    async def _send(self, message: bytes, template_id: int = None):
 
         try:
             async with try_acquire_lock(self, context="send"):
                 await self.ws.send(message)
 
         except (ConnectionClosedError, ConnectionClosedOK) as e:
-            self.logger.exception("WebSocket connection closed unexpectedly while sending a message")
+            self.logger.exception(f"WebSocket connection closed unexpectedly while sending a message (template_id={template_id})")
 
             if not await try_to_reconnect(self):
                 self.logger.error("Failed to reconnect - giving up")
@@ -249,9 +255,7 @@ class BasePlant:
                 await self.ws.send(message)
 
     async def _recv(self):
-        buffer = await self.ws.recv()
-        self.last_message_time = time.time()
-        return buffer
+        return await self.ws.recv()
 
     async def _send_request(self, **kwargs):
         """
@@ -260,10 +264,11 @@ class BasePlant:
         request = self._build_request(**kwargs)
         self.logger.debug(f"Sending message {MessageToDict(request)}")
 
+        template_id = kwargs["template_id"]
         buffer = self._convert_request_to_bytes(request)
-        await self._send(buffer)
+        await self._send(buffer, template_id=template_id)
 
-        return kwargs["template_id"]
+        return template_id
 
     def _build_request(self, **kwargs):
         template_id = kwargs["template_id"]
@@ -287,7 +292,9 @@ class BasePlant:
 
         Acquires a lock around both send and receive to ensure exclusive access.
         """
-        async with try_acquire_lock(self, context="send_and_recv"):
+        responses = []
+
+        async with try_acquire_lock(self, context="send_and_recv_immediate"):
 
             request = self._build_request(**kwargs)
             self.logger.debug(f"Sending message {MessageToDict(request)}")
@@ -301,17 +308,22 @@ class BasePlant:
                 response = self._convert_bytes_to_response(buffer)
                 self.logger.debug(f"Received message {MessageToDict(response)}")
 
-                if not hasattr(response, "rp_code") or response.template_id != kwargs["template_id"] + 1:
+                if response.template_id != kwargs["template_id"] + 1:
                     await self._process_response(response)
+                    continue
+
+                responses.append(response)
+
+                if not hasattr(response, "rp_code"):
+                    # Expecting more responses
                     continue
 
                 break
 
-            if len(response.rp_code) and response.rp_code[0] != '0':
-                raise RithmicErrorResponse(
-                    f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
+        if len(responses[-1].rp_code) and responses[-1].rp_code[0] != '0':
+            raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(responses[-1])} for the request={kwargs}")
 
-            return response
+        return responses
 
     async def _send_and_recv(self, **kwargs):
         """
@@ -423,40 +435,6 @@ class BasePlant:
 
     async def _send_heartbeat(self):
         await self._send_request(template_id=18)
-
-    async def _listen(self):
-        while True:
-            try:
-                async with DisconnectionHandler(self):
-                    buffer = None
-
-                    async with try_acquire_lock(self, context="listen_recv"):
-                        try:
-                            buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
-                        except asyncio.TimeoutError:
-                            pass
-
-                    if buffer is not None:
-                        response = self._convert_bytes_to_response(buffer)
-                        self.logger.debug(f"Received message {MessageToDict(response)}")
-
-                        await self._process_response(response)
-
-            except asyncio.TimeoutError:
-                pass
-
-            except asyncio.CancelledError:
-                break
-
-            except:
-                self.logger.exception("Exception in background listener")
-
-            if not self.last_message_time or not self.heartbeat_interval:
-                continue
-
-            # Send regular heartbeats
-            if time.time() - self.last_message_time > self.heartbeat_interval - 2:
-                await self._send_heartbeat()
 
     def _response_to_dict(self, response):
         data = MessageToDict(response, preserving_proto_field_name=True, use_integers_for_enums=True)
