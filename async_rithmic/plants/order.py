@@ -28,11 +28,7 @@ class OrderPlant(BasePlant):
         Fetch extended login details for order management, accounts, trade routes etc
         """
 
-        responses = await self._send_and_collect(
-            template_id=300,
-            expected_response=dict(template_id=301),
-            account_id=None,
-        )
+        responses = await self._send_and_recv_immediate(template_id=300)
         response = self._first(responses)
 
         self.login_info = dict(
@@ -40,8 +36,12 @@ class OrderPlant(BasePlant):
             ib_id=response.ib_id,
             user_type=response.user_type,
         )
-        self.trade_routes = await self._list_trade_routes()
-        self.accounts = await self.list_accounts()
+
+        # Note: when reconnecting, we can't call `_send_and_collect` b/c the background recv task might be blocked
+        if self.trade_routes is None:
+            self.trade_routes = await self._list_trade_routes()
+        if self.accounts is None:
+            self.accounts = await self.list_accounts()
 
     async def list_accounts(self) -> list:
         """
@@ -71,8 +71,9 @@ class OrderPlant(BasePlant):
 
     async def _subscribe_to_updates(self, **kwargs):
         for account in self.accounts:
-            await self._send_and_collect(
-                expected_response=dict(template_id=kwargs["template_id"] + 1),
+            await self._send_and_recv_immediate(
+                fcm_id=self.login_info["fcm_id"],
+                ib_id=self.login_info["ib_id"],
                 account_id=account.account_id,
                 **kwargs
             )
@@ -235,6 +236,8 @@ class OrderPlant(BasePlant):
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             transaction_type=transaction_type,
             duration=kwargs["duration"],
+            fcm_id=self.login_info["fcm_id"],
+            ib_id=self.login_info["ib_id"],
             **msg_kwargs
         )
 
@@ -260,6 +263,8 @@ class OrderPlant(BasePlant):
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             basket_id=basket_id,
             account_id=account_id,
+            fcm_id=self.login_info["fcm_id"],
+            ib_id=self.login_info["ib_id"],
         )
 
     async def cancel_all_orders(self, **kwargs):
@@ -365,6 +370,20 @@ class OrderPlant(BasePlant):
             **kwargs
         )
 
+    async def exit_position(self, **kwargs):
+        """
+        Exit positions
+
+        You can pass `symbol` and `exchange` to target a specific position, otherwise all the account positions will
+        be exited.
+        """
+        return await self._send_and_collect(
+            template_id=3504,
+            expected_response=dict(template_id=3505),
+            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            **kwargs
+        )
+
     async def _process_response(self, response):
         if await super()._process_response(response):
             return True
@@ -380,10 +399,6 @@ class OrderPlant(BasePlant):
         elif response.template_id == 353:
             # Bracket update
             await self.client.on_bracket_update.call_async(response)
-
-        #elif response.template_id == 317:
-        #    # Cancel order
-        #    pass
 
         else:
             self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")

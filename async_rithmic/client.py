@@ -59,7 +59,6 @@ class RithmicClient(DelegateMixin):
             gateway=f"wss://{gateway.value}",
         )
         self.ssl_context = _setup_ssl_context()
-        self.listeners = []
 
         self.reconnection_settings = kwargs.pop("reconnection_settings", ReconnectionSettings(
             max_retries=None, # infinite
@@ -82,15 +81,15 @@ class RithmicClient(DelegateMixin):
         for plant in self.plants.values():
             self._delegate_methods(plant)
 
-        self.on_connected += lambda plant_type: logger.debug(f"Connected to {plant_type} plant")
-        self.on_disconnected += lambda plant_type: logger.debug(f"Disconnected from {plant_type} plant")
+        self.on_connected += lambda plant_type: self.plants[plant_type].logger.debug("Connected")
+        self.on_disconnected += lambda plant_type: self.plants[plant_type].logger.debug("Disconnected")
 
     async def connect(self):
         try:
             for plant_type, plant in self.plants.items():
                 await plant._connect()
 
-                self.listeners.append(asyncio.create_task(plant._listen()))
+                await plant._start_background_tasks()
                 await plant._login()
                 await asyncio.sleep(0.1)
 
@@ -98,19 +97,19 @@ class RithmicClient(DelegateMixin):
             logger.exception("Failed to connect")
             raise
 
-    async def disconnect(self):
-        for listener in self.listeners:
-            listener.cancel()
+    async def disconnect(self, timeout=5.0):
+        for plant in self.plants.values():
+            if not plant.is_connected:
+                continue
 
-        await asyncio.gather(*self.listeners, return_exceptions=True)
-        self.listeners = []
+            try:
+                await asyncio.wait_for(self._disconnect_plant(plant), timeout=timeout)
+            except asyncio.TimeoutError:
+                plant.logger.error("Timeout disconnecting")
+            except:
+                plant.logger.exception("Error disconnecting")
 
-        for plant_type, plant in self.plants.items():
-            await plant._logout()
-            await plant._disconnect()
-
-    def get_listeners(self):
-        return [
-            plant.listen()
-            for plant in self.plants.values()
-        ]
+    async def _disconnect_plant(self, plant):
+        await plant._stop_background_tasks()
+        await plant._logout()
+        await plant._disconnect()

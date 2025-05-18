@@ -24,6 +24,10 @@ class FakePlant:
             max_retries=20,
         )
 
+        self._reconnect_lock = asyncio.Lock()
+        self._reconnect_event = asyncio.Event()
+        self._reconnect_event.set()
+
 @pytest.mark.parametrize("fail_on_attempt", [1, 3, 5])
 async def test_disconnection_handler_retries_and_succeeds(fail_on_attempt):
     plant = FakePlant()
@@ -80,7 +84,7 @@ async def test_disconnection_handler_gives_up_after_max_retries():
     assert plant._connect.call_count > 0
 
 @pytest.mark.parametrize("function_name", [
-    "_listen",
+    "_recv_loop",
     "_send_and_recv",
 ])
 async def test_no_deadlock_on_reconnect(ticker_plant_mock, function_name):

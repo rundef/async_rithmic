@@ -29,12 +29,17 @@ The following example fetches historical tick data:
         await client.connect()
 
         # Fetch historical tick data
-        ticks = await client.get_historical_tick_data(
-            "ESZ4",
-            "CME",
-            datetime(2024, 10, 15, 15, 30),
-            datetime(2024, 10, 15, 15, 31),
-        )
+        try:
+            ticks = await client.get_historical_tick_data(
+                "ESM5",
+                "CME",
+                datetime(2025, 5, 15, 15, 30),
+                datetime(2025, 5, 15, 15, 31),
+            )
+        except Exception as e:
+            print("An exception occurred", e)
+            await client.disconnect()
+            return
 
         print(f"Received {len(ticks)} ticks")
         print(f"Last tick timestamp: {ticks[-1]['datetime']}")
@@ -66,14 +71,19 @@ This example fetches historical aggregated time bars (6-second bars in this case
         await client.connect()
 
         # Fetch historical time bar data
-        bars = await client.get_historical_time_bars(
-            "ESZ4",
-            "CME",
-            datetime(2024, 10, 15, 15, 30),
-            datetime(2024, 10, 15, 15, 31),
-            TimeBarType.SECOND_BAR,
-            6
-        )
+        try:
+            bars = await client.get_historical_time_bars(
+                "ESM5",
+                "CME",
+                datetime(2025, 5, 15, 15, 30),
+                datetime(2025, 5, 15, 15, 31),
+                TimeBarType.SECOND_BAR,
+                6
+            )
+        except Exception as e:
+            print("An exception occurred", e)
+            await client.disconnect()
+            return
 
         print(f"Received {len(bars)} bars")
         print(f"Last bar timestamp: {bars[-1]['bar_end_datetime']}")

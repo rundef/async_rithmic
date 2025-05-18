@@ -19,7 +19,25 @@ async def DisconnectionHandler(plant):
 
 async def try_to_reconnect(plant, attempt=1):
     """
-    Attempts to reconnect to a plant, up to {max_retries} time
+    A wrapper around the reconnection logic that ensures no simultaneous reconnection attempts.
+    """
+
+    async with plant._reconnect_lock:
+        if not plant._reconnect_event.is_set():
+            plant.logger.info("Waiting for another reconnect to complete...")
+            await plant._reconnect_event.wait()
+            return True
+
+        plant._reconnect_event.clear()
+
+        try:
+            return await _try_to_reconnect(plant, attempt)
+        finally:
+            plant._reconnect_event.set()
+
+async def _try_to_reconnect(plant, attempt):
+    """
+    Attempts to reconnect to a plant
     """
 
     settings = plant.client.reconnection_settings
@@ -29,14 +47,9 @@ async def try_to_reconnect(plant, attempt=1):
             plant.logger.error("Max reconnection attempts reached. Could not reconnect.")
             return False
 
-        wait_time = plant.client.reconnection_settings.get_delay(attempt)
-
-        plant.logger.info(f"Reconnection attempt #{attempt} in {wait_time} seconds...")
-        await asyncio.sleep(wait_time)
-
         try:
-            await asyncio.wait_for(plant._connect(), timeout=10)
-            await asyncio.wait_for(plant._login(), timeout=10)
+            await asyncio.wait_for(plant._connect(), timeout=5)
+            await asyncio.wait_for(plant._login(), timeout=5)
 
             plant.logger.info("Reconnection successful.")
             return True
@@ -48,3 +61,9 @@ async def try_to_reconnect(plant, attempt=1):
             plant.logger.warning(f"Reconnection failed: {e}. Retrying...")
 
         attempt += 1
+
+        wait_time = plant.client.reconnection_settings.get_delay(attempt)
+        plant.logger.info(f"Reconnection attempt #{attempt} in {wait_time} seconds...")
+        await asyncio.sleep(wait_time)
+
+    return False

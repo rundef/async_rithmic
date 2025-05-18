@@ -32,10 +32,9 @@ class RequestManager:
 
         expected_response = kwargs.pop("expected_response")
 
-        if kwargs["template_id"] in [312, 330]:
-            # For new orders endpoints, the response will contain the same user_tag as the request
-            # user_tag = the custom order id
-            expected_response["user_tag"] = kwargs["user_tag"]
+        if kwargs["template_id"] in [113, 312, 313, 316, 3504]:
+            # Some endpoints will contain the user msg / request id
+            expected_response["user_msg"] = [request_id]
 
         elif "account_id" in kwargs:
             # Else, it will contain the same account id as the request
@@ -64,6 +63,7 @@ class RequestManager:
         """
         Accumulate responses until the response stream is marked as complete
         """
+
         for request_id, expected_response in self.expected_responses.items():
             if not all(getattr(response, k) == v for k, v in expected_response.items()):
                 continue
