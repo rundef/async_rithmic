@@ -54,7 +54,7 @@ class HistoryPlant(BasePlant):
         if wait:
             self.historical_tick_event = asyncio.Event()
 
-        await self._send_and_recv(
+        await self._send_and_recv_immediate(
             template_id=206,
             user_msg=symbol,
             symbol=symbol,
@@ -96,7 +96,7 @@ class HistoryPlant(BasePlant):
         if wait:
             self.historical_time_bar_event = asyncio.Event()
 
-        await self._send_and_recv(
+        await self._send_and_recv_immediate(
             template_id=202,
             symbol=symbol,
             exchange=exchange,
@@ -130,7 +130,7 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
-        return await self._send_and_recv(
+        return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
@@ -146,7 +146,7 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
-        return await self._send_and_recv(
+        return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
