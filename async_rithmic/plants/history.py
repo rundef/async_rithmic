@@ -130,7 +130,7 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
-        return await self._send_and_recv(
+        return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
@@ -146,7 +146,7 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
-        return await self._send_and_recv(
+        return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,
             exchange=exchange,

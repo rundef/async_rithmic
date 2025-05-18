@@ -80,8 +80,8 @@ class RithmicClient(DelegateMixin):
         for plant in self.plants.values():
             self._delegate_methods(plant)
 
-        self.on_connected += lambda plant_type: logger.debug(f"Connected to {plant_type} plant")
-        self.on_disconnected += lambda plant_type: logger.debug(f"Disconnected from {plant_type} plant")
+        self.on_connected += lambda plant_type: self.plants[plant_type].logger.debug("Connected")
+        self.on_disconnected += lambda plant_type: self.plants[plant_type].logger.debug("Disconnected")
 
     async def connect(self):
         try:
@@ -96,9 +96,19 @@ class RithmicClient(DelegateMixin):
             logger.exception("Failed to connect")
             raise
 
-    async def disconnect(self):
-        for plant_type, plant in self.plants.items():
-            await plant._stop_background_tasks()
+    async def disconnect(self, timeout=5.0):
+        for plant in self.plants.values():
+            if not plant.is_connected:
+                continue
 
-            await plant._logout()
-            await plant._disconnect()
+            try:
+                await asyncio.wait_for(self._disconnect_plant(plant), timeout=timeout)
+            except asyncio.TimeoutError:
+                plant.logger.error("Timeout disconnecting")
+            except:
+                plant.logger.exception("Error disconnecting")
+
+    async def _disconnect_plant(self, plant):
+        await plant._stop_background_tasks()
+        await plant._logout()
+        await plant._disconnect()

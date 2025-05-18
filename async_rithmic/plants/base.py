@@ -217,9 +217,15 @@ class BasePlant(BackgroundTaskMixin):
 
     async def _logout(self):
         try:
-            await self._send_request(template_id=12)
+            request = self._build_request(template_id=12)
+            self.logger.debug("Sending logout message")
 
-        except ConnectionClosedOK:
+            buffer = self._convert_request_to_bytes(request)
+
+            async with try_acquire_lock(self, context="logout"):
+                await self.ws.send(buffer)
+
+        except:
             pass
 
     async def get_system_info(self):

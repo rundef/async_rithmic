@@ -26,7 +26,7 @@ class BackgroundTaskMixin:
         self._bg_tasks.append(asyncio.create_task(self._process_loop(), name="process_loop"))
         self._bg_tasks.append(asyncio.create_task(self._heartbeat_loop(), name="heartbeat_loop"))
 
-        self.logger.debug("Background tasks started.")
+        self.logger.debug("Background tasks started")
 
     async def _stop_background_tasks(self):
         """
@@ -42,7 +42,7 @@ class BackgroundTaskMixin:
                 self.logger.warning(f"Background task {task.get_name()} failed: {result}")
 
         self._bg_tasks.clear()
-        self.logger.debug("Background tasks stopped.")
+        self.logger.debug("Background tasks stopped")
 
     async def _recv_loop(self):
         """

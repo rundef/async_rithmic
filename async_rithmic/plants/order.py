@@ -67,8 +67,7 @@ class OrderPlant(BasePlant):
 
     async def _subscribe_to_updates(self, **kwargs):
         for account in self.accounts:
-            await self._send_and_collect(
-                expected_response=dict(template_id=kwargs["template_id"] + 1),
+            await self._send_and_recv_immediate(
                 fcm_id=self.login_info["fcm_id"],
                 ib_id=self.login_info["ib_id"],
                 account_id=account.account_id,
@@ -256,10 +255,11 @@ class OrderPlant(BasePlant):
 
         return await self._send_and_recv_immediate(
             template_id=316,
-            expected_response=dict(template_id=317),
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
             basket_id=basket_id,
             account_id=account_id,
+            fcm_id=self.login_info["fcm_id"],
+            ib_id=self.login_info["ib_id"],
         )
 
     async def modify_order(
@@ -330,7 +330,11 @@ class OrderPlant(BasePlant):
         if await super()._process_response(response):
             return True
 
-        if response.template_id == 351:
+        if response.template_id == 317:
+            # Cancel order
+            pass
+
+        elif response.template_id == 351:
             # Rithmic order notification
             await self.client.on_rithmic_order_notification.call_async(response)
 
