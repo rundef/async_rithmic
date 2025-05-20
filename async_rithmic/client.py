@@ -9,7 +9,7 @@ from .plants.order import OrderPlant
 from .plants.pnl import PnlPlant
 from .enums import Gateway
 from .logger import logger
-from .objects import ReconnectionSettings
+from .objects import ReconnectionSettings, RetrySettings
 
 def _setup_ssl_context():
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -49,7 +49,6 @@ class RithmicClient(DelegateMixin):
         gateway: Gateway = Gateway.TEST,
         **kwargs
     ):
-
         self.credentials = dict(
             user=user,
             password=password,
@@ -69,6 +68,17 @@ class RithmicClient(DelegateMixin):
             max_delay=120,
 
             jitter_range=(0.5, 2.5),
+        ))
+
+        self.retry_settings = kwargs.pop("retry_settings", RetrySettings(
+            # By default, retry 3 times
+            max_retries=3,
+
+            # Timeout if we haven't received all responses for a given request within 30s
+            timeout=30.,
+
+            # Retry after waiting 0.5 to 2s
+            jitter_range=(0.5, 2.),
         ))
 
         self.plants = {

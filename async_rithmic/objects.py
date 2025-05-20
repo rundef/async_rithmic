@@ -2,6 +2,14 @@ import random
 from dataclasses import dataclass
 from typing import Literal
 
+
+@dataclass
+class RetrySettings:
+    max_retries: int
+    timeout: float
+    jitter_range: tuple = None
+
+
 @dataclass
 class ReconnectionSettings:
     max_retries: int | None = None
