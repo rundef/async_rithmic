@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseExitPosition
+	{                        
+	int32   template_id         = 154467;
+	repeated string  user_msg            = 132760;
+
+	repeated string  rq_handler_rp_code  = 132764;
+	repeated string  rp_code             = 132766;
+
+	string  symbol              = 110100;
+	string  exchange            = 110101;
+	}

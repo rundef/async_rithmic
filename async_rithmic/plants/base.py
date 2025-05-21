@@ -2,8 +2,8 @@ import websockets
 from websockets import ConnectionClosedError, ConnectionClosedOK
 from websockets.protocol import OPEN
 import asyncio
-import time
-import traceback
+import uuid
+import random
 from datetime import datetime
 import pytz
 from tzlocal import get_localzone
@@ -12,6 +12,11 @@ from google.protobuf.json_format import MessageToDict
 
 from .. import protocol_buffers as pb
 from ..logger import logger
+from ..exceptions import RithmicErrorResponse
+from ..helpers.request_manager import RequestManager
+from ..helpers.connectivity import DisconnectionHandler, try_to_reconnect
+from ..helpers.concurrency import try_acquire_lock
+from ..helpers.background_task_mixin import BackgroundTaskMixin
 
 TEMPLATES_MAP = {
     # Shared
@@ -26,6 +31,11 @@ TEMPLATES_MAP = {
     18: pb.request_heartbeat_pb2.RequestHeartbeat,
     19: pb.response_heartbeat_pb2.ResponseHeartbeat,
     75: pb.reject_pb2.Reject,
+    77: pb.forced_logout_pb2.ForcedLogout,
+
+    # Template 75 is a generic message sent in case of failures. (e.g. trying to place an order before logging in)
+    75: pb.reject_pb2.Reject,
+    # Forced logout occurs when a user exceeds the maximum number of concurrent sessions
     77: pb.forced_logout_pb2.ForcedLogout,
 
     # Market Data Infrastructure
@@ -66,8 +76,12 @@ TEMPLATES_MAP = {
     315: pb.response_modify_order_pb2.ResponseModifyOrder,
     316: pb.request_cancel_order_pb2.RequestCancelOrder,
     317: pb.response_cancel_order_pb2.ResponseCancelOrder,
+    318: pb.request_show_order_history_dates_pb2.RequestShowOrderHistoryDates,
+    319: pb.response_show_order_history_dates_pb2.ResponseShowOrderHistoryDates,
     320: pb.request_show_orders_pb2.RequestShowOrders,
     321: pb.response_show_orders_pb2.ResponseShowOrders,
+    324: pb.request_show_order_history_summary_pb2.RequestShowOrderHistorySummary,
+    325: pb.response_show_order_history_summary_pb2.ResponseShowOrderHistorySummary,
     330: pb.request_bracket_order_pb2.RequestBracketOrder,
     331: pb.response_bracket_order_pb2.ResponseBracketOrder,
     332: pb.request_update_target_bracket_level_pb2.RequestUpdateTargetBracketLevel,
@@ -76,11 +90,22 @@ TEMPLATES_MAP = {
     335: pb.response_update_stop_bracket_level_pb2.ResponseUpdateStopBracketLevel,
     336: pb.request_subscribe_to_bracket_updates_pb2.RequestSubscribeToBracketUpdates,
     337: pb.response_subscribe_to_bracket_updates_pb2.ResponseSubscribeToBracketUpdates,
+    338: pb.request_show_brackets_pb2.RequestShowBrackets,
+    339: pb.response_show_brackets_pb2.ResponseShowBrackets,
+    340: pb.request_show_bracket_stops_pb2.RequestShowBracketStops,
+    341: pb.response_show_bracket_stops_pb2.ResponseShowBracketStops,
+    342: pb.request_list_exchange_permissions_pb2.RequestListExchangePermissions,
+    343: pb.response_list_exchange_permissions_pb2.ResponseListExchangePermissions,
+    346: pb.request_cancel_all_orders_pb2.RequestCancelAllOrders,
+    347: pb.response_cancel_all_orders_pb2.ResponseCancelAllOrders,
 
     350: pb.trade_route_pb2.TradeRoute,
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
     353: pb.bracket_updates_pb2.BracketUpdates,
+
+    3504: pb.request_exit_position_pb2.RequestExitPosition,
+    3505: pb.response_exit_position_pb2.ResponseExitPosition,
 
     # History Plant Infrastructure
     200: pb.request_time_bar_update_pb2.RequestTimeBarUpdate,
@@ -103,18 +128,26 @@ TEMPLATES_MAP = {
     451: pb.account_pnl_position_update_pb2.AccountPnLPositionUpdate,
 }
 
-class BasePlant:
+class BasePlant(BackgroundTaskMixin):
     infra_type = None
 
     def __init__(self, client, listen_interval=0.1):
+        super().__init__()
+
         self.ws = None
         self.client = client
         self.lock = asyncio.Lock()
+        self.request_manager = RequestManager(self)
 
         # Heartbeats has to be sent every {interval} seconds, unless an update was received
-        self.heartbeat_interval = None
+        self.heartbeat_interval = 30
         self.listen_interval = listen_interval
-        self.last_message_time = None
+
+        self.logger = logger.getChild(f"plant.{self.plant_type}")
+
+        self._reconnect_lock = asyncio.Lock()
+        self._reconnect_event = asyncio.Event()
+        self._reconnect_event.set()
 
     @property
     def is_connected(self) -> bool:
@@ -153,10 +186,10 @@ class BasePlant:
 
         if self.plant_type == "ticker":
             info = await self.get_system_info()
-            await self._disconnect()
+            await self._disconnect(trigger_event=False)
 
             if self.credentials["system_name"] not in info.system_name:
-                raise Exception(f"You must specify valid SYSTEM_NAME in the credentials file: {info.system_name}")
+                raise Exception(f"You must specify valid SYSTEM_NAME in the credentials: {info.system_name}")
 
             self.ws = await websockets.connect(
                 self.credentials["gateway"],
@@ -164,12 +197,17 @@ class BasePlant:
                 ping_interval=10
             )
 
-    async def _disconnect(self):
+        await self.client.on_connected.call_async(self.plant_type)
+
+    async def _disconnect(self, trigger_event=True):
         if self.is_connected:
             await self.ws.close(1000, "Closing Connection")
 
+            if trigger_event:
+                await self.client.on_disconnected.call_async(self.plant_type)
+
     async def _login(self):
-        response = await self._send_and_recv(
+        responses = await self._send_and_recv_immediate(
             template_id=10,
             template_version="3.9",
             user=self.credentials["user"],
@@ -179,39 +217,75 @@ class BasePlant:
             app_version=self.credentials["app_version"],
             infra_type=self.infra_type,
         )
+        response = self._first(responses)
 
         self.heartbeat_interval = response.heartbeat_interval
 
         # Upon making a successful login, clients are expected to send at least a heartbeat request to the server
         await self._send_heartbeat()
 
-        return response
-
     async def _logout(self):
         try:
-            return await self._send_and_recv(template_id=12)
-        except ConnectionClosedOK:
+            request = self._build_request(template_id=12)
+            self.logger.debug("Sending logout message")
+
+            buffer = self._convert_request_to_bytes(request)
+
+            async with try_acquire_lock(self, context="logout"):
+                await self.ws.send(buffer)
+
+        except:
             pass
 
     async def get_system_info(self):
-        return await self._send_and_recv(template_id=16)
+        responses = await self._send_and_recv_immediate(template_id=16)
+        return self._first(responses)
 
     async def get_reference_data(self, symbol: str, exchange: str):
-        return await self._send_and_recv(
+        responses = await self._send_and_collect(
             template_id=14,
+            expected_response=dict(template_id=15),
             symbol=symbol,
-            exchange=exchange
+            exchange=exchange,
+            account_id=None
         )
+        return self._first(responses)
 
-    async def _send(self, message: bytes):
-        await self.ws.send(message)
+    async def _send(self, message: bytes, template_id: int = None):
+
+        try:
+            async with try_acquire_lock(self, context="send"):
+                await self.ws.send(message)
+
+        except (ConnectionClosedError, ConnectionClosedOK) as e:
+            self.logger.exception(f"WebSocket connection closed unexpectedly while sending a message (template_id={template_id})")
+
+            if not await try_to_reconnect(self):
+                self.logger.error("Failed to reconnect - giving up")
+                raise RuntimeError("Unable to reconnect WebSocket") from e
+
+            self.logger.info("Retrying send after successful reconnect")
+
+            async with try_acquire_lock(self, context="retry after send"):
+                await self.ws.send(message)
 
     async def _recv(self):
-        buffer = await self.ws.recv()
-        self.last_message_time = time.time()
-        return buffer
+        return await self.ws.recv()
 
     async def _send_request(self, **kwargs):
+        """
+        Create Request class instance, convert it to bytes and send it to the server
+        """
+        request = self._build_request(**kwargs)
+        self.logger.debug(f"Sending message {MessageToDict(request)}")
+
+        template_id = kwargs["template_id"]
+        buffer = self._convert_request_to_bytes(request)
+        await self._send(buffer, template_id=template_id)
+
+        return template_id
+
+    def _build_request(self, **kwargs):
         template_id = kwargs["template_id"]
 
         if template_id not in TEMPLATES_MAP:
@@ -221,22 +295,65 @@ class BasePlant:
         for k, v in kwargs.items():
             self._set_pb_field(request, k, v)
 
-        buffer = self._convert_request_to_bytes(request)
-        await self._send(buffer)
+        return request
 
-        return template_id
+    async def _send_and_recv_immediate(self, **kwargs):
+        """
+        Sends a request and waits synchronously for the matching response.
+
+        This function should be used only in contexts where it is critical
+        to receive the response directly (e.g. login), bypassing the background
+        listener task to avoid deadlocks.
+
+        Acquires a lock around both send and receive to ensure exclusive access.
+        """
+        responses = []
+
+        async with try_acquire_lock(self, context="send_and_recv_immediate"):
+
+            request = self._build_request(**kwargs)
+            self.logger.debug(f"Sending message {MessageToDict(request)}")
+
+            buffer = self._convert_request_to_bytes(request)
+            await self.ws.send(buffer)
+
+            while True:
+                buffer = await self.ws.recv()
+
+                response = self._convert_bytes_to_response(buffer)
+                self.logger.debug(f"Received message {MessageToDict(response)}")
+
+                if response.template_id != kwargs["template_id"] + 1:
+                    await self._process_response(response)
+                    continue
+
+                responses.append(response)
+
+                if not hasattr(response, "rp_code"):
+                    # Expecting more responses
+                    continue
+
+                break
+
+        if len(responses[-1].rp_code) and responses[-1].rp_code[0] != '0':
+            raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(responses[-1])} for the request={kwargs}")
+
+        return responses
 
     async def _send_and_recv(self, **kwargs):
         """
         Sends a request to the API and decode the response
         """
 
-        async with self.lock:
-            template_id = await self._send_request(**kwargs)
+        template_id = await self._send_request(**kwargs)
 
-            while True:
-                buffer = await self._recv()
+        while True:
+            async with DisconnectionHandler(self):
+                async with try_acquire_lock(self, context="send_and_recv"):
+                    buffer = await self._recv()
+
                 response = self._convert_bytes_to_response(buffer)
+                self.logger.debug(f"Received message {MessageToDict(response)}")
 
                 if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
                     await self._process_response(response)
@@ -245,47 +362,66 @@ class BasePlant:
                 break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
-            raise Exception(f"Rithmic returned an error after request {template_id}: {', '.join(response.rp_code)}")
+            raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
 
         return response
 
-    async def _send_and_recv_many(self, **kwargs):
+    async def _send_and_collect(self, template_id, **kwargs):
         """
-        Sends a request to the API and expect 1...n responses back
+        Send a request, wait for the RequestManager to collect related responses asynchronously
+        And return the array of responses
         """
 
-        template_id = kwargs["template_id"]
+        if "account_id" in kwargs and kwargs["account_id"] is None:
+            # Request does not need an account id
+            kwargs.pop("account_id")
+        else:
+            account_id = self.client.plants["order"]._get_account_id(**kwargs)
+            kwargs["account_id"] = account_id
 
-        if template_id not in TEMPLATES_MAP:
-            raise Exception(f"Unknown request template id: {template_id}")
+            login_info = self.client.plants["order"].login_info
+            kwargs["fcm_id"] = login_info["fcm_id"]
+            kwargs["ib_id"] = login_info["ib_id"]
 
-        request = TEMPLATES_MAP[template_id]()
-        for k, v in kwargs.items():
-            self._set_pb_field(request, k, v)
+        retries = self.client.retry_settings.max_retries
+        if template_id in [312, 330]:
+            # Don't retry NewOrder requests
+            retries = 1
 
-        results = []
-        async with self.lock:
-            await self._send(self._convert_request_to_bytes(request))
+        timeout = self.client.retry_settings.timeout
+        last_exc = None
+        for i in range(retries):
+            request_id = self._generate_request_id()
 
-            while True:
-                buffer = await self._recv()
-                response = self._convert_bytes_to_response(buffer)
+            try:
+                return await self.request_manager.send_and_collect(
+                    timeout=timeout,
+                    user_msg=request_id,
+                    template_id=template_id,
+                    **kwargs
+                )
+            except asyncio.TimeoutError as exc:
+                last_exc = exc
+                self.logger.info(
+                    f"Timeout exceeded for request (template_id={template_id}). "
+                    f"{'Giving up.' if i >= retries - 1 else 'Retrying ...'}"
+                )
+                if self.client.retry_settings.jitter_range is not None:
+                    wait_time = random.uniform(*self.client.retry_settings.jitter_range)
+                    await asyncio.sleep(wait_time)
 
-                if response.template_id != template_id + 1:
-                    await self._process_response(response)
-                    continue
+        if last_exc:
+            raise last_exc
 
-                if len(response.rp_code) > 0:
-                    if response.rp_code[0] != '0':
-                        raise Exception(f"Server returned an error after request {template_id}: {', '.join(response.rp_code)}")
+        return []
 
-                    break
-                else:
-                    results.append(response)
-
-        return results
+    def _generate_request_id(self):
+        return str(uuid.uuid4())
 
     def _convert_request_to_bytes(self, request):
+        """
+        Request class to bytes conversion
+        """
         serialized = request.SerializeToString()
         length = len(serialized)
         buffer = length.to_bytes(4, byteorder='big', signed=True)
@@ -293,13 +429,24 @@ class BasePlant:
         return buffer
 
     def _convert_bytes_to_response(self, buffer):
-        b = pb.base_pb2.Base()
-        b.ParseFromString(buffer[4:])
-        if b.template_id not in TEMPLATES_MAP:
-            raise Exception(f"Unknown response template id: {b.template_id}")
+        """
+        Bytes to Response class conversion
+        """
+        raw_data = buffer[4:]
 
-        response = TEMPLATES_MAP[b.template_id]()
-        response.ParseFromString(buffer[4:])
+        # Parse as base to extract template_id
+        base = pb.base_pb2.Base()
+        base.ParseFromString(raw_data)
+
+        template_id = base.template_id
+        if template_id not in TEMPLATES_MAP:
+            raise Exception(f"Unknown template ID: {template_id}")
+
+        # Parse as specific response class
+        response_cls = TEMPLATES_MAP[template_id]
+        response = response_cls()
+        response.ParseFromString(raw_data)
+
         return response
 
     def _set_pb_field(self, obj, field_name, value):
@@ -322,72 +469,11 @@ class BasePlant:
             try:
                 setattr(obj, field_name, value)
             except:
-                logger.error(f"Error when trying to set {field_name}")
+                self.logger.error(f"Error when trying to set {field_name}")
                 raise
 
     async def _send_heartbeat(self):
-        return await self._send_and_recv(template_id=18)
-
-    async def _listen(self, max_iterations=None):
-        iteration_count = 0
-
-        try:
-            while True:
-                if max_iterations and iteration_count >= max_iterations:
-                    break
-
-                try:
-                    async with self.lock:
-                        buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
-
-                    response = self._convert_bytes_to_response(buffer)
-                    await self._process_response(response)
-                    iteration_count += 1
-
-                except asyncio.TimeoutError:
-                    current_time = time.time()
-
-                    # Send regular heartbeats
-                    if current_time - self.last_message_time > self.heartbeat_interval-2:
-                        await self._send_heartbeat()
-
-                except ConnectionClosedError:
-                    logger.exception("WebSocket connection closed with error")
-                    if not await self._handle_reconnection():
-                        break
-
-                except ConnectionClosedOK:
-                    logger.info(f"WebSocket connection closed normally")
-                    break
-
-        except Exception as e:
-            logger.error(f"Exception in listener: {e}")
-            traceback.print_exc()
-
-    async def _handle_reconnection(self, attempt=1):
-        max_retries = 5
-        wait_time = min(2 ** attempt, 120)
-
-        logger.info(f"{self.plant_type} plant reconnection attempt {attempt} in {wait_time} seconds...")
-        await asyncio.sleep(wait_time)
-
-        try:
-            # Attempt to reconnect this specific plant
-            await self._connect()
-            await self._login()
-
-            logger.info(f"{self.plant_type} plant reconnection successful.")
-            return True
-
-        except Exception as e:
-            if attempt < max_retries:
-                logger.warning(f"{self.plant_type} plant reconnection failed: {e}. Retrying...")
-                return await self._handle_reconnection(attempt + 1)
-            else:
-                logger.error(f"{self.plant_type} plant max reconnection attempts reached. Could not reconnect: {e}")
-
-        return False
-
+        await self._send_request(template_id=18)
 
     def _response_to_dict(self, response):
         data = MessageToDict(response, preserving_proto_field_name=True, use_integers_for_enums=True)
@@ -401,7 +487,51 @@ class BasePlant:
         return data
 
     async def _process_response(self, response):
-        raise NotImplementedError
+        """
+        Handles async responses
+        """
+
+        if response.template_id in [13, 19, 401]:
+            # Ignore
+            # - logout responses
+            # - heartbeat responses
+            # - pnl subscription responses
+            return True
+
+        if response.template_id == 77:
+            # Forced logout
+            self.logger.warning("Received a ForcedLogout message from Rithmic - did you reach the maximum number of concurrent sessions ?")
+
+            # Reconnection will happen automatically
+            return True
+
+        if response.template_id == 75:
+            self.logger.warning(f"Received a Reject message from Rithmic: {', '.join(response.rp_code)}")
+            return True
+
+        if hasattr(response, "user_msg") and response.user_msg is not None and len(response.user_msg) > 0:
+            request_id = response.user_msg[0]
+
+            if self.request_manager.has_pending(request_id):
+                if response.rp_code:
+                    if response.rp_code[0] != '0':
+                        request = self.request_manager.requests.get(request_id)
+                        self.request_manager.mark_complete(request_id)
+                        raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}")
+
+                    else:
+                        if response.template_id in [11, 15, 114, 301]:
+                            # We expect a single response containing `rp_code` for these endpoints
+                            self.request_manager.handle_response(response)
+
+                        # Else: multiple response + a sentinel message with `rp_code`
+                        self.request_manager.mark_complete(request_id)
+                else:
+                    self.request_manager.handle_response(response)
+
+                return True
+
+        return self.request_manager.handle_response(response)
 
     def _datetime_to_utc(self, dt: datetime):
         if dt.tzinfo is None:
@@ -429,3 +559,8 @@ class BasePlant:
         usecs = round((timestamp - ssboe) * 1_000_000)
 
         return ssboe, usecs
+
+    def _first(self, array):
+        if not array:
+            return None
+        return array[0]

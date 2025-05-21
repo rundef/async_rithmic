@@ -3,7 +3,6 @@ import asyncio
 from collections import defaultdict
 
 from .base import BasePlant
-from ..logger import logger
 from ..enums import TimeBarType
 from .. import protocol_buffers as pb
 
@@ -55,7 +54,7 @@ class HistoryPlant(BasePlant):
         if wait:
             self.historical_tick_event = asyncio.Event()
 
-        await self._send_and_recv(
+        await self._send_and_recv_immediate(
             template_id=206,
             user_msg=symbol,
             symbol=symbol,
@@ -97,7 +96,7 @@ class HistoryPlant(BasePlant):
         if wait:
             self.historical_time_bar_event = asyncio.Event()
 
-        await self._send_and_recv(
+        await self._send_and_recv_immediate(
             template_id=202,
             symbol=symbol,
             exchange=exchange,
@@ -131,7 +130,7 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
-        return await self._send_and_recv(
+        return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
@@ -147,7 +146,7 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
-        return await self._send_and_recv(
+        return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
@@ -157,6 +156,9 @@ class HistoryPlant(BasePlant):
         )
 
     async def _process_response(self, response):
+        if await super()._process_response(response):
+            return True
+
         if response.template_id == 203:
             # Historical time bar
             is_last_bar = response.rp_code == ['0'] or response.rq_handler_rp_code == []
@@ -189,4 +191,4 @@ class HistoryPlant(BasePlant):
             await self.client.on_time_bar.call_async(data)
 
         else:
-            logger.warning(f"History plant: unhandled inbound message with template_id={response.template_id}")
+            self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")

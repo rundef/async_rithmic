@@ -9,6 +9,7 @@ from .plants.order import OrderPlant
 from .plants.pnl import PnlPlant
 from .enums import Gateway
 from .logger import logger
+from .objects import ReconnectionSettings, RetrySettings
 
 def _setup_ssl_context():
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -21,13 +22,22 @@ def _setup_ssl_context():
     return ssl_context
 
 class RithmicClient(DelegateMixin):
+    # Connection events
     on_connected = Event()
+    on_disconnected = Event()
+
+    # Real-time market updates events
     on_tick = Event()
     on_time_bar = Event()
-    on_historical_tick = Event()
-    on_historical_time_bar = Event()
+
+    # Order updates events
     on_rithmic_order_notification = Event()
     on_exchange_order_notification = Event()
+    on_bracket_update = Event()
+
+    # Historical data events
+    on_historical_tick = Event()
+    on_historical_time_bar = Event()
 
     def __init__(
         self,
@@ -39,7 +49,6 @@ class RithmicClient(DelegateMixin):
         gateway: Gateway = Gateway.TEST,
         **kwargs
     ):
-
         self.credentials = dict(
             user=user,
             password=password,
@@ -49,7 +58,28 @@ class RithmicClient(DelegateMixin):
             gateway=f"wss://{gateway.value}",
         )
         self.ssl_context = _setup_ssl_context()
-        self.listeners = []
+
+        self.reconnection_settings = kwargs.pop("reconnection_settings", ReconnectionSettings(
+            max_retries=None, # infinite
+
+            # 10s, 20s, 30s, .... up until a maximum of 120s
+            backoff_type="linear",
+            interval=10,
+            max_delay=120,
+
+            jitter_range=(0.5, 2.5),
+        ))
+
+        self.retry_settings = kwargs.pop("retry_settings", RetrySettings(
+            # By default, retry 3 times
+            max_retries=3,
+
+            # Timeout if we haven't received all responses for a given request within 30s
+            timeout=30.,
+
+            # Retry after waiting 0.5 to 2s
+            jitter_range=(0.5, 2.),
+        ))
 
         self.plants = {
             "ticker": TickerPlant(self, **kwargs),
@@ -61,37 +91,35 @@ class RithmicClient(DelegateMixin):
         for plant in self.plants.values():
             self._delegate_methods(plant)
 
+        self.on_connected += lambda plant_type: self.plants[plant_type].logger.debug("Connected")
+        self.on_disconnected += lambda plant_type: self.plants[plant_type].logger.debug("Disconnected")
+
     async def connect(self):
         try:
             for plant_type, plant in self.plants.items():
                 await plant._connect()
+
+                await plant._start_background_tasks()
                 await plant._login()
-
-                logger.info(f"Connected to {plant_type} plant")
-
-                self.listeners.append(asyncio.create_task(plant._listen()))
-
                 await asyncio.sleep(0.1)
-
-            await self.on_connected.call_async()
 
         except:
             logger.exception("Failed to connect")
+            raise
 
-    async def disconnect(self):
-        for listener in self.listeners:
-            listener.cancel()
-        await asyncio.gather(*self.listeners, return_exceptions=True)
-        self.listeners = []
+    async def disconnect(self, timeout=5.0):
+        for plant in self.plants.values():
+            if not plant.is_connected:
+                continue
 
-        for plant_type, plant in self.plants.items():
-            await plant._logout()
-            await plant._disconnect()
+            try:
+                await asyncio.wait_for(self._disconnect_plant(plant), timeout=timeout)
+            except asyncio.TimeoutError:
+                plant.logger.error("Timeout disconnecting")
+            except:
+                plant.logger.exception("Error disconnecting")
 
-            logger.debug(f"Disconnected from {plant_type} plant")
-
-    def get_listeners(self):
-        return [
-            plant.listen()
-            for plant in self.plants.values()
-        ]
+    async def _disconnect_plant(self, plant):
+        await plant._stop_background_tasks()
+        await plant._logout()
+        await plant._disconnect()
