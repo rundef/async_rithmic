@@ -32,7 +32,7 @@ class RequestManager:
 
         expected_response = kwargs.pop("expected_response")
 
-        if kwargs["template_id"] in [113, 312, 313, 316, 3504]:
+        if kwargs["template_id"] in [113, 312, 314, 316, 330, 338, 340, 3504]:
             # Some endpoints will contain the user msg / request id
             expected_response["user_msg"] = [request_id]
 

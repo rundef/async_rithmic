@@ -88,6 +88,10 @@ TEMPLATES_MAP = {
     335: pb.response_update_stop_bracket_level_pb2.ResponseUpdateStopBracketLevel,
     336: pb.request_subscribe_to_bracket_updates_pb2.RequestSubscribeToBracketUpdates,
     337: pb.response_subscribe_to_bracket_updates_pb2.ResponseSubscribeToBracketUpdates,
+    338: pb.request_show_brackets_pb2.RequestShowBrackets,
+    339: pb.response_show_brackets_pb2.ResponseShowBrackets,
+    340: pb.request_show_bracket_stops_pb2.RequestShowBracketStops,
+    341: pb.response_show_bracket_stops_pb2.ResponseShowBracketStops,
     342: pb.request_list_exchange_permissions_pb2.RequestListExchangePermissions,
     343: pb.response_list_exchange_permissions_pb2.ResponseListExchangePermissions,
     346: pb.request_cancel_all_orders_pb2.RequestCancelAllOrders,
@@ -378,6 +382,10 @@ class BasePlant(BackgroundTaskMixin):
             kwargs["ib_id"] = login_info["ib_id"]
 
         retries = self.client.retry_settings.max_retries
+        if template_id in [312, 330]:
+            # Don't retry NewOrder requests
+            retries = 1
+
         timeout = self.client.retry_settings.timeout
         last_exc = None
         for i in range(retries):

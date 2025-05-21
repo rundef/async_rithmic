@@ -102,6 +102,41 @@ class OrderPlant(BasePlant):
             **kwargs
         )
 
+    async def list_brackets(self, **kwargs):
+        """
+        List brackets (Take Profit Orders)
+        """
+        return await self._send_and_collect(
+            template_id=338,
+            expected_response=dict(template_id=339),
+            **kwargs
+        )
+
+    async def list_bracket_stops(self, **kwargs):
+        """
+        List bracket stops (Stop Loss Orders)
+        """
+        return await self._send_and_collect(
+            template_id=340,
+            expected_response=dict(template_id=341),
+            **kwargs
+        )
+
+    async def get_stop_and_target(self, basket_id, **kwargs):
+        """
+        Returns the stop and target of an order
+        """
+        targets, stops = await asyncio.gather(*[
+            self.list_brackets(**kwargs),
+            self.list_bracket_stops(**kwargs)
+        ])
+
+        stop_ticks = next((int(s.stop_ticks) for s in stops if s.stop_quantity not in ["", "0"] and s.basket_id == basket_id), None)
+        target_ticks = next((int(t.target_ticks) for t in targets if t.target_quantity not in ["", "0"] and t.basket_id == basket_id), None)
+
+        return stop_ticks, target_ticks
+
+
     async def get_order(self, **kwargs):
         """
         Get an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
@@ -152,7 +187,7 @@ class OrderPlant(BasePlant):
                 raise InvalidRequestError(f"Invalid account_id specified (possible values are: {','.join([a.account_id for a in self.accounts])})")
             return matches[0].account_id
 
-    def _validate_price_fields(self, order_type, **kwargs):
+    def _validate_price_fields(self, order_type, raise_exception=True, **kwargs):
         """
         Validates that the correct price fields are passed via kwargs for a given order type
         """
@@ -168,13 +203,15 @@ class OrderPlant(BasePlant):
         elif order_type == OrderType.LIMIT:
             required_price_fields.add("price")
 
-        for key in required_price_fields:
-            if key not in kwargs:
-                raise InvalidRequestError(f"Missing argument: {key} is mandatory for this order type")
+        if raise_exception:
+            for key in required_price_fields:
+                if key not in kwargs:
+                    raise InvalidRequestError(f"Missing argument: {key} is mandatory for this order type")
 
         return {
             key: kwargs[key]
             for key in required_price_fields
+            if key in kwargs
         }
 
     async def submit_order(
@@ -290,6 +327,8 @@ class OrderPlant(BasePlant):
         - `trigger_price`: Updated trigger price (for stop orders)
         - `stop_ticks`: New stop-loss in ticks
         - `target_ticks`: New take-profit in ticks
+
+        Note: we can't update SL/TP/main order concurrently or Rithmic will send back an error: 'Atomic order operation in progress'
         """
 
         order = await self.get_order(**kwargs)
@@ -299,39 +338,42 @@ class OrderPlant(BasePlant):
         order_type: OrderType = kwargs.pop("order_type", order.price_type)
         qty: int = kwargs.pop("qty", order.quantity)
 
-        tasks = []
+        # Get the current stop ticks and target ticks, we will have to submit the old values when modifying them
+        current_stop_ticks, current_target_ticks = None, None
+        if "stop_ticks" in kwargs or "target_ticks" in kwargs:
+            current_stop_ticks, current_target_ticks = await self.get_stop_and_target(basket_id=order.basket_id, account_id=order.account_id)
 
         # Update the stop
         if "stop_ticks" in kwargs:
-            #if order.bracket_type not in [BracketType.STOP_ONLY_STATIC, BracketType.TARGET_AND_STOP_STATIC]:
-            #    raise Exception(f"Cannot set new stop loss: initial order didn't have a stop loss")
-            tasks.append(
-                self._send_and_collect(
-                    template_id=334,
-                    expected_response=dict(template_id=335),
-                    account_id=order.account_id,
-                    basket_id=order.basket_id,
-                    #level=0,
-                    stop_ticks=kwargs["stop_ticks"],
-                )
+            if current_stop_ticks is None:
+                raise InvalidRequestError("Cannot modify stop for order: No stop loss was set at order creation.")
+
+            await self._send_and_collect(
+                template_id=334,
+                expected_response=dict(template_id=335),
+                account_id=order.account_id,
+                basket_id=order.basket_id,
+                level=current_stop_ticks,
+                stop_ticks=kwargs["stop_ticks"],
             )
 
         # Update the target
         if "target_ticks" in kwargs:
-            tasks.append(
-                self._send_and_collect(
-                    template_id=332,
-                    expected_response=dict(template_id=333),
-                    account_id=order.account_id,
-                    basket_id=order.basket_id,
-                    #level=0,
-                    target_ticks=kwargs["target_ticks"],
-                )
+            if current_target_ticks is None:
+                raise InvalidRequestError("Cannot modify target for order: No target was set at order creation.")
+
+            await self._send_and_collect(
+                template_id=332,
+                expected_response=dict(template_id=333),
+                account_id=order.account_id,
+                basket_id=order.basket_id,
+                level=current_target_ticks,
+                target_ticks=kwargs["target_ticks"],
             )
 
         # Update the actual order
-        msg_kwargs = self._validate_price_fields(order_type, **kwargs)
-        tasks.append(self._send_and_collect(
+        msg_kwargs = self._validate_price_fields(order_type, raise_exception=False, **kwargs)
+        return await self._send_and_collect(
             template_id=314,
             expected_response=dict(template_id=315),
             manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
@@ -341,11 +383,9 @@ class OrderPlant(BasePlant):
             exchange=order.exchange,
             quantity=qty,
             price_type=order_type,
+            price=msg_kwargs.pop("price", order.price),
             **msg_kwargs
-        ))
-
-        results = await asyncio.gather(*tasks)
-        return results[-1]
+        )
 
     async def show_order_history_dates(self):
         """

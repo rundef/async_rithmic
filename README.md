@@ -11,17 +11,16 @@ Built with an async-first architecture, it enables robust, scalable access to Ri
 Designed with reliability and extensibility in mind, `async_rithmic` is a strong foundation for advanced trading systems requiring:
 
 - Low-latency connectivity
-
 - Real-time streaming capabilities
-
 - Fault-tolerant, long-running operation
-
 - Full control over order management and data handling
 
 ## ✨ Key Features
 
 - ✅ **Python 3.10+ Compatibility**: Fully tested and supported.
 - 🛠️ **Robust architecture**: Built-in reconnection & fault-tolerance.
+    - [**Automatic reconnection**: Resilient to network interruptions with customizable backoff and retry logic.](https://async-rithmic.readthedocs.io/en/latest/connection.html#custom-reconnection-settings)
+    - [**Automatic retries**: Configure how many times a slow request will be retried and for how long, making your client more resilient to network delays and backend slowness.](https://async-rithmic.readthedocs.io/en/latest/connection.html#custom-retry-settings)
 - 👥 **Multi-account support**
 - 📊 **Historical + Live Time Bars**: Ideal for time-based strategies.
 - 🎯 **Live Tick Data & Best Bid/Ask Streaming**: Fine-grained market data for real-time decision-making.

@@ -27,6 +27,7 @@ The result is a list of response objects, for example:
     - `1`: You are entitled to access this exchange.
     - `2`: You are **not** entitled to access this exchange.
 
+See the `response_list_exchange_permissions.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/response_list_exchange_permissions.proto>`_ definition for field details.
 
 Searching symbols
 -----------------
@@ -44,6 +45,8 @@ The result is a list of response objects, for example:
     [
         Object(symbol="SIM5", exchange="COMEX", symbol_name="COMEX Silver Futures", product_code="SI", instrument_type="Future", expiration_date="20250626")
     ]
+
+See the `response_search_symbols.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/response_search_symbols.proto>`_ definition for field details.
 
 
 Retrieving front month contract
@@ -118,6 +121,8 @@ Here's an example that gets the front month contract for ES and stream market da
 
     asyncio.run(main())
 
+See the `best_bid_offer.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/best_bid_offer.proto>`_ and `last_trade.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/last_trade.proto>`_ definitions for field details.
+
 Streaming Live Time Bars
 ------------------------
 
@@ -163,3 +168,5 @@ The possible time bar types are: `SECOND_BAR`, `MINUTE_BAR`, `DAILY_BAR` and `WE
         await client.disconnect()
 
     asyncio.run(main())
+
+See the `time_bar.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/time_bar.proto>`_ definition for field details.

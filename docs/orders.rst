@@ -18,6 +18,8 @@ The result is a list of response objects, for example:
         Object(account_id="123", account_name="123", account_currency="USD", account_auto_liquidate="enabled")
     ]
 
+See the `response_account_list.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/response_account_list.proto>`_ definition for field details.
+
 
 List Orders
 -----------
@@ -168,10 +170,39 @@ To cancel all open orders:
 Modifying an order
 ------------------
 
-TODO
 
-price_type (lmt, mkt, etc...)
+Modify an existing order with new parameters.
 
-quantity/price/trigger_price
+This method allows you to update one or more attributes of an active order, such as quantity, order type, price, stop-loss, or take-profit levels.
 
-stop_ticks / target_ticks: only if they were specified during order creation?
+**Supported attributes:**
+
+- ``qty``: New quantity for the order.
+- ``order_type``: Order type (e.g., ``"MKT"``, ``"LMT"``, ``"STOP LMT"``, etc.).
+- ``price``: Updated price (used for limit or stop-limit orders).
+- ``trigger_price``: Updated trigger price (for stop orders).
+- ``stop_ticks``: New stop-loss in ticks (modify stop-loss).
+- ``target_ticks``: New take-profit in ticks (modify take-profit).
+
+.. code-block:: python
+
+    await client.modify_order(
+        order_id="abc123",
+        qty=3,
+        target_ticks=50
+        stop_ticks=25
+    )
+
+Exit a position
+---------------
+
+Closes an open trading position for the specified symbol and exchange.
+If no symbol is provided, exits all active positions.
+
+.. code-block:: python
+    # Exit all active positions
+    await client.exit_position()
+
+    # Exit a specific position by symbol and exchange
+    await client.exit_position(symbol="ESM5", exchange="CME")
+
