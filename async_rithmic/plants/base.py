@@ -3,6 +3,7 @@ from websockets import ConnectionClosedError, ConnectionClosedOK
 from websockets.protocol import OPEN
 import asyncio
 import uuid
+import random
 from datetime import datetime
 import pytz
 from tzlocal import get_localzone
@@ -87,8 +88,14 @@ TEMPLATES_MAP = {
     335: pb.response_update_stop_bracket_level_pb2.ResponseUpdateStopBracketLevel,
     336: pb.request_subscribe_to_bracket_updates_pb2.RequestSubscribeToBracketUpdates,
     337: pb.response_subscribe_to_bracket_updates_pb2.ResponseSubscribeToBracketUpdates,
+    338: pb.request_show_brackets_pb2.RequestShowBrackets,
+    339: pb.response_show_brackets_pb2.ResponseShowBrackets,
+    340: pb.request_show_bracket_stops_pb2.RequestShowBracketStops,
+    341: pb.response_show_bracket_stops_pb2.ResponseShowBracketStops,
     342: pb.request_list_exchange_permissions_pb2.RequestListExchangePermissions,
     343: pb.response_list_exchange_permissions_pb2.ResponseListExchangePermissions,
+    346: pb.request_cancel_all_orders_pb2.RequestCancelAllOrders,
+    347: pb.response_cancel_all_orders_pb2.ResponseCancelAllOrders,
 
     350: pb.trade_route_pb2.TradeRoute,
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
@@ -374,13 +381,37 @@ class BasePlant(BackgroundTaskMixin):
             kwargs["fcm_id"] = login_info["fcm_id"]
             kwargs["ib_id"] = login_info["ib_id"]
 
-        request_id = self._generate_request_id()
+        retries = self.client.retry_settings.max_retries
+        if template_id in [312, 330]:
+            # Don't retry NewOrder requests
+            retries = 1
 
-        return await self.request_manager.send_and_collect(
-            user_msg=request_id,
-            template_id=template_id,
-            **kwargs
-        )
+        timeout = self.client.retry_settings.timeout
+        last_exc = None
+        for i in range(retries):
+            request_id = self._generate_request_id()
+
+            try:
+                return await self.request_manager.send_and_collect(
+                    timeout=timeout,
+                    user_msg=request_id,
+                    template_id=template_id,
+                    **kwargs
+                )
+            except asyncio.TimeoutError as exc:
+                last_exc = exc
+                self.logger.info(
+                    f"Timeout exceeded for request (template_id={template_id}). "
+                    f"{'Giving up.' if i >= retries - 1 else 'Retrying ...'}"
+                )
+                if self.client.retry_settings.jitter_range is not None:
+                    wait_time = random.uniform(*self.client.retry_settings.jitter_range)
+                    await asyncio.sleep(wait_time)
+
+        if last_exc:
+            raise last_exc
+
+        return []
 
     def _generate_request_id(self):
         return str(uuid.uuid4())

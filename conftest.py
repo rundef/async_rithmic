@@ -9,6 +9,9 @@ def ticker_plant_mock():
     plant.ws = AsyncMock()
     plant.heartbeat_interval = 5
     plant._send_heartbeat = AsyncMock()
+
+    plant.client = MagicMock()
+    plant.client.retry_settings = MagicMock(max_retries=1, timeout=3, jitter_range=None)
     return plant
 
 @pytest.fixture

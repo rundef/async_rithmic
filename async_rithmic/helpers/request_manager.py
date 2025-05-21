@@ -32,7 +32,7 @@ class RequestManager:
 
         expected_response = kwargs.pop("expected_response")
 
-        if kwargs["template_id"] in [113, 312, 313, 3504]:
+        if kwargs["template_id"] in [113, 312, 314, 316, 330, 338, 340, 3504]:
             # Some endpoints will contain the user msg / request id
             expected_response["user_msg"] = [request_id]
 
@@ -79,15 +79,16 @@ class RequestManager:
             elapsed = time.time() - self.start_times[request_id]
             num_responses = len(self.responses[request_id])
 
+            request = self.requests.pop(request_id, None)
+
             self.plant.logger.debug(
-                f"Completed request {request_id} "
+                f"Completed request {request_id} ({request}) "
                 f"in {elapsed * 1000:.2f} ms with {num_responses} response(s)"
             )
 
             self.done_events[request_id].set()
 
             # Clean up
-            self.requests.pop(request_id, None)
             self.done_events.pop(request_id, None)
             self.expected_responses.pop(request_id, None)
             self.start_times.pop(request_id, None)

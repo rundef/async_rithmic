@@ -1,6 +1,46 @@
 Order API
 =========
 
+Listing accounts
+----------------
+
+Use `list_accounts()` to retrieve all supported exchanges.
+
+.. code-block:: python
+
+    accounts = await client.list_accounts()
+
+The result is a list of response objects, for example:
+
+.. code-block:: python
+
+    [
+        Object(account_id="123", account_name="123", account_currency="USD", account_auto_liquidate="enabled")
+    ]
+
+See the `response_account_list.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/response_account_list.proto>`_ definition for field details.
+
+
+List Orders
+-----------
+
+To retrieve a list of currently active orders, use the `list_orders` method:
+
+.. code-block:: python
+
+    await client.list_orders()
+
+Show Order History Summary
+--------------------------
+
+You can view your order history for a specific day using the `show_order_history_summary` method:
+
+.. code-block:: python
+
+    orders = await client.show_order_history_summary(date="20250513)
+
+The `date` parameter must be a string in `YYYYMMDD` format.
+
 Placing a Market Order
 ----------------------
 
@@ -102,8 +142,67 @@ This example places a limit order and cancels it shortly after:
         )
 
         await asyncio.sleep(1)
-        await client.cancel_order(order_id=order_id)
         await asyncio.sleep(1)
         await client.disconnect()
 
     asyncio.run(main())
+
+Cancelling an order
+-------------------
+
+To cancel a specific order, use the `cancel_order` method. You can provide either:
+
+- `order_id`: The custom order ID you specified when placing the order.
+- `basket_id`: The system-generated ID assigned by Rithmic.
+
+.. code-block:: python
+
+    await client.cancel_order(order_id=order_id)
+
+Cancelling all orders
+---------------------
+
+To cancel all open orders:
+
+.. code-block:: python
+    await client.cancel_all_orders()
+
+Modifying an order
+------------------
+
+
+Modify an existing order with new parameters.
+
+This method allows you to update one or more attributes of an active order, such as quantity, order type, price, stop-loss, or take-profit levels.
+
+**Supported attributes:**
+
+- ``qty``: New quantity for the order.
+- ``order_type``: Order type (e.g., ``"MKT"``, ``"LMT"``, ``"STOP LMT"``, etc.).
+- ``price``: Updated price (used for limit or stop-limit orders).
+- ``trigger_price``: Updated trigger price (for stop orders).
+- ``stop_ticks``: New stop-loss in ticks (modify stop-loss).
+- ``target_ticks``: New take-profit in ticks (modify take-profit).
+
+.. code-block:: python
+
+    await client.modify_order(
+        order_id="abc123",
+        qty=3,
+        target_ticks=50
+        stop_ticks=25
+    )
+
+Exit a position
+---------------
+
+Closes an open trading position for the specified symbol and exchange.
+If no symbol is provided, exits all active positions.
+
+.. code-block:: python
+    # Exit all active positions
+    await client.exit_position()
+
+    # Exit a specific position by symbol and exchange
+    await client.exit_position(symbol="ESM5", exchange="CME")
+

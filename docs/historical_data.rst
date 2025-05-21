@@ -1,7 +1,10 @@
 History Data API
 ================
 
-⚠ **Test Environment Limitation**: The test environment does not include historical market data.
+.. note::
+
+   ⚠ **Test Environment Limitation**: The test environment does not include historical market data.
+
 
 Fetch Historical Tick Data
 --------------------------
