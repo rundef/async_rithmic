@@ -165,6 +165,7 @@ Cancelling all orders
 To cancel all open orders:
 
 .. code-block:: python
+
     await client.cancel_all_orders()
 
 Modifying an order
@@ -200,6 +201,7 @@ Closes an open trading position for the specified symbol and exchange.
 If no symbol is provided, exits all active positions.
 
 .. code-block:: python
+
     # Exit all active positions
     await client.exit_position()
 
