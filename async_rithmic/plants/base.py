@@ -252,7 +252,7 @@ class BasePlant(BackgroundTaskMixin):
     async def _send(self, message: bytes, template_id: int = None):
 
         try:
-            async with try_acquire_lock(self, context="send"):
+            async with try_acquire_lock(self, context=f"send_{template_id}"):
                 await self.ws.send(message)
 
         except (ConnectionClosedError, ConnectionClosedOK) as e:
@@ -264,7 +264,7 @@ class BasePlant(BackgroundTaskMixin):
 
             self.logger.info("Retrying send after successful reconnect")
 
-            async with try_acquire_lock(self, context="retry after send"):
+            async with try_acquire_lock(self, context=f"retry_after_send_{template_id}"):
                 await self.ws.send(message)
 
     async def _recv(self):
@@ -307,7 +307,7 @@ class BasePlant(BackgroundTaskMixin):
         """
         responses = []
 
-        async with try_acquire_lock(self, context="send_and_recv_immediate"):
+        async with try_acquire_lock(self, context=f"send_and_recv_immediate_{kwargs.get('template_id')}"):
 
             request = self._build_request(**kwargs)
             self.logger.debug(f"Sending message {MessageToDict(request)}")
@@ -347,7 +347,7 @@ class BasePlant(BackgroundTaskMixin):
 
         while True:
             async with DisconnectionHandler(self):
-                async with try_acquire_lock(self, context="send_and_recv"):
+                async with try_acquire_lock(self, context=f"send_and_recv_{template_id}"):
                     buffer = await self._recv()
 
                 response = self._convert_bytes_to_response(buffer)
