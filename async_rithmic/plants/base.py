@@ -1,6 +1,7 @@
 import websockets
 from websockets import ConnectionClosedError, ConnectionClosedOK
 from websockets.protocol import OPEN
+from collections import defaultdict
 import asyncio
 import uuid
 import random
@@ -143,9 +144,13 @@ class BasePlant(BackgroundTaskMixin):
 
         self.logger = logger.getChild(f"plant.{self.plant_type}")
 
+        # To avoid concurrent reconnections
         self._reconnect_lock = asyncio.Lock()
         self._reconnect_event = asyncio.Event()
         self._reconnect_event.set()
+
+        # Keep list of subscriptions in order to resubscribe automatically after disconnections
+        self._subscriptions = defaultdict(set)
 
     @property
     def is_connected(self) -> bool:
@@ -195,8 +200,6 @@ class BasePlant(BackgroundTaskMixin):
                 ping_interval=10
             )
 
-        await self.client.on_connected.call_async(self.plant_type)
-
     async def _disconnect(self, trigger_event=True):
         if self.is_connected:
             await self.ws.close(1000, "Closing Connection")
@@ -221,6 +224,8 @@ class BasePlant(BackgroundTaskMixin):
 
         # Upon making a successful login, clients are expected to send at least a heartbeat request to the server
         await self._send_heartbeat()
+
+        await self.client.on_connected.call_async(self.plant_type)
 
     async def _logout(self):
         try:

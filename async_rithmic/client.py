@@ -1,6 +1,7 @@
 import ssl
 import asyncio
 from pathlib import Path
+from collections import defaultdict
 from pattern_kit import DelegateMixin, Event
 
 from .plants.ticker import TickerPlant
@@ -109,6 +110,8 @@ class RithmicClient(DelegateMixin):
 
     async def disconnect(self, timeout=5.0):
         for plant in self.plants.values():
+            plant._subscriptions = defaultdict(set)
+
             if not plant.is_connected:
                 continue
 
