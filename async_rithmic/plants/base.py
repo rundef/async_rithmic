@@ -197,7 +197,8 @@ class BasePlant(BackgroundTaskMixin):
             self.ws = await websockets.connect(
                 self.credentials["gateway"],
                 ssl=self.ssl_context,
-                ping_interval=10
+                ping_interval=60,
+                ping_timeout=50,
             )
 
     async def _disconnect(self, trigger_event=True):
