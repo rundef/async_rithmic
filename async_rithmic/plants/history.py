@@ -159,6 +159,9 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
+        sub = (symbol, exchange, bar_type, bar_type_periods)
+        self._subscriptions["time_bar"].discard(sub)
+
         return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,

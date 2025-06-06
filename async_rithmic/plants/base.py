@@ -31,8 +31,6 @@ TEMPLATES_MAP = {
     17: pb.response_rithmic_system_info_pb2.ResponseRithmicSystemInfo,
     18: pb.request_heartbeat_pb2.RequestHeartbeat,
     19: pb.response_heartbeat_pb2.ResponseHeartbeat,
-    75: pb.reject_pb2.Reject,
-    77: pb.forced_logout_pb2.ForcedLogout,
 
     # Template 75 is a generic message sent in case of failures. (e.g. trying to place an order before logging in)
     75: pb.reject_pb2.Reject,
@@ -55,8 +53,8 @@ TEMPLATES_MAP = {
     150: pb.last_trade_pb2.LastTrade,
     151: pb.best_bid_offer_pb2.BestBidOffer,
     #156: pb.order_book_pb2.OrderBook,
-    #160: pb.depth_by_order.DepthByOrder,
-    #161: pb.depth_by_order_end_event.DepthByOrderEndEvent,
+    160: pb.depth_by_order.DepthByOrder,
+    161: pb.depth_by_order_end_event.DepthByOrderEndEvent,
 
     # Order Plant Infrastructure
     300: pb.request_login_info_pb2.RequestLoginInfo,
@@ -496,10 +494,11 @@ class BasePlant(BackgroundTaskMixin):
         Handles async responses
         """
 
-        if response.template_id in [13, 19, 401]:
+        if response.template_id in [13, 19, 161, 401]:
             # Ignore
             # - logout responses
             # - heartbeat responses
+            # - market depth end event
             # - pnl subscription responses
             return True
 
