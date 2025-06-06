@@ -173,3 +173,22 @@ async def test_send_retries_after_reconnect_success(ticker_plant_mock):
         await plant._send(b"test-message")
 
     assert plant.ws.send.call_count == 2
+
+async def test_only_one_reconnect():
+    plant = FakePlant()
+
+    async def _reconnect_logic(*args, **kwargs):
+        await asyncio.sleep(1)
+        return True
+
+    reconnect_mock = AsyncMock(side_effect=_reconnect_logic)
+
+    with patch("async_rithmic.helpers.connectivity._try_to_reconnect", reconnect_mock):
+        await asyncio.gather(
+            try_to_reconnect(plant),
+            try_to_reconnect(plant),
+        )
+
+    # Assert reconnect was only attempted once
+    assert reconnect_mock.call_count == 1
+

@@ -21,6 +21,12 @@ class HistoryPlant(BasePlant):
         self.client.on_historical_tick += self._on_historical_tick
         self.client.on_historical_time_bar += self._on_historical_time_bar
 
+    async def _login(self):
+        await super()._login()
+
+        for symbol, exchange, bar_type, bar_type_periods in self._subscriptions["time_bar"]:
+            await self.subscribe_to_time_bar_data(symbol, exchange, bar_type, bar_type_periods)
+
     def _datetime_to_index(self, dt: datetime):
         dt = self._datetime_to_utc(dt)
         return int(dt.timestamp())
@@ -130,6 +136,13 @@ class HistoryPlant(BasePlant):
         bar_type: TimeBarType,
         bar_type_periods: int
     ):
+        """
+        Subscribes to time bars
+        """
+
+        sub = (symbol, exchange, bar_type, bar_type_periods)
+        self._subscriptions["time_bar"].add(sub)
+
         return await self._send_and_recv_immediate(
             template_id=200,
             symbol=symbol,

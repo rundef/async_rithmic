@@ -7,6 +7,12 @@ from .. import protocol_buffers as pb
 class TickerPlant(BasePlant):
     infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.TICKER_PLANT
 
+    async def _login(self):
+        await super()._login()
+
+        for symbol, exchange, update_bits in self._subscriptions["market_data"]:
+            await self.subscribe_to_market_data(symbol, exchange, update_bits)
+
     async def list_exchanges(self):
         return await self._send_and_collect(
             template_id=342,
@@ -41,6 +47,9 @@ class TickerPlant(BasePlant):
         data_type: DataType | int
     ):
         update_bits = data_type.value if isinstance(data_type, DataType) else int(data_type)
+
+        sub = (symbol, exchange, update_bits)
+        self._subscriptions["market_data"].add(sub)
 
         await self._send_request(
             template_id=100,

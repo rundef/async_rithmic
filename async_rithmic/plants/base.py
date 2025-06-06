@@ -1,6 +1,7 @@
 import websockets
 from websockets import ConnectionClosedError, ConnectionClosedOK
 from websockets.protocol import OPEN
+from collections import defaultdict
 import asyncio
 import uuid
 import random
@@ -145,9 +146,13 @@ class BasePlant(BackgroundTaskMixin):
 
         self.logger = logger.getChild(f"plant.{self.plant_type}")
 
+        # To avoid concurrent reconnections
         self._reconnect_lock = asyncio.Lock()
         self._reconnect_event = asyncio.Event()
         self._reconnect_event.set()
+
+        # Keep list of subscriptions in order to resubscribe automatically after disconnections
+        self._subscriptions = defaultdict(set)
 
     @property
     def is_connected(self) -> bool:
@@ -197,8 +202,6 @@ class BasePlant(BackgroundTaskMixin):
                 ping_interval=10
             )
 
-        await self.client.on_connected.call_async(self.plant_type)
-
     async def _disconnect(self, trigger_event=True):
         if self.is_connected:
             await self.ws.close(1000, "Closing Connection")
@@ -223,6 +226,8 @@ class BasePlant(BackgroundTaskMixin):
 
         # Upon making a successful login, clients are expected to send at least a heartbeat request to the server
         await self._send_heartbeat()
+
+        await self.client.on_connected.call_async(self.plant_type)
 
     async def _logout(self):
         try:
@@ -254,7 +259,7 @@ class BasePlant(BackgroundTaskMixin):
     async def _send(self, message: bytes, template_id: int = None):
 
         try:
-            async with try_acquire_lock(self, context="send"):
+            async with try_acquire_lock(self, context=f"send_{template_id}"):
                 await self.ws.send(message)
 
         except (ConnectionClosedError, ConnectionClosedOK) as e:
@@ -266,7 +271,7 @@ class BasePlant(BackgroundTaskMixin):
 
             self.logger.info("Retrying send after successful reconnect")
 
-            async with try_acquire_lock(self, context="retry after send"):
+            async with try_acquire_lock(self, context=f"retry_after_send_{template_id}"):
                 await self.ws.send(message)
 
     async def _recv(self):
@@ -309,7 +314,7 @@ class BasePlant(BackgroundTaskMixin):
         """
         responses = []
 
-        async with try_acquire_lock(self, context="send_and_recv_immediate"):
+        async with try_acquire_lock(self, context=f"send_and_recv_immediate_{kwargs.get('template_id')}"):
 
             request = self._build_request(**kwargs)
             self.logger.debug(f"Sending message {MessageToDict(request)}")
@@ -349,7 +354,7 @@ class BasePlant(BackgroundTaskMixin):
 
         while True:
             async with DisconnectionHandler(self):
-                async with try_acquire_lock(self, context="send_and_recv"):
+                async with try_acquire_lock(self, context=f"send_and_recv_{template_id}"):
                     buffer = await self._recv()
 
                 response = self._convert_bytes_to_response(buffer)
