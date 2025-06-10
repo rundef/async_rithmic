@@ -67,6 +67,9 @@ class TickerPlant(BasePlant):
     ):
         update_bits = data_type.value if isinstance(data_type, DataType) else int(data_type)
 
+        sub = (symbol, exchange, update_bits)
+        self._subscriptions["market_data"].discard(sub)
+
         await self._send_request(
             template_id=100,
             symbol=symbol,

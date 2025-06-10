@@ -23,23 +23,6 @@ def _setup_ssl_context():
     return ssl_context
 
 class RithmicClient(DelegateMixin):
-    # Connection events
-    on_connected = Event()
-    on_disconnected = Event()
-
-    # Real-time market updates events
-    on_tick = Event()
-    on_time_bar = Event()
-
-    # Order updates events
-    on_rithmic_order_notification = Event()
-    on_exchange_order_notification = Event()
-    on_bracket_update = Event()
-
-    # Historical data events
-    on_historical_tick = Event()
-    on_historical_time_bar = Event()
-
     def __init__(
         self,
         user: str,
@@ -50,6 +33,23 @@ class RithmicClient(DelegateMixin):
         gateway: Gateway = Gateway.TEST,
         **kwargs
     ):
+        # Connection events
+        self.on_connected = Event()
+        self.on_disconnected = Event()
+
+        # Real-time market updates events
+        self.on_tick = Event()
+        self.on_time_bar = Event()
+
+        # Order updates events
+        self.on_rithmic_order_notification = Event()
+        self.on_exchange_order_notification = Event()
+        self.on_bracket_update = Event()
+
+        # Historical data events
+        self.on_historical_tick = Event()
+        self.on_historical_time_bar = Event()
+
         self.credentials = dict(
             user=user,
             password=password,
