@@ -6,20 +6,20 @@ Basic Connection
 
 To connect to Rithmic, instantiate a `RithmicClient` with your credentials and call `await client.connect()`:
 
+.. important::
+
+   If you are using a **paper trading** or **live account**, you must use the correct gateway
+   (URL) provided by Rithmic. These production URLs are only distributed **after passing conformance**
+   and must not be shared publicly. Do not use production endpoints unless authorized.
+
 .. note::
 
-   If you are using a **paper trading** or a **live account**, make sure to use a gateway
-   that is geographically close to your current location. This helps reduce latency
-   and improves connection stability.
-
-   For a list of available gateways, refer to the following file:
-
-   https://github.com/rundef/async_rithmic/blob/main/async_rithmic/enums.py
+   For test environments, Rithmic provides publicly accessible gateways.
 
 .. code-block:: python
 
     import asyncio
-    from async_rithmic import RithmicClient, Gateway
+    from async_rithmic import RithmicClient
 
     async def main():
         client = RithmicClient(
@@ -28,7 +28,7 @@ To connect to Rithmic, instantiate a `RithmicClient` with your credentials and c
             system_name="Rithmic Test",
             app_name="my_test_app",
             app_version="1.0",
-            gateway=Gateway.TEST
+            url="rituz00100.rithmic.com:443"  # Example: test gateway only
         )
         await client.connect()
         await client.disconnect()

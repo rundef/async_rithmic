@@ -1,5 +1,6 @@
 import ssl
 import asyncio
+import warnings
 from pathlib import Path
 from collections import defaultdict
 from pattern_kit import DelegateMixin, Event
@@ -31,6 +32,7 @@ class RithmicClient(DelegateMixin):
         app_name: str,
         app_version: str,
         gateway: Gateway = Gateway.TEST,
+        url: str = None,
         **kwargs
     ):
         # Connection events
@@ -50,13 +52,27 @@ class RithmicClient(DelegateMixin):
         self.on_historical_tick = Event()
         self.on_historical_time_bar = Event()
 
+        if gateway is not None and url is None:
+            warnings.warn(
+                "The `gateway` parameter is deprecated and will be removed in the next release. Use `url` instead.",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            url = f"wss://{gateway.value}"
+
+        if url is None:
+            raise ValueError("You must specify a `url`.")
+
+        if "://" not in url:
+            url = f"wss://{url}"
+
         self.credentials = dict(
             user=user,
             password=password,
             system_name=system_name,
             app_name=app_name,
             app_version=app_version,
-            gateway=f"wss://{gateway.value}",
+            gateway=url,
         )
         self.ssl_context = _setup_ssl_context()
 
