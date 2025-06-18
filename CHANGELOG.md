@@ -1,6 +1,12 @@
 # Changelog
 
-## [1.4.5]
+## [1.5.0] - 2025-06-17
+### Removed
+The `gateway` parameter has been removed from `RithmicClient.__init__()`.
+
+Use the `url` parameter to specify the connection endpoint.
+
+## [1.4.5] - 2025-06-14
 
 ### Deprecated
 - `gateway` parameter in `RithmicClient.__init__()` is deprecated in favor of `url`.

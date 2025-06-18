@@ -1,6 +1,5 @@
 import ssl
 import asyncio
-import warnings
 from pathlib import Path
 from collections import defaultdict
 from pattern_kit import DelegateMixin, Event
@@ -9,7 +8,6 @@ from .plants.ticker import TickerPlant
 from .plants.history import HistoryPlant
 from .plants.order import OrderPlant
 from .plants.pnl import PnlPlant
-from .enums import Gateway
 from .logger import logger
 from .objects import ReconnectionSettings, RetrySettings
 
@@ -31,8 +29,7 @@ class RithmicClient(DelegateMixin):
         system_name: str,
         app_name: str,
         app_version: str,
-        gateway: Gateway = Gateway.TEST,
-        url: str = None,
+        url: str,
         **kwargs
     ):
         # Connection events
@@ -51,17 +48,6 @@ class RithmicClient(DelegateMixin):
         # Historical data events
         self.on_historical_tick = Event()
         self.on_historical_time_bar = Event()
-
-        if gateway is not None and url is None:
-            warnings.warn(
-                "The `gateway` parameter is deprecated and will be removed in the next release. Use `url` instead.",
-                DeprecationWarning,
-                stacklevel=2
-            )
-            url = f"wss://{gateway.value}"
-
-        if url is None:
-            raise ValueError("You must specify a `url`.")
 
         if "://" not in url:
             url = f"wss://{url}"
