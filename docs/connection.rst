@@ -6,16 +6,6 @@ Basic Connection
 
 To connect to Rithmic, instantiate a `RithmicClient` with your credentials and call `await client.connect()`:
 
-.. important::
-
-   If you are using a **paper trading** or **live account**, you must use the correct gateway
-   (URL) provided by Rithmic. These production URLs are only distributed **after passing conformance**
-   and must not be shared publicly. Do not use production endpoints unless authorized.
-
-.. note::
-
-   For test environments, Rithmic provides publicly accessible gateways.
-
 .. code-block:: python
 
     import asyncio
@@ -34,6 +24,17 @@ To connect to Rithmic, instantiate a `RithmicClient` with your credentials and c
         await client.disconnect()
 
     asyncio.run(main())
+
+Conformance
+-----------
+
+.. important::
+
+   To obtain the list of production URLs, you must first pass the **conformance** test.
+
+   - First, `contact Rithmic <https://www.rithmic.com/contact>`_.
+   - You will be asked to connect to the order plant and leave the app running.
+   - You can use the `conformance.py script <https://github.com/rundef/async_rithmic/scripts/conformance.py>`_ to accomplish this.
 
 Custom Reconnection Settings
 ----------------------------
