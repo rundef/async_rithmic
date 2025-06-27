@@ -15,7 +15,7 @@ The following example fetches historical tick data:
 
     import asyncio
     from datetime import datetime
-    from async_rithmic import RithmicClient, Gateway
+    from async_rithmic import RithmicClient
 
     async def main():
         client = RithmicClient(
@@ -24,7 +24,7 @@ The following example fetches historical tick data:
             system_name="Rithmic Test",
             app_name="my_test_app",
             app_version="1.0",
-            gateway=Gateway.TEST
+            url="rituz00100.rithmic.com:443"
         )
         await client.connect()
 
@@ -57,7 +57,7 @@ This example fetches historical aggregated time bars (6-second bars in this case
 
     import asyncio
     from datetime import datetime
-    from async_rithmic import RithmicClient, Gateway, TimeBarType
+    from async_rithmic import RithmicClient, TimeBarType
 
     async def main():
         client = RithmicClient(
@@ -66,7 +66,7 @@ This example fetches historical aggregated time bars (6-second bars in this case
             system_name="Rithmic Test",
             app_name="my_test_app",
             app_version="1.0",
-            gateway=Gateway.TEST
+            url="rituz00100.rithmic.com:443"
         )
         await client.connect()
 

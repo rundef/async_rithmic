@@ -80,7 +80,7 @@ Here's an example that gets the front month contract for ES and stream market da
 .. code-block:: python
 
     import asyncio
-    from async_rithmic import RithmicClient, Gateway, DataType, LastTradePresenceBits, BestBidOfferPresenceBits
+    from async_rithmic import RithmicClient, DataType, LastTradePresenceBits, BestBidOfferPresenceBits
 
     async def callback(data: dict):
         if data["data_type"] == DataType.LAST_TRADE:
@@ -100,7 +100,7 @@ Here's an example that gets the front month contract for ES and stream market da
             system_name="Rithmic Test",
             app_name="my_test_app",
             app_version="1.0",
-            gateway=Gateway.TEST
+            url="rituz00100.rithmic.com:443"
         )
         await client.connect()
 
@@ -131,7 +131,7 @@ The possible time bar types are: `SECOND_BAR`, `MINUTE_BAR`, `DAILY_BAR` and `WE
 .. code-block:: python
 
     import asyncio
-    from async_rithmic import RithmicClient, Gateway, TimeBarType
+    from async_rithmic import RithmicClient, TimeBarType
 
     async def callback(data: dict):
         print("received", data)
@@ -143,7 +143,7 @@ The possible time bar types are: `SECOND_BAR`, `MINUTE_BAR`, `DAILY_BAR` and `WE
             system_name="Rithmic Test",
             app_name="my_test_app",
             app_version="1.0",
-            gateway=Gateway.TEST
+            url="rituz00100.rithmic.com:443"
         )
         await client.connect()
 

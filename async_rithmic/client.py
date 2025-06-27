@@ -8,7 +8,6 @@ from .plants.ticker import TickerPlant
 from .plants.history import HistoryPlant
 from .plants.order import OrderPlant
 from .plants.pnl import PnlPlant
-from .enums import Gateway
 from .logger import logger
 from .objects import ReconnectionSettings, RetrySettings
 
@@ -23,24 +22,6 @@ def _setup_ssl_context():
     return ssl_context
 
 class RithmicClient(DelegateMixin):
-    # Connection events
-    on_connected = Event()
-    on_disconnected = Event()
-
-    # Real-time market updates events
-    on_tick = Event()
-    on_time_bar = Event()
-    on_market_depth = Event()
-
-    # Order updates events
-    on_rithmic_order_notification = Event()
-    on_exchange_order_notification = Event()
-    on_bracket_update = Event()
-
-    # Historical data events
-    on_historical_tick = Event()
-    on_historical_time_bar = Event()
-
     def __init__(
         self,
         user: str,
@@ -48,16 +29,37 @@ class RithmicClient(DelegateMixin):
         system_name: str,
         app_name: str,
         app_version: str,
-        gateway: Gateway = Gateway.TEST,
+        url: str,
         **kwargs
     ):
+        # Connection events
+        self.on_connected = Event()
+        self.on_disconnected = Event()
+
+        # Real-time market updates events
+        self.on_tick = Event()
+        self.on_time_bar = Event()
+        self.on_market_depth = Event()
+
+        # Order updates events
+        self.on_rithmic_order_notification = Event()
+        self.on_exchange_order_notification = Event()
+        self.on_bracket_update = Event()
+
+        # Historical data events
+        self.on_historical_tick = Event()
+        self.on_historical_time_bar = Event()
+
+        if "://" not in url:
+            url = f"wss://{url}"
+
         self.credentials = dict(
             user=user,
             password=password,
             system_name=system_name,
             app_name=app_name,
             app_version=app_version,
-            gateway=f"wss://{gateway.value}",
+            gateway=url,
         )
         self.ssl_context = _setup_ssl_context()
 

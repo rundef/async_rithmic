@@ -51,7 +51,7 @@ As a market order will be filled immediately, this script submits the order and 
     import asyncio
     from datetime import datetime
     from async_rithmic import (
-        RithmicClient, Gateway, OrderType,
+        RithmicClient, OrderType,
         ExchangeOrderNotificationType, TransactionType
     )
 
@@ -66,7 +66,7 @@ As a market order will be filled immediately, this script submits the order and 
             system_name="Rithmic Test",
             app_name="my_test_app",
             app_version="1.0",
-            gateway=Gateway.TEST
+            url="rituz00100.rithmic.com:443"
         )
         await client.connect()
 
@@ -106,7 +106,7 @@ This example places a limit order and cancels it shortly after:
     import asyncio
     from datetime import datetime
     from async_rithmic import (
-        RithmicClient, Gateway, OrderType, TransactionType
+        RithmicClient, OrderType, TransactionType
     )
 
     async def exchange_order_notification_callback(notification):
@@ -119,7 +119,7 @@ This example places a limit order and cancels it shortly after:
             system_name="Rithmic Test",
             app_name="my_test_app",
             app_version="1.0",
-            gateway=Gateway.TEST
+            url="rituz00100.rithmic.com:443"
         )
         await client.connect()
 
