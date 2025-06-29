@@ -152,7 +152,7 @@ class TickerPlant(BasePlant):
         """
 
         sub = (symbol, exchange, depth_price)
-        self._subscriptions["market_depth"].add(sub)
+        self._subscriptions["market_depth"].discard(sub)
 
         await self._send_request(
             template_id=117,

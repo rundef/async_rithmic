@@ -191,6 +191,9 @@ Here's an example that streams full order book updates:
 
         await client.subscribe_to_market_data(security_code, exchange, DataType.ORDER_BOOK)
 
+        await asyncio.sleep(10)
+        await client.unsubscribe_from_market_data(security_code, exchange, DataType.ORDER_BOOK)
+
 Market Depth
 ------------
 
