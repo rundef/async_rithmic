@@ -170,3 +170,52 @@ The possible time bar types are: `SECOND_BAR`, `MINUTE_BAR`, `DAILY_BAR` and `WE
     asyncio.run(main())
 
 See the `time_bar.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/time_bar.proto>`_ definition for field details.
+
+Order Book
+----------
+
+Here's an example that streams full order book updates:
+
+.. code-block:: python
+
+    async def callback(data):
+        print("Received order book update")
+        print(data)
+
+    async def main():
+        # ... connection + get_front_month_contract ...
+
+        # Stream market data
+        print(f"Streaming order book updates for {security_code}")
+        client.on_order_book += callback
+
+        await client.subscribe_to_market_data(security_code, exchange, DataType.ORDER_BOOK)
+
+Market Depth
+------------
+
+Here's an example that retrieves the order book state for a specific price:
+
+.. code-block:: python
+
+    async def callback(data):
+        print("Received market depth update")
+        print(data)
+
+    async def main():
+        # ... connection + get_front_month_contract ...
+
+        price = 6150
+
+        # Request market depth for this price level
+        depth = await client.request_market_depth(security_code, exchange, price)
+        print("Depth:", depth)
+
+        # Subscribe to market depth updates for this price level
+        print(f"Subscribing to market depth updates for {security_code} @ {price}")
+
+        client.on_market_depth += callback
+        await client.subscribe_to_market_depth(security_code, exchange, price)
+
+        await asyncio.sleep(20)
+        await client.unsubscribe_from_market_depth(security_code, exchange, price)

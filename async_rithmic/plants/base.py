@@ -52,7 +52,7 @@ TEMPLATES_MAP = {
 
     150: pb.last_trade_pb2.LastTrade,
     151: pb.best_bid_offer_pb2.BestBidOffer,
-    #156: pb.order_book_pb2.OrderBook,
+    156: pb.order_book_pb2.OrderBook,
     160: pb.depth_by_order_pb2.DepthByOrder,
     161: pb.depth_by_order_end_event_pb2.DepthByOrderEndEvent,
 

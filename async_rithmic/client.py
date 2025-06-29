@@ -39,6 +39,7 @@ class RithmicClient(DelegateMixin):
         # Real-time market updates events
         self.on_tick = Event()
         self.on_time_bar = Event()
+        self.on_order_book = Event()
         self.on_market_depth = Event()
 
         # Order updates events
