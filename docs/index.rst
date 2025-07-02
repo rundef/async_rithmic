@@ -33,3 +33,4 @@ Features
    realtime_data
    orders
    historical_data
+   pnl
