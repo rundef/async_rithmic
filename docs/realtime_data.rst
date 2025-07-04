@@ -194,6 +194,15 @@ Here's an example that streams full order book updates:
         await asyncio.sleep(10)
         await client.unsubscribe_from_market_data(security_code, exchange, DataType.ORDER_BOOK)
 
+.. note::
+    Here's how to handle the different values for the `update_type` field:
+
+    - **CLEAR_ORDER_BOOK**: you should clear the order book.
+    - **BEGIN, END, MIDDLE**: the update is part of a set of updates, the set will begin with an update type of BEGIN and end with an update type of END. There may be additional MIDDLE updates in between.
+    - **SOLO**: the update is a solitary update and the order book can be evaluated immediately.
+    - **SNAPSHOT_IMAGE**: indicates that the market depth updates are being aggregated over a time period.
+    - **NO_BOOK**: indicates that the symbol has no order book levels (e.g. lack of L2 data) or the symbol is invalid.
+
 Market Depth
 ------------
 
