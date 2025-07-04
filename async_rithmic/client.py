@@ -49,6 +49,10 @@ class RithmicClient(DelegateMixin):
         self.on_historical_tick = Event()
         self.on_historical_time_bar = Event()
 
+        # PNL events
+        self.on_instrument_pnl_update = Event()
+        self.on_account_pnl_update = Event()
+
         if "://" not in url:
             url = f"wss://{url}"
 
