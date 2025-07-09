@@ -130,7 +130,7 @@ TEMPLATES_MAP = {
 class BasePlant(BackgroundTaskMixin):
     infra_type = None
 
-    def __init__(self, client, listen_interval=0.1):
+    def __init__(self, client, **kwargs):
         super().__init__()
 
         self.ws = None
@@ -138,11 +138,15 @@ class BasePlant(BackgroundTaskMixin):
         self.lock = asyncio.Lock()
         self.request_manager = RequestManager(self)
 
-        # Heartbeats has to be sent every {interval} seconds, unless an update was received
+        # Heartbeats have to be sent every {interval} seconds, unless an update was received
         self.heartbeat_interval = 30
-        self.listen_interval = listen_interval
+        self.listen_interval = kwargs.pop("listen_interval", 0.1)
 
-        self.logger = logger.getChild(f"plant.{self.plant_type}")
+        # Initialize logger
+        logger_name = f"plant.{self.plant_type}"
+        if "logger_name_suffix" in kwargs:
+            logger_name += kwargs["logger_name_suffix"]
+        self.logger = logger.getChild(logger_name)
 
         # To avoid concurrent reconnections
         self._reconnect_lock = asyncio.Lock()
