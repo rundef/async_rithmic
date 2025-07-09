@@ -103,7 +103,7 @@ class RithmicClient(DelegateMixin):
 
     async def connect(self):
         try:
-            for plant_type, plant in self.plants.items():
+            for plant in self.plants.values():
                 await plant._connect()
 
                 await plant._start_background_tasks()
@@ -112,6 +112,10 @@ class RithmicClient(DelegateMixin):
 
         except:
             logger.exception("Failed to connect")
+
+            for plant in self.plants.values():
+                await plant._stop_background_tasks()
+
             raise
 
     async def disconnect(self, timeout=5.0):
