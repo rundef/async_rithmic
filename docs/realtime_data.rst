@@ -170,3 +170,64 @@ The possible time bar types are: `SECOND_BAR`, `MINUTE_BAR`, `DAILY_BAR` and `WE
     asyncio.run(main())
 
 See the `time_bar.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/time_bar.proto>`_ definition for field details.
+
+Order Book
+----------
+
+Here's an example that streams full order book updates:
+
+.. code-block:: python
+
+    async def callback(data):
+        print("Received order book update")
+        print(data)
+
+    async def main():
+        # ... connection + get_front_month_contract ...
+
+        # Stream market data
+        print(f"Streaming order book updates for {security_code}")
+        client.on_order_book += callback
+
+        await client.subscribe_to_market_data(security_code, exchange, DataType.ORDER_BOOK)
+
+        await asyncio.sleep(10)
+        await client.unsubscribe_from_market_data(security_code, exchange, DataType.ORDER_BOOK)
+
+.. note::
+    Here's how to handle the different values for the `update_type` field:
+
+    - **CLEAR_ORDER_BOOK**: you should clear the order book.
+    - **BEGIN, END, MIDDLE**: the update is part of a set of updates, the set will begin with an update type of BEGIN and end with an update type of END. There may be additional MIDDLE updates in between.
+    - **SOLO**: the update is a solitary update and the order book can be evaluated immediately.
+    - **SNAPSHOT_IMAGE**: indicates that the market depth updates are being aggregated over a time period.
+    - **NO_BOOK**: indicates that the symbol has no order book levels (e.g. lack of L2 data) or the symbol is invalid.
+
+Market Depth
+------------
+
+Here's an example that retrieves the order book state for a specific price:
+
+.. code-block:: python
+
+    async def callback(data):
+        print("Received market depth update")
+        print(data)
+
+    async def main():
+        # ... connection + get_front_month_contract ...
+
+        price = 6150
+
+        # Request market depth for this price level
+        depth = await client.request_market_depth(security_code, exchange, price)
+        print("Depth:", depth)
+
+        # Subscribe to market depth updates for this price level
+        print(f"Subscribing to market depth updates for {security_code} @ {price}")
+
+        client.on_market_depth += callback
+        await client.subscribe_to_market_depth(security_code, exchange, price)
+
+        await asyncio.sleep(20)
+        await client.unsubscribe_from_market_depth(security_code, exchange, price)

@@ -194,8 +194,8 @@ This method allows you to update one or more attributes of an active order, such
         stop_ticks=25
     )
 
-Exit a position
----------------
+Exiting a position
+------------------
 
 Closes an open trading position for the specified symbol and exchange.
 If no symbol is provided, exits all active positions.

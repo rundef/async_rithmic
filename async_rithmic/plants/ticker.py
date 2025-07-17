@@ -13,6 +13,9 @@ class TickerPlant(BasePlant):
         for symbol, exchange, update_bits in self._subscriptions["market_data"]:
             await self.subscribe_to_market_data(symbol, exchange, update_bits)
 
+        for symbol, exchange, depth_price in self._subscriptions["market_depth"]:
+            await self.subscribe_to_market_depth(symbol, exchange, depth_price)
+
     async def list_exchanges(self):
         return await self._send_and_collect(
             template_id=342,
@@ -98,12 +101,77 @@ class TickerPlant(BasePlant):
             **kwargs
         )
 
+    async def request_market_depth(
+        self,
+        symbol: str,
+        exchange: str,
+        depth_price: float
+    ):
+        """
+        Request order book data for a given price
+        """
+        responses = await self._send_and_collect(
+            template_id=115,
+            expected_response=dict(template_id=116),
+            symbol=symbol,
+            exchange=exchange,
+            depth_price=depth_price,
+            account_id=None,
+        )
+        return responses[0] if responses else None
+
+    async def subscribe_to_market_depth(
+        self,
+        symbol: str,
+        exchange: str,
+        depth_price: float
+    ):
+        """
+        Subscribes to market depth updates (L2 data) for a given price
+        """
+
+        sub = (symbol, exchange, depth_price)
+        self._subscriptions["market_depth"].add(sub)
+
+        await self._send_request(
+            template_id=117,
+            symbol=symbol,
+            exchange=exchange,
+            depth_price=depth_price,
+            request=pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates.Request.SUBSCRIBE,
+        )
+
+    async def unsubscribe_from_market_depth(
+        self,
+        symbol: str,
+        exchange: str,
+        depth_price: float
+    ):
+        """
+        Unsubscribes from market depth updates (L2 data) for a given price
+        """
+
+        sub = (symbol, exchange, depth_price)
+        self._subscriptions["market_depth"].discard(sub)
+
+        await self._send_request(
+            template_id=117,
+            symbol=symbol,
+            exchange=exchange,
+            depth_price=depth_price,
+            request=pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates.Request.UNSUBSCRIBE,
+        )
+
     async def _process_response(self, response):
         if await super()._process_response(response):
             return True
 
         if response.template_id == 101:
             # Market data update response
+            pass
+
+        elif response.template_id == 118:
+            # Market depth data update response
             pass
 
         elif response.template_id == 150:
@@ -121,6 +189,14 @@ class TickerPlant(BasePlant):
             data["data_type"] = DataType.BBO
 
             await self.client.on_tick.call_async(data)
+
+        elif response.template_id == 156:
+            # Market data stream: Order Book
+            await self.client.on_order_book.call_async(response)
+
+        elif response.template_id == 160:
+            # Market depth data stream
+            await self.client.on_market_depth.call_async(response)
 
         else:
             self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")
