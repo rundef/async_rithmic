@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.3] - 2025-07-09
+### Added
+- Logger name suffix kwarg
+
+### Fixed
+- Stop background tasks when connection to a plant fails
+
+## [1.5.2] - 2025-07-04
+### Added
+- PNL updates subscriptions
+- Documentation for Account PNL snapshot request
+- Conformance script
+
+## [1.5.1] - 2025-06-25
+- Adjust websocket ping timeout
+
 ## [1.5.0] - 2025-06-17
 ### Removed
 The `gateway` parameter has been removed from `RithmicClient.__init__()`.

@@ -51,6 +51,10 @@ class RithmicClient(DelegateMixin):
         self.on_historical_tick = Event()
         self.on_historical_time_bar = Event()
 
+        # PNL events
+        self.on_instrument_pnl_update = Event()
+        self.on_account_pnl_update = Event()
+
         if "://" not in url:
             url = f"wss://{url}"
 
@@ -101,7 +105,7 @@ class RithmicClient(DelegateMixin):
 
     async def connect(self):
         try:
-            for plant_type, plant in self.plants.items():
+            for plant in self.plants.values():
                 await plant._connect()
 
                 await plant._start_background_tasks()
@@ -110,6 +114,10 @@ class RithmicClient(DelegateMixin):
 
         except:
             logger.exception("Failed to connect")
+
+            for plant in self.plants.values():
+                await plant._stop_background_tasks()
+
             raise
 
     async def disconnect(self, timeout=5.0):

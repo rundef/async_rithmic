@@ -14,7 +14,7 @@ class BackgroundTaskMixin:
     - A heartbeat loop for regular keep-alives
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self._inbound_queue = asyncio.Queue()
         self._bg_tasks: list[asyncio.Task] = []
 
@@ -32,6 +32,9 @@ class BackgroundTaskMixin:
         """
         Cancels and awaits all background tasks.
         """
+        if not self._bg_tasks:
+            return
+
         for task in self._bg_tasks:
             task.cancel()
 
@@ -83,6 +86,10 @@ class BackgroundTaskMixin:
                 self.logger.debug(f"Received message {MessageToDict(response)}")
 
                 await self._process_response(response)
+
+            except asyncio.CancelledError:
+                break
+
             except Exception as e:
                 self.logger.exception("Error processing response", exc_info=e)
 
@@ -91,9 +98,13 @@ class BackgroundTaskMixin:
         Periodically sends heartbeats based on the negotiated interval.
         """
         while True:
-            await asyncio.sleep(self.heartbeat_interval - 1)
             try:
+                await asyncio.sleep(self.heartbeat_interval - 1)
                 await self._send_heartbeat()
+
+            except asyncio.CancelledError:
+                break
+
             except Exception as e:
                 self.logger.warning("Heartbeat failed", exc_info=e)
 
