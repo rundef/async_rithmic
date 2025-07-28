@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.5.4] - 2025-07-28
+### Added
+- Order book/market depth methods
+
 ## [1.5.3] - 2025-07-09
 ### Added
 - Logger name suffix kwarg
