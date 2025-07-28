@@ -45,16 +45,16 @@ TEMPLATES_MAP = {
     113: pb.request_front_month_contract_pb2.RequestFrontMonthContract,
     114: pb.response_front_month_contract_pb2.ResponseFrontMonthContract,
 
-    #115: pb.request_depth_by_order_snapshot_pb2.RequestDepthByOrderSnapshot,
-    #116: pb.response_depth_by_order_snapshot_pb2.ResponseDepthByOrderSnapshot,
-    #117: pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates,
-    #118: pb.response_depth_by_order_updates_pb2.ResponseDepthByOrderUpdates,
+    115: pb.request_depth_by_order_snapshot_pb2.RequestDepthByOrderSnapshot,
+    116: pb.response_depth_by_order_snapshot_pb2.ResponseDepthByOrderSnapshot,
+    117: pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates,
+    118: pb.response_depth_by_order_updates_pb2.ResponseDepthByOrderUpdates,
 
     150: pb.last_trade_pb2.LastTrade,
     151: pb.best_bid_offer_pb2.BestBidOffer,
-    #156: pb.order_book_pb2.OrderBook,
-    #160: pb.depth_by_order.DepthByOrder,
-    #161: pb.depth_by_order_end_event.DepthByOrderEndEvent,
+    156: pb.order_book_pb2.OrderBook,
+    160: pb.depth_by_order_pb2.DepthByOrder,
+    161: pb.depth_by_order_end_event_pb2.DepthByOrderEndEvent,
 
     # Order Plant Infrastructure
     300: pb.request_login_info_pb2.RequestLoginInfo,
@@ -500,10 +500,11 @@ class BasePlant(BackgroundTaskMixin):
         Handles async responses
         """
 
-        if response.template_id in [13, 19, 401]:
+        if response.template_id in [13, 19, 161, 401]:
             # Ignore
             # - logout responses
             # - heartbeat responses
+            # - market depth end event
             # - pnl subscription responses
             return True
 
