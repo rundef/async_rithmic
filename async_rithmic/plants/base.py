@@ -556,8 +556,7 @@ class BasePlant(BackgroundTaskMixin):
         return dt
 
     def _ssboe_usecs_to_datetime(self, ssboe: int, usecs: int):
-        ts = '{0}.{1}'.format(ssboe, usecs)
-        return datetime.fromtimestamp(float(ts), tz=pytz.utc)
+        return datetime.fromtimestamp(ssboe, tz=pytz.utc).replace(microsecond=usecs)
 
     def _datetime_to_ssboe_usecs(self, dt: datetime):
         """
