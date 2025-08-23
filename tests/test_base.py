@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 from datetime import datetime
 import pytz
+import pytest
 
 from async_rithmic.plants import TickerPlant
 from async_rithmic import protocol_buffers as pb
@@ -43,14 +44,18 @@ def test_datetime_to_utc():
     dt = plant._datetime_to_utc(dt)
     assert dt == datetime(2024, 11, 8, 22, 29, 0, tzinfo=pytz.utc)
 
-def test_ssboe_usecs_conversion():
+@pytest.mark.parametrize(
+    "ssboe,usecs,expected_dt", [
+        (1731092410, 164409, datetime(2024, 11, 8, 19, 0, 10, 164409, tzinfo=pytz.utc)),
+        (1731092410, 123, datetime(2024, 11, 8, 19, 0, 10, 123, tzinfo=pytz.utc)),
+    ]
+)
+def test_ssboe_usecs_conversion(ssboe, usecs, expected_dt):
     plant = TickerPlant(MagicMock())
 
-    inputs = 1731092410, 164409
-
-    dt = plant._ssboe_usecs_to_datetime(*inputs)
-    assert dt == datetime(2024, 11, 8, 19, 0, 10, 164409, tzinfo=pytz.utc)
+    dt = plant._ssboe_usecs_to_datetime(ssboe, usecs)
+    assert dt == expected_dt
 
     output = plant._datetime_to_ssboe_usecs(dt)
-    assert output == inputs
+    assert output == (int(ssboe), int(usecs))
 
