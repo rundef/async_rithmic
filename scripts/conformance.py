@@ -21,7 +21,7 @@ async def main():
         await order_plant._connect()
         await order_plant._start_background_tasks()
         await order_plant._login()
-        print("Logged in successfully")
+        print("Logged in successfully. Press CTRL+C to exit")
 
         print("Sleeping ...")
         await asyncio.sleep(3600)
