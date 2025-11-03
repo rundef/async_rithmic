@@ -1,7 +1,7 @@
 import asyncio
 
 from .base import BasePlant
-from ..enums import OrderType, OrderDuration, TransactionType
+from ..enums import OrderType, OrderDuration, OrderPlacement, TransactionType
 from ..exceptions import InvalidRequestError
 from .. import protocol_buffers as pb
 
@@ -270,7 +270,7 @@ class OrderPlant(BasePlant):
             exchange=exchange,
             price_type=order_type,
             quantity=qty,
-            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            manual_or_auto=OrderPlacement.MANUAL,
             transaction_type=transaction_type,
             duration=kwargs["duration"],
             fcm_id=self.login_info["fcm_id"],
@@ -297,7 +297,7 @@ class OrderPlant(BasePlant):
         return await self._send_and_collect(
             template_id=316,
             expected_response=dict(template_id=317),
-            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            manual_or_auto=OrderPlacement.MANUAL,
             basket_id=basket_id,
             account_id=account_id,
             fcm_id=self.login_info["fcm_id"],
@@ -311,7 +311,7 @@ class OrderPlant(BasePlant):
         return await self._send_and_collect(
             template_id=346,
             expected_response=dict(template_id=347),
-            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            manual_or_auto=OrderPlacement.MANUAL,
             user_type=self.login_info["user_type"],
             account_id=self._get_account_id(**kwargs)
         )
@@ -376,7 +376,7 @@ class OrderPlant(BasePlant):
         return await self._send_and_collect(
             template_id=314,
             expected_response=dict(template_id=315),
-            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            manual_or_auto=OrderPlacement.MANUAL,
             account_id=order.account_id,
             basket_id=order.basket_id,
             symbol=order.symbol,
@@ -420,7 +420,7 @@ class OrderPlant(BasePlant):
         return await self._send_and_collect(
             template_id=3504,
             expected_response=dict(template_id=3505),
-            manual_or_auto=pb.request_new_order_pb2.RequestNewOrder.OrderPlacement.MANUAL,
+            manual_or_auto=OrderPlacement.MANUAL,
             **kwargs
         )
 
