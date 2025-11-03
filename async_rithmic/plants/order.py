@@ -428,7 +428,11 @@ class OrderPlant(BasePlant):
         if await super()._process_response(response):
             return True
 
-        if response.template_id == 351:
+        if response.template_id == 350:
+            # Trade route notification
+            pass
+
+        elif response.template_id == 351:
             # Rithmic order notification
             await self.client.on_rithmic_order_notification.call_async(response)
 

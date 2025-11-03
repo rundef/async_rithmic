@@ -90,11 +90,11 @@ class RithmicClient(DelegateMixin):
             jitter_range=(0.5, 2.),
         ))
 
+        plant_classes = kwargs.pop("plants", [TickerPlant, OrderPlant, PnlPlant, HistoryPlant])
+        plants = [plant_class(self, **kwargs) for plant_class in plant_classes]
         self.plants = {
-            "ticker": TickerPlant(self, **kwargs),
-            "order": OrderPlant(self, **kwargs),
-            "pnl": PnlPlant(self, **kwargs),
-            "history": HistoryPlant(self, **kwargs),
+            plant.plant_type: plant
+            for plant in plants
         }
 
         for plant in self.plants.values():
