@@ -3,11 +3,11 @@ import asyncio
 from collections import defaultdict
 
 from .base import BasePlant
-from ..enums import TimeBarType
+from ..enums import SysInfraType, TimeBarType
 from .. import protocol_buffers as pb
 
 class HistoryPlant(BasePlant):
-    infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.HISTORY_PLANT
+    infra_type = SysInfraType.HISTORY_PLANT
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1,14 +1,14 @@
 import asyncio
 
 from .base import BasePlant
-from ..enums import OrderType, OrderDuration, OrderPlacement, TransactionType
+from ..enums import SysInfraType, OrderType, OrderDuration, OrderPlacement, TransactionType
 from ..exceptions import InvalidRequestError
 from .. import protocol_buffers as pb
 
 BracketType = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType
 
 class OrderPlant(BasePlant):
-    infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.ORDER_PLANT
+    infra_type = SysInfraType.ORDER_PLANT
 
     login_info = None
     trade_routes = None
@@ -51,9 +51,6 @@ class OrderPlant(BasePlant):
         return await self._send_and_collect(
             template_id=302,
             expected_response=dict(template_id=303),
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
-            user_type=self.login_info["user_type"],
             account_id=None,
         )
 
@@ -72,8 +69,6 @@ class OrderPlant(BasePlant):
     async def _subscribe_to_updates(self, **kwargs):
         for account in self.accounts:
             await self._send_and_recv_immediate(
-                fcm_id=self.login_info["fcm_id"],
-                ib_id=self.login_info["ib_id"],
                 account_id=account.account_id,
                 **kwargs
             )
@@ -82,9 +77,6 @@ class OrderPlant(BasePlant):
         return await self._send_and_collect(
             template_id=304,
             expected_response=dict(template_id=305),
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
-            user_type=self.login_info["user_type"],
             account_id=None,
         )
 
@@ -273,8 +265,6 @@ class OrderPlant(BasePlant):
             manual_or_auto=OrderPlacement.MANUAL,
             transaction_type=transaction_type,
             duration=kwargs["duration"],
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
             **msg_kwargs
         )
 
@@ -300,8 +290,6 @@ class OrderPlant(BasePlant):
             manual_or_auto=OrderPlacement.MANUAL,
             basket_id=basket_id,
             account_id=account_id,
-            fcm_id=self.login_info["fcm_id"],
-            ib_id=self.login_info["ib_id"],
         )
 
     async def cancel_all_orders(self, **kwargs):
@@ -312,7 +300,6 @@ class OrderPlant(BasePlant):
             template_id=346,
             expected_response=dict(template_id=347),
             manual_or_auto=OrderPlacement.MANUAL,
-            user_type=self.login_info["user_type"],
             account_id=self._get_account_id(**kwargs)
         )
 
@@ -428,7 +415,11 @@ class OrderPlant(BasePlant):
         if await super()._process_response(response):
             return True
 
-        if response.template_id == 351:
+        if response.template_id == 350:
+            # Trade route update
+            await self.client.on_trade_route_update.call_async(response)
+
+        elif response.template_id == 351:
             # Rithmic order notification
             await self.client.on_rithmic_order_notification.call_async(response)
 

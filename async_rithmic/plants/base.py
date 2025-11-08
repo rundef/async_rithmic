@@ -13,6 +13,7 @@ from google.protobuf.json_format import MessageToDict
 
 from .. import protocol_buffers as pb
 from ..logger import logger
+from ..enums import SysInfraType
 from ..exceptions import RithmicErrorResponse
 from ..helpers.request_manager import RequestManager
 from ..helpers.connectivity import DisconnectionHandler, try_to_reconnect
@@ -171,10 +172,10 @@ class BasePlant(BackgroundTaskMixin):
     @property
     def plant_type(self):
         return {
-            pb.request_login_pb2.RequestLogin.SysInfraType.HISTORY_PLANT: "history",
-            pb.request_login_pb2.RequestLogin.SysInfraType.PNL_PLANT: "pnl",
-            pb.request_login_pb2.RequestLogin.SysInfraType.TICKER_PLANT: "ticker",
-            pb.request_login_pb2.RequestLogin.SysInfraType.ORDER_PLANT: "order",
+            SysInfraType.HISTORY_PLANT: "history",
+            SysInfraType.PNL_PLANT: "pnl",
+            SysInfraType.TICKER_PLANT: "ticker",
+            SysInfraType.ORDER_PLANT: "order",
         }[self.infra_type]
 
     async def _connect(self):
@@ -304,6 +305,13 @@ class BasePlant(BackgroundTaskMixin):
         for k, v in kwargs.items():
             self._set_pb_field(request, k, v)
 
+        if request.DESCRIPTOR.fields_by_name.get("fcm_id"):
+            request.fcm_id = self.client.fcm_id
+        if request.DESCRIPTOR.fields_by_name.get("ib_id"):
+            request.ib_id = self.client.ib_id
+        if request.DESCRIPTOR.fields_by_name.get("user_type"):
+            request.user_type = self.client.user_type
+
         return request
 
     async def _send_and_recv_immediate(self, **kwargs):
@@ -387,10 +395,6 @@ class BasePlant(BackgroundTaskMixin):
         else:
             account_id = self.client.plants["order"]._get_account_id(**kwargs)
             kwargs["account_id"] = account_id
-
-            login_info = self.client.plants["order"].login_info
-            kwargs["fcm_id"] = login_info["fcm_id"]
-            kwargs["ib_id"] = login_info["ib_id"]
 
         retries = self.client.retry_settings.max_retries
         if template_id in [312, 330]:

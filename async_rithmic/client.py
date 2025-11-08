@@ -46,6 +46,7 @@ class RithmicClient(DelegateMixin):
         self.on_rithmic_order_notification = Event()
         self.on_exchange_order_notification = Event()
         self.on_bracket_update = Event()
+        self.on_trade_route_update = Event()
 
         # Historical data events
         self.on_historical_tick = Event()
@@ -138,3 +139,22 @@ class RithmicClient(DelegateMixin):
         await plant._stop_background_tasks()
         await plant._logout()
         await plant._disconnect()
+
+    @property
+    def accounts(self):
+        return self.plants["order"].accounts
+
+    @property
+    def fcm_id(self):
+        login_info = self.plants["order"].login_info
+        return login_info["fcm_id"] if login_info else None
+
+    @property
+    def ib_id(self):
+        login_info = self.plants["order"].login_info
+        return login_info["ib_id"] if login_info else None
+
+    @property
+    def user_type(self):
+        login_info = self.plants["order"].login_info
+        return login_info["user_type"] if login_info else None
