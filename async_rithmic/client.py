@@ -9,6 +9,7 @@ from .plants.history import HistoryPlant
 from .plants.order import OrderPlant
 from .plants.pnl import PnlPlant
 from .logger import logger
+from .enums import SysInfraType
 from .objects import ReconnectionSettings, RetrySettings
 
 def _setup_ssl_context():
@@ -104,9 +105,19 @@ class RithmicClient(DelegateMixin):
         self.on_connected += lambda plant_type: self.plants[plant_type].logger.debug("Connected")
         self.on_disconnected += lambda plant_type: self.plants[plant_type].logger.debug("Disconnected")
 
-    async def connect(self):
+    async def connect(self, **kwargs):
+        target_plants = kwargs.get("plants", [
+            SysInfraType.ORDER_PLANT,
+            SysInfraType.HISTORY_PLANT,
+            SysInfraType.TICKER_PLANT,
+            SysInfraType.PNL_PLANT
+        ])
+
         try:
             for plant in self.plants.values():
+                if plant.infra_type not in target_plants:
+                    continue
+
                 await plant._connect()
 
                 await plant._start_background_tasks()
