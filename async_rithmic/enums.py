@@ -26,3 +26,4 @@ TimeBarType = pb.request_time_bar_replay_pb2.RequestTimeBarReplay.BarType
 InstrumentType = pb.request_search_symbols_pb2.RequestSearchSymbols.InstrumentType
 SearchPattern = pb.request_search_symbols_pb2.RequestSearchSymbols.Pattern
 
+SysInfraType = pb.request_login_pb2.RequestLogin.SysInfraType

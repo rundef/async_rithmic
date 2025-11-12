@@ -1,11 +1,11 @@
 from typing import Union
 
 from .base import BasePlant
-from ..enums import DataType, SearchPattern
+from ..enums import SysInfraType, DataType, SearchPattern
 from .. import protocol_buffers as pb
 
 class TickerPlant(BasePlant):
-    infra_type = pb.request_login_pb2.RequestLogin.SysInfraType.TICKER_PLANT
+    infra_type = SysInfraType.TICKER_PLANT
 
     async def _login(self):
         await super()._login()

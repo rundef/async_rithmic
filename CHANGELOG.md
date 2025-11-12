@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.6] - 2025-11-12
+### Added
+- Allow connection to a subset of plants only
+
+## [1.5.5] - 2025-08-23
+### Fixed
+- Bug for timestamps with leading zeros for microseconds (by @briandecamp)
+
 ## [1.5.4] - 2025-07-28
 ### Added
 - Order book/market depth methods
