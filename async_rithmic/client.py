@@ -61,7 +61,7 @@ class RithmicClient(DelegateMixin):
         if "://" not in url:
             url = f"wss://{url}"
 
-        assert isinstance(manual_or_auto, OrderPlacement), "manual_or_auto must be an instance of OrderPlacement"
+        assert manual_or_auto in [OrderPlacement.MANUAL, OrderPlacement.AUTO], "manual_or_auto must be an instance of .enums.OrderPlacement"
         self.manual_or_auto = manual_or_auto
 
         self.credentials = dict(
