@@ -9,7 +9,7 @@ from .plants.history import HistoryPlant
 from .plants.order import OrderPlant
 from .plants.pnl import PnlPlant
 from .logger import logger
-from .enums import SysInfraType
+from .enums import OrderPlacement, SysInfraType
 from .objects import ReconnectionSettings, RetrySettings
 
 def _setup_ssl_context():
@@ -31,6 +31,7 @@ class RithmicClient(DelegateMixin):
         app_name: str,
         app_version: str,
         url: str,
+        manual_or_auto: OrderPlacement = OrderPlacement.MANUAL,
         **kwargs
     ):
         # Connection events
@@ -59,6 +60,9 @@ class RithmicClient(DelegateMixin):
 
         if "://" not in url:
             url = f"wss://{url}"
+
+        assert manual_or_auto in [OrderPlacement.MANUAL, OrderPlacement.AUTO], "manual_or_auto must be an instance of .enums.OrderPlacement"
+        self.manual_or_auto = manual_or_auto
 
         self.credentials = dict(
             user=user,

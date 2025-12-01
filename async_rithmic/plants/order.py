@@ -254,6 +254,8 @@ class OrderPlant(BasePlant):
             msg_kwargs["cancel_at_ssboe"] = ssboe
             msg_kwargs["cancel_at_usecs"] = usecs
 
+        manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
+
         return await self._send_and_collect(
             template_id=template_id,
             expected_response=dict(template_id=template_id + 1),
@@ -262,7 +264,7 @@ class OrderPlant(BasePlant):
             exchange=exchange,
             price_type=order_type,
             quantity=qty,
-            manual_or_auto=OrderPlacement.MANUAL,
+            manual_or_auto=manual_or_auto,
             transaction_type=transaction_type,
             duration=kwargs["duration"],
             **msg_kwargs
@@ -284,10 +286,12 @@ class OrderPlant(BasePlant):
             basket_id = order.basket_id
             account_id = order.account_id
 
+        manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
+
         return await self._send_and_collect(
             template_id=316,
             expected_response=dict(template_id=317),
-            manual_or_auto=OrderPlacement.MANUAL,
+            manual_or_auto=manual_or_auto,
             basket_id=basket_id,
             account_id=account_id,
         )
@@ -296,10 +300,12 @@ class OrderPlant(BasePlant):
         """
         Cancel all orders
         """
+        manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
+
         return await self._send_and_collect(
             template_id=346,
             expected_response=dict(template_id=347),
-            manual_or_auto=OrderPlacement.MANUAL,
+            manual_or_auto=manual_or_auto,
             account_id=self._get_account_id(**kwargs)
         )
 
@@ -360,10 +366,13 @@ class OrderPlant(BasePlant):
 
         # Update the actual order
         msg_kwargs = self._validate_price_fields(order_type, raise_exception=False, **kwargs)
+
+        manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
+
         return await self._send_and_collect(
             template_id=314,
             expected_response=dict(template_id=315),
-            manual_or_auto=OrderPlacement.MANUAL,
+            manual_or_auto=manual_or_auto,
             account_id=order.account_id,
             basket_id=order.basket_id,
             symbol=order.symbol,
@@ -404,10 +413,12 @@ class OrderPlant(BasePlant):
         You can pass `symbol` and `exchange` to target a specific position, otherwise all the account positions will
         be exited.
         """
+        manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
+
         return await self._send_and_collect(
             template_id=3504,
             expected_response=dict(template_id=3505),
-            manual_or_auto=OrderPlacement.MANUAL,
+            manual_or_auto=manual_or_auto,
             **kwargs
         )
 
