@@ -353,6 +353,9 @@ class BasePlant(BackgroundTaskMixin):
                 break
 
         if len(responses[-1].rp_code) and responses[-1].rp_code[0] != '0':
+            if responses[-1].rp_code[0] == '7':
+                self.logger.debug(f"Rithmic returned no data for the request={kwargs}")
+                return []
             raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(responses[-1])} for the request={kwargs}")
 
         return responses
@@ -379,6 +382,9 @@ class BasePlant(BackgroundTaskMixin):
                 break
 
         if len(response.rp_code) and response.rp_code[0] != '0':
+            if response.rp_code[0] == '7':
+                self.logger.debug(f"Rithmic returned no data for the request={kwargs}")
+                return response
             raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
 
         return response
@@ -529,6 +535,10 @@ class BasePlant(BackgroundTaskMixin):
             if self.request_manager.has_pending(request_id):
                 if response.rp_code:
                     if response.rp_code[0] != '0':
+                        if response.rp_code[0] == '7':
+                            self.logger.debug(f"Rithmic returned no data for request_id={request_id}")
+                            self.request_manager.mark_complete(request_id)
+                            return True
                         request = self.request_manager.requests.get(request_id)
                         self.request_manager.mark_complete(request_id)
                         raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}")
