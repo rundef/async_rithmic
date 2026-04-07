@@ -39,7 +39,7 @@ pip install async_rithmic
 
 ## 🧠 Using it in Production
 
-This library handles connectivity and streaming with Rithmic, but it does not solve higher-level concerns such as failure handling, retries, or ensuring correctness under load.
+This library handles connectivity and streaming with Rithmic, but it does not solve higher-level concerns such as failure handling or ensuring correctness under load.
 
 For a detailed discussion of how to build fault-tolerant async trading systems in practice:
 
