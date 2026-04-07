@@ -116,6 +116,7 @@ class RithmicClient(DelegateMixin):
             SysInfraType.TICKER_PLANT,
             SysInfraType.PNL_PLANT
         ])
+        plant_connect_delay = kwargs.get("plant_connect_delay", 0.1)
 
         try:
             for plant in self.plants.values():
@@ -126,7 +127,7 @@ class RithmicClient(DelegateMixin):
 
                 await plant._start_background_tasks()
                 await plant._login()
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(plant_connect_delay)
 
         except:
             logger.exception("Failed to connect")
