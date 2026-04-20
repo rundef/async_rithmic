@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.10] - 2026-04-20
+### Fixed
+- History: per-request events to avoid KeyError + shared-event race by @olivier-babelcast
+
+## [1.5.9] - 2026-02-20
+### Added
+- Allow passing order object to modify_order() to skip get_order() call by @briandecamp
+
+## [1.5.8] - 2026-02-08
+### Fixed
+- Handle rpCode '7' (no data) as empty result instead of error by @olivier-babelcast
+
 ## [1.5.7] - 2025-12-01
 ### Added
 - Support for specifying OrderPlacement mode (manual or auto) - by @dhsmyth
@@ -62,8 +74,6 @@ Use the `url` parameter to specify the connection endpoint.
 - Improve logging for lock acquisition timeouts
 
 ## [1.4.1] - 2025-05-21
-
-
 ### Added
 - Added retries
 - Added documentation for the `order` plant
