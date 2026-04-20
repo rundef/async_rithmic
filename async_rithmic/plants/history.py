@@ -15,13 +15,6 @@ class HistoryPlant(BasePlant):
         self.historical_tick_data = defaultdict(list)
         self.historical_time_bar_data = defaultdict(list)
 
-        # Per-request events keyed by f"{symbol}" (tick) or f"{symbol}_{type}" (time bar).
-        # Fixes two races in the prior single-shared-event design:
-        #   1) Empty response: is_last_bar marker sets the event before any data
-        #      callbacks fire, so pop(key) raised KeyError (fixed here with per-key
-        #      events + .pop default).
-        #   2) Concurrent requests: a second caller would overwrite the shared event,
-        #      causing the first response to wake the second caller prematurely.
         self.historical_tick_events: dict = {}
         self.historical_time_bar_events: dict = {}
 

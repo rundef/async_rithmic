@@ -7,6 +7,7 @@ Two scenarios that previously crashed:
 """
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
+from datetime import datetime
 
 import pytest
 
@@ -61,7 +62,6 @@ async def test_concurrent_different_symbols(history_plant_mock):
     would wake the second caller prematurely. Now each request has its own event.
     """
     plant = history_plant_mock
-    import datetime as dt
 
     async def fire_response_for(symbol, bar_type, delay, data_rows):
         await asyncio.sleep(delay)
@@ -80,12 +80,12 @@ async def test_concurrent_different_symbols(history_plant_mock):
     result_a, result_b = await asyncio.gather(
         plant.get_historical_time_bars(
             symbol="MNQM6", exchange="CME",
-            start_time=dt.datetime(2026, 4, 13, 0), end_time=dt.datetime(2026, 4, 13, 0, 1),
+            start_time=datetime(2026, 4, 13, 0), end_time=datetime(2026, 4, 13, 0, 1),
             bar_type=TimeBarType.MINUTE_BAR, bar_type_periods=1,
         ),
         plant.get_historical_time_bars(
             symbol="MESM6", exchange="CME",
-            start_time=dt.datetime(2026, 4, 13, 0), end_time=dt.datetime(2026, 4, 13, 0, 1),
+            start_time=datetime(2026, 4, 13, 0), end_time=datetime(2026, 4, 13, 0, 1),
             bar_type=TimeBarType.MINUTE_BAR, bar_type_periods=1,
         ),
     )
@@ -97,7 +97,6 @@ async def test_concurrent_different_symbols(history_plant_mock):
 async def test_empty_tick_response_returns_empty_list(history_plant_mock):
     """Same as Bug A but for tick data."""
     plant = history_plant_mock
-    import datetime as dt
     key = "MNQM6"
 
     async def trigger_empty():
@@ -110,7 +109,7 @@ async def test_empty_tick_response_returns_empty_list(history_plant_mock):
 
     result = await plant.get_historical_tick_data(
         symbol="MNQM6", exchange="CME",
-        start_time=dt.datetime(2026, 4, 13, 0), end_time=dt.datetime(2026, 4, 13, 0, 1),
+        start_time=datetime(2026, 4, 13, 0), end_time=datetime(2026, 4, 13, 0, 1),
     )
     assert result == []
     assert key not in plant.historical_tick_events
