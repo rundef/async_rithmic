@@ -15,8 +15,15 @@ class HistoryPlant(BasePlant):
         self.historical_tick_data = defaultdict(list)
         self.historical_time_bar_data = defaultdict(list)
 
-        self.historical_tick_event = asyncio.Event()
-        self.historical_time_bar_event = asyncio.Event()
+        # Per-request events keyed by f"{symbol}" (tick) or f"{symbol}_{type}" (time bar).
+        # Fixes two races in the prior single-shared-event design:
+        #   1) Empty response: is_last_bar marker sets the event before any data
+        #      callbacks fire, so pop(key) raised KeyError (fixed here with per-key
+        #      events + .pop default).
+        #   2) Concurrent requests: a second caller would overwrite the shared event,
+        #      causing the first response to wake the second caller prematurely.
+        self.historical_tick_events: dict = {}
+        self.historical_time_bar_events: dict = {}
 
         self.client.on_historical_tick += self._on_historical_tick
         self.client.on_historical_time_bar += self._on_historical_time_bar
@@ -56,9 +63,11 @@ class HistoryPlant(BasePlant):
         :param start_time: (dt) start time as datetime in utc
         :param end_time: (dt) end time as datetime in utc
         """
+        key = f"{symbol}"
 
         if wait:
-            self.historical_tick_event = asyncio.Event()
+            event = asyncio.Event()
+            self.historical_tick_events[key] = event
 
         await self._send_and_recv_immediate(
             template_id=206,
@@ -75,19 +84,15 @@ class HistoryPlant(BasePlant):
 
         # Wait until all the historical data has been fetched before returning it
         if wait:
-            key = f"{symbol}"
-
             try:
-                await asyncio.wait_for(self.historical_tick_event.wait(), 5.0)
+                await asyncio.wait_for(event.wait(), 5.0)
             except asyncio.TimeoutError:
-                if len(self.historical_tick_data[key]) == 0:
-                    # No data returned by Rithmic for the request
-                    return []
+                # No response within 5s — return whatever accumulated (may be empty)
+                pass
+            finally:
+                self.historical_tick_events.pop(key, None)
 
-            await self.historical_tick_event.wait()
-
-            data = self.historical_tick_data.pop(key)
-            return data
+            return self.historical_tick_data.pop(key, [])
 
     async def get_historical_time_bars(
         self,
@@ -99,8 +104,11 @@ class HistoryPlant(BasePlant):
         bar_type_periods: int,
         wait: bool = True
     ):
+        key = f"{symbol}_{bar_type}"
+
         if wait:
-            self.historical_time_bar_event = asyncio.Event()
+            event = asyncio.Event()
+            self.historical_time_bar_events[key] = event
 
         await self._send_and_recv_immediate(
             template_id=202,
@@ -115,19 +123,15 @@ class HistoryPlant(BasePlant):
 
         # Wait until all the historical data has been fetched before returning it
         if wait:
-            key = f"{symbol}_{bar_type}"
-
             try:
-                await asyncio.wait_for(self.historical_time_bar_event.wait(), 5.0)
+                await asyncio.wait_for(event.wait(), 5.0)
             except asyncio.TimeoutError:
-                if len(self.historical_time_bar_data[key]) == 0:
-                    # No data returned by Rithmic for the request
-                    return []
+                # No response within 5s — return whatever accumulated (may be empty)
+                pass
+            finally:
+                self.historical_time_bar_events.pop(key, None)
 
-            await self.historical_time_bar_event.wait()
-
-            data = self.historical_time_bar_data.pop(key)
-            return data
+            return self.historical_time_bar_data.pop(key, [])
 
     async def subscribe_to_time_bar_data(
         self,
@@ -179,7 +183,12 @@ class HistoryPlant(BasePlant):
             # Historical time bar
             is_last_bar = response.rp_code == ['0'] or response.rq_handler_rp_code == []
             if is_last_bar:
-                self.historical_time_bar_event.set()
+                # Signal the specific per-request event (keyed by symbol+type).
+                # Falls back to no-op if no waiter registered (defensive).
+                key = f"{response.symbol}_{response.type}"
+                event = self.historical_time_bar_events.get(key)
+                if event is not None:
+                    event.set()
                 return
 
             data = self._response_to_dict(response)
@@ -191,7 +200,10 @@ class HistoryPlant(BasePlant):
             # Historical tick bar
             is_last_bar = response.rp_code == ['0'] or response.rq_handler_rp_code == []
             if is_last_bar:
-                self.historical_tick_event.set()
+                key = f"{response.symbol}"
+                event = self.historical_tick_events.get(key)
+                if event is not None:
+                    event.set()
                 return
 
             data = self._response_to_dict(response)
