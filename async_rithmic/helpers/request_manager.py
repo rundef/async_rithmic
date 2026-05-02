@@ -32,14 +32,13 @@ class RequestManager:
 
         expected_response = kwargs.pop("expected_response")
 
-        if kwargs["template_id"] in [113, 312, 314, 316, 330, 338, 340, 3504]:
+        if kwargs["template_id"] in [113, 312, 314, 316, 330, 338, 340, 504, 506, 3504]:
             # Some endpoints will contain the user msg / request id
             expected_response["user_msg"] = [request_id]
 
         elif "account_id" in kwargs:
             # Else, it will contain the same account id as the request
             expected_response["account_id"] = kwargs["account_id"]
-
 
         self.plant.logger.debug(f"Sending request {request_id}")
         self.start(request_id, kwargs, expected_response)
@@ -95,5 +94,5 @@ class RequestManager:
         else:
             self.plant.logger.error(f"Unknown request {request_id}")
 
-    def has_pending(self, request_id: str):
+    def has_pending(self, request_id: str):\
         return request_id in self.responses

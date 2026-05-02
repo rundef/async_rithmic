@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestShowAgreement
+	{       
+	int32   template_id    = 154467;
+	repeated string  user_msg       = 132760;
+	
+	string  agreement_id   = 153407;
+	}
