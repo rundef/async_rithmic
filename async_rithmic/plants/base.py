@@ -518,6 +518,12 @@ class BasePlant(BackgroundTaskMixin):
             # - pnl subscription responses
             return True
 
+        if response.template_id in [203, 207]:
+            # Let plant handle:
+            # - historical time bars
+            # - historical tick bars
+            return False
+
         if response.template_id == 77:
             # Forced logout
             self.logger.warning("Received a ForcedLogout message from Rithmic - did you reach the maximum number of concurrent sessions ?")
