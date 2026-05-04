@@ -2,6 +2,7 @@ from typing import Union
 
 from .base import BasePlant
 from ..enums import SysInfraType, DataType, SearchPattern
+from ..exceptions import RithmicErrorResponse
 from .. import protocol_buffers as pb
 
 class TickerPlant(BasePlant):
@@ -24,13 +25,15 @@ class TickerPlant(BasePlant):
             account_id=None,
         )
 
-    async def get_front_month_contract(self, symbol: str, exchange: str) -> Union[str, None]:
+    async def get_front_month_contract(self, symbol: str, exchange: str) -> str:
         """
         Get the current Front Month Contract of an underlying code and exchange, eg ES and CME
 
         :param symbol: (str) valid symbol (e.g. ES)
         :param exchange: (str) valid exchange (e.g. CME)
         :return: (str) the front month futures contract
+        :raises RithmicErrorResponse: if Rithmic returns no data (rp_code=7,
+            typically during the maintenance window) or an empty trading_symbol.
         """
 
         responses = await self._send_and_collect(
@@ -41,7 +44,12 @@ class TickerPlant(BasePlant):
             account_id=None,
         )
         response = self._first(responses)
-        return response.trading_symbol if response else None
+        if response is None or not response.trading_symbol:
+            raise RithmicErrorResponse(
+                f"Rithmic returned no front-month contract for {symbol}/{exchange} "
+                "(empty response — often occurs during the maintenance window)"
+            )
+        return response.trading_symbol
 
     async def subscribe_to_market_data(
         self,
