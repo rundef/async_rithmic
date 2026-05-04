@@ -43,6 +43,10 @@ async def _try_to_reconnect(plant, attempt):
     settings = plant.client.reconnection_settings
 
     while True:
+        wait_time = plant.client.reconnection_settings.get_delay(attempt)
+        plant.logger.info(f"Waiting {wait_time} seconds before the next reconnection attempt ...")
+        await asyncio.sleep(wait_time)
+
         plant.logger.info(f"Reconnection attempt #{attempt}")
 
         if settings.max_retries is not None and attempt > settings.max_retries:
@@ -64,8 +68,3 @@ async def _try_to_reconnect(plant, attempt):
 
         attempt += 1
 
-        wait_time = plant.client.reconnection_settings.get_delay(attempt)
-        plant.logger.info(f"Waiting {wait_time} seconds before the next reconnection attempt ...")
-        await asyncio.sleep(wait_time)
-
-    return False
