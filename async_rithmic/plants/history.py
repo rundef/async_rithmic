@@ -33,6 +33,9 @@ class HistoryPlant(BasePlant):
 
     async def _on_historical_time_bar(self, data):
         key = f"{data['symbol']}_{data['type']}"
+        if data['type'] in {TimeBarType.SECOND_BAR, TimeBarType.MINUTE_BAR}:
+            key += f"_{data['period']}"
+
         self.historical_time_bar_data[key].append(data)
 
     async def _on_historical_tick(self, data):
@@ -98,6 +101,10 @@ class HistoryPlant(BasePlant):
         wait: bool = True
     ):
         key = f"{symbol}_{bar_type}"
+        if bar_type == TimeBarType.SECOND_BAR:
+            key += f"_{bar_type_periods}"
+        if bar_type == TimeBarType.MINUTE_BAR:
+            key += f"_{bar_type_periods * 60}"
 
         if wait:
             event = asyncio.Event()
