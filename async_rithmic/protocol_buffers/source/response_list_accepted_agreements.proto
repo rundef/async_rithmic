@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseListAcceptedAgreements
+	{
+	int32   template_id                  = 154467;
+	repeated string  user_msg                     = 132760;
+	repeated string  rq_handler_rp_code           = 132764;
+	repeated string  rp_code                      = 132766;
+
+	string fcm_id                        = 154013;
+	string ib_id                         = 154014;
+
+	int32  agreement_acceptance_ssboe    = 153427;
+	string agreement_acceptance_status   = 153426;
+    string agreement_acceptance_request  = 153430;	
+	string agreement_title               = 153406;
+	string agreement_id                  = 153407;
+	}
