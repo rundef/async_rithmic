@@ -219,7 +219,9 @@ class OrderPlant(BasePlant):
         kwargs.setdefault("duration", OrderDuration.DAY)
 
         msg_kwargs = self._validate_price_fields(order_type, **kwargs)
-        msg_kwargs["account_id"] = kwargs.pop("account_id", None)
+
+        if "account_id" in kwargs:
+            msg_kwargs["account_id"] = kwargs.pop("account_id")
 
         # Get trade route
         filtered = [r for r in self.trade_routes if r.exchange == exchange]

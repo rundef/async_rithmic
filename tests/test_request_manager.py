@@ -85,3 +85,14 @@ class TestRequestManager:
                     f"[Request {i}] Response had wrong template_id: {r.template_id} ≠ {expected_template_id}"
                 assert r.account_id == account_id, \
                     f"[Request {i}] Response had wrong account_id: {r.account_id} ≠ {account_id}"
+
+    async def test_no_response_times_out(self, manager):
+        request_id = str(uuid.uuid4())
+        with pytest.raises(asyncio.TimeoutError):
+            await manager.send_and_collect(
+                timeout=0.01,
+                user_msg=request_id,
+                template_id=312,
+                expected_response=dict(template_id=313, user_msg=[request_id]),
+            )
+
