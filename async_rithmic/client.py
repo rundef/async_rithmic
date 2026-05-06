@@ -4,10 +4,7 @@ from pathlib import Path
 from collections import defaultdict
 from pattern_kit import DelegateMixin, Event
 
-from .plants.ticker import TickerPlant
-from .plants.history import HistoryPlant
-from .plants.order import OrderPlant
-from .plants.pnl import PnlPlant
+from .plants import TickerPlant, HistoryPlant, OrderPlant, PnlPlant, RepositoryPlant
 from .logger import logger
 from .enums import OrderPlacement, SysInfraType
 from .objects import ReconnectionSettings, RetrySettings
@@ -101,6 +98,7 @@ class RithmicClient(DelegateMixin):
             "order": OrderPlant(self, **kwargs),
             "pnl": PnlPlant(self, **kwargs),
             "history": HistoryPlant(self, **kwargs),
+            "repository": RepositoryPlant(self, **kwargs),
         }
 
         for plant in self.plants.values():
@@ -116,6 +114,7 @@ class RithmicClient(DelegateMixin):
             SysInfraType.TICKER_PLANT,
             SysInfraType.PNL_PLANT
         ])
+        plant_connect_delay = kwargs.get("plant_connect_delay", 0.1)
 
         try:
             for plant in self.plants.values():
@@ -126,7 +125,7 @@ class RithmicClient(DelegateMixin):
 
                 await plant._start_background_tasks()
                 await plant._login()
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(plant_connect_delay)
 
         except:
             logger.exception("Failed to connect")

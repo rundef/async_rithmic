@@ -126,6 +126,16 @@ TEMPLATES_MAP = {
     403: pb.response_pnl_position_snapshot_pb2.ResponsePnLPositionSnapshot,
     450: pb.instrument_pnl_position_update_pb2.InstrumentPnLPositionUpdate,
     451: pb.account_pnl_position_update_pb2.AccountPnLPositionUpdate,
+
+    # Repository Plant Infrastructure
+    500: pb.request_list_unaccepted_agreements_pb2.RequestListUnacceptedAgreements,
+    501: pb.response_list_unaccepted_agreements_pb2.ResponseListUnacceptedAgreements,
+    502: pb.request_list_accepted_agreements_pb2.RequestListAcceptedAgreements,
+    503: pb.response_list_accepted_agreements_pb2.ResponseListAcceptedAgreements,
+    504: pb.request_accept_agreement_pb2.RequestAcceptAgreement,
+    505: pb.response_accept_agreement_pb2.ResponseAcceptAgreement,
+    506: pb.request_show_agreement_pb2.RequestShowAgreement,
+    507: pb.response_show_agreement_pb2.ResponseShowAgreement,
 }
 
 class BasePlant(BackgroundTaskMixin):
@@ -176,6 +186,7 @@ class BasePlant(BackgroundTaskMixin):
             SysInfraType.PNL_PLANT: "pnl",
             SysInfraType.TICKER_PLANT: "ticker",
             SysInfraType.ORDER_PLANT: "order",
+            SysInfraType.REPOSITORY_PLANT: "repository",
         }[self.infra_type]
 
     async def _connect(self):

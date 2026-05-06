@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseShowAgreement
+	{
+	int32   template_id          = 154467;
+	repeated string  user_msg             = 132760;
+	repeated string  rq_handler_rp_code   = 132764;
+	repeated string  rp_code              = 132766;
+
+	string  agreement_title      = 153406;
+	string  agreement_id         = 153407;
+	bytes   agreement            = 153405;
+	bytes   agreement_html       = 153432;
+
+	string agreement_mandatory_flag     = 153410;
+	string agreement_status             = 153415;
+    string agreement_acceptance_request = 153430;	
+	}
