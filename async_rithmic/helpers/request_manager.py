@@ -94,5 +94,5 @@ class RequestManager:
         else:
             self.plant.logger.error(f"Unknown request {request_id}")
 
-    def has_pending(self, request_id: str):\
+    def has_pending(self, request_id: str):
         return request_id in self.responses

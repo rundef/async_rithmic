@@ -48,7 +48,14 @@ class RepositoryPlant(BasePlant):
         market_data_usage_capacity: Literal["Professional", "Non-Professional"]
     ):
         """
-        Accept an agreement
+        Attempt to accept an agreement.
+
+        Notes
+        -----
+        Rithmic appears to restrict this functionality through the API. In practice,
+        this request may fail even when the agreement ID and usage capacity are valid.
+
+        Users may need to accept agreements manually through an official Rithmic app.
         """
 
         return await self._send_and_collect(
