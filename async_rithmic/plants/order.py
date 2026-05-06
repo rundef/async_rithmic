@@ -240,8 +240,12 @@ class OrderPlant(BasePlant):
             msg_kwargs["target_quantity"] = qty
             msg_kwargs["bracket_type"] = BracketType.TARGET_AND_STOP_STATIC \
                 if "stop_ticks" in kwargs else BracketType.TARGET_ONLY_STATIC
+
         if template_id == 330:
             msg_kwargs["user_type"] = self.login_info["user_type"]
+            if kwargs.get("stop_market_on_reject"):
+                # Market-on-reject: convert a rejected stop order into a market order
+                msg_kwargs["stop_market_on_reject"] = True
 
         release_at = kwargs.pop("release_at", None)
         cancel_at = kwargs.pop("cancel_at", None)
