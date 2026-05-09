@@ -131,6 +131,7 @@ class HistoryPlant(BasePlant):
         end_time: datetime,
         wait: bool = True,
         idle_timeout: float = 5.0,
+        max_pages: int = 1_000,
     ):
         """
         Requests historical ticks for a symbol/exchange over a time range.
@@ -147,6 +148,10 @@ class HistoryPlant(BasePlant):
             either a historical bar or the replay completion message. This is an
             idle/stall timeout, not a total request timeout; the timer resets every
             time progress is observed.
+        :param max_pages: Maximum number of replay pages to request. Use `1` to send
+            a single replay request without pagination. Values greater than `1` allow
+            the client to issue additional replay requests until the returned bars cover
+            the requested `end_time`. This handles Rithmic replay truncation.
         :return: A list of historical tick dictionaries when ``wait=True``;
             otherwise ``None``.
         :raises HistoricalDataRequestInProgressError: If another historical tick
@@ -162,25 +167,36 @@ class HistoryPlant(BasePlant):
                 "Cannot start another historical tick request with the same "
                 "symbol and exchange while one is already in progress."
             )
+        
+        start_index = self._datetime_to_index(start_time)
+        end_index = self._datetime_to_index(end_time)
 
         self.historical_tick_requests[key] = HistoricalDataRequest(
+            # Request range
+            start_index=start_index,
+            end_index=end_index,
+
+            # Request param
+            params=dict(
+                symbol=symbol,
+                exchange=exchange,
+                bar_type=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.BarType.TICK_BAR,
+                bar_type_specifier="1",
+                bar_sub_type=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.BarSubType.REGULAR,
+                time_order=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.TimeOrder.FORWARDS,
+            ),
+
+            # Pagination
+            page_count=1,
+            max_pages=max_pages,
+
+            # State
             done=asyncio.Event(),
             data_received=asyncio.Event(),
-            data=[]
+            data=[],
         )
 
-        await self._send_request(
-            template_id=206,
-            user_msg=key,
-            symbol=symbol,
-            exchange=exchange,
-            bar_type=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.BarType.TICK_BAR,
-            bar_type_specifier="1",
-            bar_sub_type=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.BarSubType.REGULAR,
-            time_order=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.TimeOrder.FORWARDS,
-            start_index=self._datetime_to_index(start_time),
-            finish_index=self._datetime_to_index(end_time),
-        )
+        await self._request_historical_ticks(key)
 
         if not wait:
             # Historical ticks will still be emitted through `on_historical_tick`,
@@ -296,6 +312,19 @@ class HistoryPlant(BasePlant):
 
         await self._send_request(
             template_id=202,
+            user_msg=key,
+            start_index=request.start_index,
+            finish_index=request.end_index,
+            **request.params,
+        )
+
+    async def _request_historical_ticks(self, key: str):
+        request: HistoricalDataRequest = self.historical_tick_requests[key]
+
+        self.logger.debug(f"Requesting page {request.page_count} (start index = {request.start_index}) of historical ticks for {key}")
+
+        await self._send_request(
+            template_id=206,
             user_msg=key,
             start_index=request.start_index,
             finish_index=request.end_index,

@@ -1,0 +1,90 @@
+import pytest
+import asyncio
+import uuid
+import random
+from collections import namedtuple
+from unittest.mock import MagicMock, AsyncMock
+
+from async_rithmic.helpers.request_manager import RequestManager
+from async_rithmic.plants.order import OrderPlant
+
+# Mimic a protobuf response closely enough for _process_response:
+# template_id, rp_code (list of strings), user_msg (list of strings), plus a basket_id field.
+FakeResponse = namedtuple("FakeResponse", ["template_id", "rp_code", "user_msg", "basket_id"])
+
+class TestOrderPlant:
+    @pytest.fixture
+    def plant(self):
+        client = MagicMock()
+        plant = OrderPlant(client)
+        plant._send_request = AsyncMock()
+
+        return plant
+
+    async def _submit_and_deliver_terminal(self, plant, template_id=312, expected_template=313,
+                                            deliver_delay=0.005):
+
+        """Simulate one submit_order call: send, wait for one terminal response with rp_code=0,
+        return the stored response list."""
+        request_id = str(uuid.uuid4())
+
+        async def send():
+            return await plant.request_manager.send_and_collect(
+                timeout=2.0,
+                user_msg=request_id,
+                template_id=template_id,
+                expected_response=dict(template_id=expected_template, user_msg=[request_id]),
+            )
+
+        async def deliver():
+            await asyncio.sleep(deliver_delay)
+            response = FakeResponse(
+                template_id=expected_template,
+                rp_code=['0'],  # success — terminal response
+                user_msg=[request_id],
+                basket_id=f"basket_{request_id[:8]}",
+            )
+            await plant._process_response(response)
+
+        # Run send and deliver concurrently; send awaits done_event, deliver fires it.
+        results, _ = await asyncio.gather(send(), deliver())
+        return results, request_id
+
+    async def test_single_submit_order_terminal_response_stored(self, plant):
+        responses, request_id = await self._submit_and_deliver_terminal(plant)
+        assert len(responses) == 1, f"Expected 1 stored response, got {len(responses)}"
+        assert responses[0].basket_id == f"basket_{request_id[:8]}"
+        assert responses[0].user_msg == [request_id]
+
+    async def test_three_concurrent_submit_orders(self, plant):
+        """
+        3 concurrent submit_orders, each receives only a terminal response with rp_code=0.
+        All 3 must get their correct response (matched by user_msg)."""
+        results = await asyncio.gather(
+            self._submit_and_deliver_terminal(plant, deliver_delay=0.002),
+            self._submit_and_deliver_terminal(plant, deliver_delay=0.005),
+            self._submit_and_deliver_terminal(plant, deliver_delay=0.008),
+        )
+
+        for i, (responses, request_id) in enumerate(results):
+            assert len(responses) == 1, \
+                f"[Request {i}] Expected 1 response, got {len(responses)} — terminal was dropped"
+            # Each response must be matched to its OWN request_id, not a sibling's.
+            assert responses[0].user_msg == [request_id], \
+                f"[Request {i}] Response user_msg {responses[0].user_msg} does not match request {request_id}"
+            assert responses[0].basket_id == f"basket_{request_id[:8]}"
+
+    async def test_six_concurrent_submit_orders_staggered(self, plant):
+        """
+        Heavier fan-out mimicking 6 accounts firing orders over ~100ms window, terminal responses arrive
+        in arbitrary order.
+        """
+        tasks = [
+            self._submit_and_deliver_terminal(plant, deliver_delay=random.uniform(0.001, 0.05))
+            for _ in range(6)
+        ]
+        results = await asyncio.gather(*tasks)
+
+        for i, (responses, request_id) in enumerate(results):
+            assert len(responses) == 1, f"[Request {i}] lost terminal response"
+            assert responses[0].user_msg == [request_id]

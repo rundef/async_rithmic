@@ -51,7 +51,7 @@ The following example fetches historical tick data:
 Fetch Historical Time Bars
 --------------------------
 
-This example fetches historical aggregated time bars (6-second bars in this case):
+Fetch historical time bars for a symbol over a time range.
 
 .. code-block:: python
 
@@ -91,3 +91,47 @@ This example fetches historical aggregated time bars (6-second bars in this case
         await client.disconnect()
 
     asyncio.run(main())
+
+By default, ``get_historical_time_bars()`` waits until the historical replay is
+complete and returns the collected bars as a list.
+
+Rithmic may truncate historical replay responses. In practice, a single replay
+request can return at most about 10,000 bars, even if the requested time range
+contains many more bars. For example, requesting several months of 1-minute bars
+may cover hundreds of thousands of bars, but Rithmic may only return the first
+page of results.
+
+To handle this, ``async_rithmic`` automatically paginates historical time bar
+requests. After each page, it uses the last received bar marker as the starting
+point for the next request and continues until one of the following happens:
+
+- the requested ``end_time`` is reached;
+- Rithmic returns no more data;
+- ``max_pages`` is reached.
+
+The ``max_pages`` argument controls how many replay pages can be requested.
+
+The ``idle_timeout`` argument controls how long the client waits without seeing
+progress while waiting for a historical replay to complete.
+
+.. code-block:: python
+
+    bars = await client.get_historical_time_bars(
+        ...,
+        max_pages=100,
+        idle_timeout=10.0,
+    )
+
+This is an idle timeout, not a total request timeout. The timer resets whenever a
+bar or completion message is received.
+
+If ``wait=False`` is passed, the method sends the replay request and returns
+immediately. Historical bars are still emitted through the
+``on_historical_time_bar`` callback.
+
+.. code-block:: python
+
+    async def callback(data):
+        print(f"Received data: {data}")
+
+    client.on_historical_time_bar += callback

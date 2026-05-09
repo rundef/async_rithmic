@@ -267,7 +267,6 @@ async def test_historical_time_bar_pagination(history_plant_mock):
     assert second_call["template_id"] == 202
     assert second_call["user_msg"] == key
 
-    # Your production code does:
     # next_start_index = request.last_marker + 1
     assert second_call["start_index"] == 1777644120 + 1
     assert second_call["finish_index"] == 1777644240
