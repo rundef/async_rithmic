@@ -1,6 +1,6 @@
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
-from datetime import datetime
+from datetime import datetime, timezone
 from pattern_kit import Event
 
 import pytest
@@ -170,8 +170,8 @@ async def test_historical_time_bar_pagination(history_plant_mock):
     # 1777644240 -> 10:04
     # 1777644300 -> 10:05
 
-    start_dt = datetime(2026, 5, 1, 10, 0)
-    end_dt = datetime(2026, 5, 1, 10, 4)
+    start_dt = datetime(2026, 5, 1, 14, 0, tzinfo=timezone.utc)
+    end_dt = datetime(2026, 5, 1, 14, 4, tzinfo=timezone.utc)
 
     chunks = [
         # First request response: truncated before covering end_time.
