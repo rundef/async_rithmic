@@ -143,7 +143,6 @@ This example places a limit order and cancels it shortly after:
         )
 
         await asyncio.sleep(1)
-        await asyncio.sleep(1)
         await client.disconnect()
 
     asyncio.run(main())

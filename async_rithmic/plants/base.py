@@ -136,6 +136,11 @@ TEMPLATES_MAP = {
     507: pb.response_show_agreement_pb2.ResponseShowAgreement,
 }
 
+TEMPLATE_ID_BY_NAME = {
+    cls.__name__: template_id
+    for template_id, cls in TEMPLATES_MAP.items()
+}
+
 class BasePlant(BackgroundTaskMixin):
     infra_type = None
 
@@ -225,7 +230,7 @@ class BasePlant(BackgroundTaskMixin):
 
     async def _login(self):
         responses = await self._send_and_recv_immediate(
-            template_id=10,
+            template_id=self.get_template_id("RequestLogin"),
             template_version="3.9",
             user=self.credentials["user"],
             password=self.credentials["password"],
@@ -245,7 +250,7 @@ class BasePlant(BackgroundTaskMixin):
 
     async def _logout(self):
         try:
-            request = self._build_request(template_id=12)
+            request = self._build_request(template_id=self.get_template_id("RequestLogout"))
             self.logger.debug("Sending logout message")
 
             buffer = self._convert_request_to_bytes(request)
@@ -596,3 +601,8 @@ class BasePlant(BackgroundTaskMixin):
         if not array:
             return None
         return array[0]
+    
+    def get_template_id(self, name: str):
+        if name not in TEMPLATE_ID_BY_NAME:
+            raise Exception(f"Template id for '{name}' not found")
+        return TEMPLATE_ID_BY_NAME[name]

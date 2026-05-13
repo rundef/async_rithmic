@@ -101,11 +101,11 @@ CONDITION_UNSPECIFIED = 0;
 	 int32               break_even_ticks                    = 157170;
 	 int32               break_even_trigger_ticks            = 157172;
 
-	repeated  int32               target_quantity                     = 154457;
-	repeated  int32               target_ticks                        = 154456;
+	  int32               target_quantity                     = 154457;
+	  int32               target_ticks                        = 154456;
 
-	repeated  int32		      stop_quantity                       = 154459;
-	repeated  int32		      stop_ticks	                  = 154458;
+	  int32		      stop_quantity                       = 154459;
+	  int32		      stop_ticks	                  = 154458;
 
 	 int32               trailing_stop_trigger_ticks         = 157124;
 
