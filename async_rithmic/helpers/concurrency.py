@@ -3,7 +3,7 @@ import traceback
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
-async def try_acquire_lock(plant, timeout: float = 5.0, context: str = ""):
+async def try_acquire_lock(plant, timeout: float = 10.0, context: str = ""):
     """
     Attempts to acquire an asyncio.Lock with timeout.
     Logs and raises on timeout to help detect deadlocks.

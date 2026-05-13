@@ -6,3 +6,6 @@ class RithmicErrorResponse(Exception):
 class InvalidRequestError(Exception):
     """Raised when a user-level API call is missing required arguments or is malformed."""
     pass
+
+class HistoricalDataRequestInProgressError(RuntimeError):
+    pass

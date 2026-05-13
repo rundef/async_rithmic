@@ -35,6 +35,7 @@ Conformance
    - First, `contact Rithmic <https://www.rithmic.com/contact>`_.
    - You will be asked to connect to the order plant and leave the app running.
    - You can use the `conformance.py script <https://github.com/rundef/async_rithmic/blob/main/scripts/conformance.py>`_ to accomplish this.
+   - See `this GitHub issue comment <https://github.com/rundef/async_rithmic/issues/42#issuecomment-4083280911>`_ for one user's notes on the conformance process.
 
 Custom Reconnection Settings
 ----------------------------

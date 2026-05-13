@@ -532,6 +532,12 @@ class BasePlant(BackgroundTaskMixin):
             # - pnl subscription responses
             return True
 
+        if response.template_id in [203, 207]:
+            # Let plant handle:
+            # - historical time bars
+            # - historical tick bars
+            return False
+
         if response.template_id == 77:
             # Forced logout
             self.logger.warning("Received a ForcedLogout message from Rithmic - did you reach the maximum number of concurrent sessions ?")
@@ -558,11 +564,16 @@ class BasePlant(BackgroundTaskMixin):
                         raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}")
 
                     else:
-                        if response.template_id in [11, 15, 114, 301]:
-                            # We expect a single response containing `rp_code` for these endpoints
+                        # single-response endpoints that carries data along with the terminal sentinel
+                        # 11: login response
+                        # 15: reference data response
+                        # 114: front month contract response
+                        # 301: login info response
+                        _terminal_carries_data = {11, 15, 114, 301}
+
+                        if response.template_id in _terminal_carries_data:
                             self.request_manager.handle_response(response)
 
-                        # Else: multiple response + a sentinel message with `rp_code`
                         self.request_manager.mark_complete(request_id)
                 else:
                     self.request_manager.handle_response(response)

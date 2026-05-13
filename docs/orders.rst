@@ -86,8 +86,6 @@ As a market order will be filled immediately, this script submits the order and 
             order_type=OrderType.MARKET,
             transaction_type=TransactionType.SELL,
             # account_id="ABCD",  # Mandatory if you have multiple accounts
-            # stop_ticks=20,      # Optional: stop loss in ticks
-            # target_ticks=40,    # Optional: profit target in ticks
             # trail_ticks=20,     # Optional: trailing stop in ticks. Only supported when both stop_ticks and target_ticks are omitted.
             # cancel_at=datetime.now() + timedelta(minutes=2),  # Optional: auto-cancel time
         )
@@ -147,6 +145,97 @@ This example places a limit order and cancels it shortly after:
 
     asyncio.run(main())
 
+Placing a Bracket Order
+-----------------------
+
+A bracket order is a regular order with one or more attached exit orders bound to it.
+In practice, you submit the entry order exactly like a normal market, limit, stop, or
+stop-limit order, and then add:
+
+- ``stop_ticks`` for an attached stop-loss order.
+- ``target_ticks`` for an attached take-profit order.
+- both ``stop_ticks`` and ``target_ticks`` for a bracket with both stop-loss and take-profit.
+
+The stop-loss and take-profit distances are expressed in ticks from the entry price.
+The attached order quantity is automatically set to the same quantity as the main order.
+
+When neither ``stop_ticks`` nor ``target_ticks`` is passed, ``submit_order()`` submits a
+normal order. When either one is passed, ``submit_order()`` submits a bracket order.
+
+Stop-loss only
+~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    await client.submit_order(
+        order_id,
+        security_code,
+        exchange,
+        qty=1,
+        order_type=OrderType.MARKET,
+        transaction_type=TransactionType.BUY,
+        stop_ticks=20,
+    )
+
+Take-profit only
+~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    await client.submit_order(
+        order_id,
+        security_code,
+        exchange,
+        qty=1,
+        order_type=OrderType.MARKET,
+        transaction_type=TransactionType.BUY,
+        target_ticks=40,
+    )
+
+Stop-loss and take-profit
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+    await client.submit_order(
+        order_id,
+        security_code,
+        exchange,
+        qty=1,
+        order_type=OrderType.MARKET,
+        transaction_type=TransactionType.BUY,
+        stop_ticks=20,
+        target_ticks=40,
+    )
+
+
+Market-on-reject for stop orders
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For stop-loss brackets, you may also pass ``stop_market_on_reject=True``:
+
+.. code-block:: python
+
+    await client.submit_order(
+        order_id,
+        security_code,
+        exchange,
+        qty=1,
+        order_type=OrderType.MARKET,
+        transaction_type=TransactionType.BUY,
+        stop_ticks=20,
+        target_ticks=40,
+        stop_market_on_reject=True,
+    )
+
+This option tells Rithmic to convert a rejected stop order into a market order. It is
+useful as a protective fallback: if the attached stop cannot be accepted as a stop
+order, the platform can still attempt to flatten the position instead of leaving it
+without stop protection.
+
+Use this option only when that behavior is desired. A market order can fill with
+slippage, especially during fast markets or thin liquidity.
+
 Cancelling an order
 -------------------
 
@@ -171,29 +260,55 @@ To cancel all open orders:
 Modifying an order
 ------------------
 
+Modify an existing active order with new parameters.
 
-Modify an existing order with new parameters.
-
-This method allows you to update one or more attributes of an active order, such as quantity, order type, price, stop-loss, or take-profit levels.
+This method allows you to update one or more attributes of an active order, such
+as quantity, order type, price, stop-loss, or take-profit levels.
 
 **Supported attributes:**
 
 - ``qty``: New quantity for the order.
-- ``order_type``: Order type (e.g., ``"MKT"``, ``"LMT"``, ``"STOP LMT"``, etc.).
-- ``price``: Updated price (used for limit or stop-limit orders).
-- ``trigger_price``: Updated trigger price (for stop orders).
-- ``stop_ticks``: New stop-loss in ticks (modify stop-loss).
-- ``target_ticks``: New take-profit in ticks (modify take-profit).
+- ``order_type``: Order type, for example ``OrderType.MARKET``, ``OrderType.LIMIT``, or ``OrderType.STOP_LIMIT``.
+- ``price``: Updated price, used for limit or stop-limit orders.
+- ``trigger_price``: Updated trigger price, used for stop orders.
+- ``stop_ticks``: New stop-loss in ticks.
+- ``target_ticks``: New take-profit in ticks.
 - ``trail_ticks``: New trailing stop in ticks (Only supported when both stop_ticks and target_ticks are omitted)
+
+.. note::
+
+   Rithmic does not allow the main order, stop-loss, and take-profit to be
+   modified concurrently. If multiple parts of a bracket order are modified,
+   ``async_rithmic`` submits the modifications sequentially.
+
+Basic example:
 
 .. code-block:: python
 
     await client.modify_order(
         order_id="abc123",
         qty=3,
-        target_ticks=50
-        stop_ticks=25
+        target_ticks=50,
+        stop_ticks=25,
     )
+
+For time-critical modifications, you can pass the existing order object directly
+using ``order=``. This skips the internal ``get_order()`` lookup and avoids an
+extra network round-trip before sending the modification request.
+
+Example:
+
+.. code-block:: python
+
+    order = await client.get_order(order_id="abc123")
+
+    await client.modify_order(
+        order=order,
+        target_ticks=50,
+    )
+
+This is useful when you already have the order object and want to avoid adding
+unnecessary latency to the modification path.
 
 Exiting a position
 ------------------
@@ -208,4 +323,3 @@ If no symbol is provided, exits all active positions.
 
     # Exit a specific position by symbol and exchange
     await client.exit_position(symbol="ESM5", exchange="CME")
-
