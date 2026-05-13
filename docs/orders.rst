@@ -88,6 +88,7 @@ As a market order will be filled immediately, this script submits the order and 
             # account_id="ABCD",  # Mandatory if you have multiple accounts
             # stop_ticks=20,      # Optional: stop loss in ticks
             # target_ticks=40,    # Optional: profit target in ticks
+            # trail_ticks=20,     # Optional: trailing stop in ticks. Only supported when both stop_ticks and target_ticks are omitted.
             # cancel_at=datetime.now() + timedelta(minutes=2),  # Optional: auto-cancel time
         )
 
@@ -141,7 +142,6 @@ This example places a limit order and cancels it shortly after:
             price=5300.0,
         )
 
-        await asyncio.sleep(1)
         await asyncio.sleep(1)
         await client.disconnect()
 
@@ -275,6 +275,7 @@ as quantity, order type, price, stop-loss, or take-profit levels.
 - ``trigger_price``: Updated trigger price, used for stop orders.
 - ``stop_ticks``: New stop-loss in ticks.
 - ``target_ticks``: New take-profit in ticks.
+- ``trail_ticks``: New trailing stop in ticks (Only supported when both stop_ticks and target_ticks are omitted)
 
 .. note::
 

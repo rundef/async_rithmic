@@ -4,19 +4,20 @@ package rti;
 
 message ResponseListExchangePermissions
 	{       
-	// PB_OFFSET = 100000, is the offset added for each MNM field id
-
 	enum EntitlementFlag {
-UNSPECIFIED = 0;
+	UNSPECIFIED = 0;
 	                      ENABLED   =  1;
 			      DISABLED  =  2;
 	                     }
 
-	int32           template_id          = 154467;  // PB_OFFSET + MNM_TEMPLATE_ID
-	repeated string          user_msg             = 132760;  // PB_OFFSET + MNM_USER_MSG	
-	repeated string          rq_handler_rp_code   = 132764;  // PB_OFFSET + MNM_REQUEST_HANDLER_RESPONSE_CODE
-	repeated string          rp_code              = 132766;  // PB_OFFSET + MNM_RESPONSE_CODE
+	int32           template_id           = 154467;
+	repeated string          user_msg              = 132760;
+	repeated string          rq_handler_rp_code    = 132764;
+	repeated string          rp_code               = 132766;
 
-	string          exchange             = 110101;  // PB_OFFSET + MNM_EXCHANGE
-	EntitlementFlag entitlement_flag     = 153400;  // PB_OFFSET + MNM_ENTITLEMENT_FLAG
+	string          exchange              = 110101;
+	string          level_1_market_data   = 153508;               // level_1 (top of book) entitlement status
+	string          level_2_market_data   = 153509;               // level_2 (order book) entitlement status
+
+	EntitlementFlag entitlement_flag      = 153400;	       // deprecated. use level_1_market_data, level_2_market_data fields instead.
 	}

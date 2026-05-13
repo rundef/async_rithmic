@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import List
 
 from .base import BasePlant
 from ..enums import SysInfraType
@@ -7,25 +7,31 @@ from ..enums import SysInfraType
 class RepositoryPlant(BasePlant):
     infra_type = SysInfraType.REPOSITORY_PLANT
 
-    async def list_unaccepted_agreements(self) -> list:
+    async def list_unaccepted_agreements(self) -> List:
         """
         Return list of unaccepted agreements
         """
 
+        template_id = self.get_template_id("RequestListUnacceptedAgreements")
+        resp_template_id = self.get_template_id("ResponseListUnacceptedAgreements")
+
         return await self._send_and_collect(
-            template_id=500,
-            expected_response=dict(template_id=501),
+            template_id=template_id,
+            expected_response=dict(template_id=resp_template_id),
             account_id=None,
         )
 
-    async def list_accepted_agreements(self) -> list:
+    async def list_accepted_agreements(self) -> List:
         """
         Return list of accepted agreements
         """
 
+        template_id = self.get_template_id("RequestListAcceptedAgreements")
+        resp_template_id = self.get_template_id("ResponseListAcceptedAgreements")
+
         return await self._send_and_collect(
-            template_id=502,
-            expected_response=dict(template_id=503),
+            template_id=template_id,
+            expected_response=dict(template_id=resp_template_id),
             account_id=None,
         )
     
@@ -34,34 +40,13 @@ class RepositoryPlant(BasePlant):
         Return an agreement
         """
 
+        template_id = self.get_template_id("RequestShowAgreement")
+        resp_template_id = self.get_template_id("ResponseShowAgreement")
+
         responses = await self._send_and_collect(
-            template_id=506,
-            expected_response=dict(template_id=507),
+            template_id=template_id,
+            expected_response=dict(template_id=resp_template_id),
             agreement_id=agreement_id,
             account_id=None,
         )
         return self._first(responses)
-
-    async def accept_agreement(
-        self,
-        agreement_id: str,
-        market_data_usage_capacity: Literal["Professional", "Non-Professional"]
-    ):
-        """
-        Attempt to accept an agreement.
-
-        Notes
-        -----
-        Rithmic appears to restrict this functionality through the API. In practice,
-        this request may fail even when the agreement ID and usage capacity are valid.
-
-        Users may need to accept agreements manually through an official Rithmic app.
-        """
-
-        return await self._send_and_collect(
-            template_id=504,
-            expected_response=dict(template_id=505),
-            agreement_id=agreement_id,
-            market_data_usage_capacity=market_data_usage_capacity,
-            account_id=None,
-        )

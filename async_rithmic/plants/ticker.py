@@ -36,9 +36,12 @@ class TickerPlant(BasePlant):
             typically during the maintenance window) or an empty trading_symbol.
         """
 
+        template_id = self.get_template_id("RequestFrontMonthContract")
+        resp_template_id = self.get_template_id("ResponseFrontMonthContract")
+
         responses = await self._send_and_collect(
-            template_id=113,
-            expected_response=dict(template_id=114),
+            template_id=template_id,
+            expected_response=dict(template_id=resp_template_id),
             symbol=symbol,
             exchange=exchange,
             account_id=None,
