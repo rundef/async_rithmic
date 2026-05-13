@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package rti;
+
+message AccountRmsUpdates
+	{
+	enum UpdateBits {
+	UNSPECIFIED = 0;
+	                 AUTO_LIQ_THRESHOLD_CURRENT_VALUE  =  1;
+	                }
+
+	int32    template_id                           = 154467;
+	int32    update_bits                           = 154211;
+
+	string   fcm_id                                = 154013;
+	string   ib_id                                 = 154014;
+	string   account_id                            = 154008;
+	
+	string   auto_liq_threshold_current_value      = 131040;
+	string   auto_liq_peak_account_balance         = 131049;
+	string   auto_liq_peak_account_balance_ssboe   = 131050;
+	}

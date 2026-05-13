@@ -14,7 +14,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1arequest_modify_order.proto\x12\x03rti\"\xc6\x08\n\x12RequestModifyOrder\x12\x15\n\x0btemplate_id\x18\xe3\xb6\t \x01(\x05\x12\x12\n\x08user_msg\x18\x98\x8d\x08 \x03(\t\x12\x15\n\x0bwindow_name\x18\x85\xb8\t \x01(\t\x12\x10\n\x06\x66\x63m_id\x18\x9d\xb3\t \x01(\t\x12\x0f\n\x05ib_id\x18\x9e\xb3\t \x01(\t\x12\x14\n\naccount_id\x18\x98\xb3\t \x01(\t\x12\x13\n\tbasket_id\x18\xdc\xdd\x06 \x01(\t\x12\x10\n\x06symbol\x18\x94\xdc\x06 \x01(\t\x12\x12\n\x08\x65xchange\x18\x95\xdc\x06 \x01(\t\x12\x12\n\x08quantity\x18\x84\xeb\x06 \x01(\x05\x12\x0f\n\x05price\x18\xe2\xdd\x06 \x01(\x01\x12\x17\n\rtrigger_price\x18\xff\x8d\t \x01(\x01\x12\x37\n\nprice_type\x18\x88\xeb\x06 \x01(\x0e\x32!.rti.RequestModifyOrder.PriceType\x12@\n\x0emanual_or_auto\x18\xd6\xb8\t \x01(\x0e\x32&.rti.RequestModifyOrder.OrderPlacement\x12\x1b\n\x11if_touched_symbol\x18\xd3\xb6\t \x01(\t\x12\x1d\n\x13if_touched_exchange\x18\xd4\xb6\t \x01(\t\x12\x41\n\x14if_touched_condition\x18\xd5\xb6\t \x01(\x0e\x32!.rti.RequestModifyOrder.Condition\x12\x44\n\x16if_touched_price_field\x18\xd6\xb6\t \x01(\x0e\x32\".rti.RequestModifyOrder.PriceField\x12\x1a\n\x10if_touched_price\x18\xa0\xb0\t \x01(\x01\"\x8b\x01\n\tPriceType\x12\x19\n\x15PRICETYPE_UNSPECIFIED\x10\x00\x12\t\n\x05LIMIT\x10\x01\x12\n\n\x06MARKET\x10\x02\x12\x0e\n\nSTOP_LIMIT\x10\x03\x12\x0f\n\x0bSTOP_MARKET\x10\x04\x12\x15\n\x11MARKET_IF_TOUCHED\x10\x05\x12\x14\n\x10LIMIT_IF_TOUCHED\x10\x06\"i\n\nPriceField\x12\x1a\n\x16PRICEFIELD_UNSPECIFIED\x10\x00\x12\r\n\tBID_PRICE\x10\x01\x12\x0f\n\x0bOFFER_PRICE\x10\x02\x12\x0f\n\x0bTRADE_PRICE\x10\x03\x12\x0e\n\nLEAN_PRICE\x10\x04\"\x9e\x01\n\tCondition\x12\x19\n\x15\x43ONDITION_UNSPECIFIED\x10\x00\x12\x0c\n\x08\x45QUAL_TO\x10\x01\x12\x10\n\x0cNOT_EQUAL_TO\x10\x02\x12\x10\n\x0cGREATER_THAN\x10\x03\x12\x19\n\x15GREATER_THAN_EQUAL_TO\x10\x04\x12\x0f\n\x0bLESSER_THAN\x10\x05\x12\x18\n\x14LESSER_THAN_EQUAL_TO\x10\x06\"F\n\x0eOrderPlacement\x12\x1e\n\x1aORDERPLACEMENT_UNSPECIFIED\x10\x00\x12\n\n\x06MANUAL\x10\x01\x12\x08\n\x04\x41UTO\x10\x02\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1arequest_modify_order.proto\x12\x03rti\"\xf9\x08\n\x12RequestModifyOrder\x12\x15\n\x0btemplate_id\x18\xe3\xb6\t \x01(\x05\x12\x12\n\x08user_msg\x18\x98\x8d\x08 \x03(\t\x12\x15\n\x0bwindow_name\x18\x85\xb8\t \x01(\t\x12\x10\n\x06\x66\x63m_id\x18\x9d\xb3\t \x01(\t\x12\x0f\n\x05ib_id\x18\x9e\xb3\t \x01(\t\x12\x14\n\naccount_id\x18\x98\xb3\t \x01(\t\x12\x13\n\tbasket_id\x18\xdc\xdd\x06 \x01(\t\x12\x10\n\x06symbol\x18\x94\xdc\x06 \x01(\t\x12\x12\n\x08\x65xchange\x18\x95\xdc\x06 \x01(\t\x12\x12\n\x08quantity\x18\x84\xeb\x06 \x01(\x05\x12\x0f\n\x05price\x18\xe2\xdd\x06 \x01(\x01\x12\x17\n\rtrigger_price\x18\xff\x8d\t \x01(\x01\x12\x37\n\nprice_type\x18\x88\xeb\x06 \x01(\x0e\x32!.rti.RequestModifyOrder.PriceType\x12@\n\x0emanual_or_auto\x18\xd6\xb8\t \x01(\x0e\x32&.rti.RequestModifyOrder.OrderPlacement\x12\x17\n\rtrailing_stop\x18\x87\xcb\t \x01(\x08\x12\x18\n\x0etrail_by_ticks\x18\x88\xcb\t \x01(\x05\x12\x1b\n\x11if_touched_symbol\x18\xd3\xb6\t \x01(\t\x12\x1d\n\x13if_touched_exchange\x18\xd4\xb6\t \x01(\t\x12\x41\n\x14if_touched_condition\x18\xd5\xb6\t \x01(\x0e\x32!.rti.RequestModifyOrder.Condition\x12\x44\n\x16if_touched_price_field\x18\xd6\xb6\t \x01(\x0e\x32\".rti.RequestModifyOrder.PriceField\x12\x1a\n\x10if_touched_price\x18\xa0\xb0\t \x01(\x01\"\x8b\x01\n\tPriceType\x12\x19\n\x15PRICETYPE_UNSPECIFIED\x10\x00\x12\t\n\x05LIMIT\x10\x01\x12\n\n\x06MARKET\x10\x02\x12\x0e\n\nSTOP_LIMIT\x10\x03\x12\x0f\n\x0bSTOP_MARKET\x10\x04\x12\x15\n\x11MARKET_IF_TOUCHED\x10\x05\x12\x14\n\x10LIMIT_IF_TOUCHED\x10\x06\"i\n\nPriceField\x12\x1a\n\x16PRICEFIELD_UNSPECIFIED\x10\x00\x12\r\n\tBID_PRICE\x10\x01\x12\x0f\n\x0bOFFER_PRICE\x10\x02\x12\x0f\n\x0bTRADE_PRICE\x10\x03\x12\x0e\n\nLEAN_PRICE\x10\x04\"\x9e\x01\n\tCondition\x12\x19\n\x15\x43ONDITION_UNSPECIFIED\x10\x00\x12\x0c\n\x08\x45QUAL_TO\x10\x01\x12\x10\n\x0cNOT_EQUAL_TO\x10\x02\x12\x10\n\x0cGREATER_THAN\x10\x03\x12\x19\n\x15GREATER_THAN_EQUAL_TO\x10\x04\x12\x0f\n\x0bLESSER_THAN\x10\x05\x12\x18\n\x14LESSER_THAN_EQUAL_TO\x10\x06\"F\n\x0eOrderPlacement\x12\x1e\n\x1aORDERPLACEMENT_UNSPECIFIED\x10\x00\x12\n\n\x06MANUAL\x10\x01\x12\x08\n\x04\x41UTO\x10\x02\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -22,13 +22,13 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'request_modify_order_pb2', 
 if _descriptor._USE_C_DESCRIPTORS == False:
   DESCRIPTOR._options = None
   _globals['_REQUESTMODIFYORDER']._serialized_start=36
-  _globals['_REQUESTMODIFYORDER']._serialized_end=1130
-  _globals['_REQUESTMODIFYORDER_PRICETYPE']._serialized_start=651
-  _globals['_REQUESTMODIFYORDER_PRICETYPE']._serialized_end=790
-  _globals['_REQUESTMODIFYORDER_PRICEFIELD']._serialized_start=792
-  _globals['_REQUESTMODIFYORDER_PRICEFIELD']._serialized_end=897
-  _globals['_REQUESTMODIFYORDER_CONDITION']._serialized_start=900
-  _globals['_REQUESTMODIFYORDER_CONDITION']._serialized_end=1058
-  _globals['_REQUESTMODIFYORDER_ORDERPLACEMENT']._serialized_start=1060
-  _globals['_REQUESTMODIFYORDER_ORDERPLACEMENT']._serialized_end=1130
+  _globals['_REQUESTMODIFYORDER']._serialized_end=1181
+  _globals['_REQUESTMODIFYORDER_PRICETYPE']._serialized_start=702
+  _globals['_REQUESTMODIFYORDER_PRICETYPE']._serialized_end=841
+  _globals['_REQUESTMODIFYORDER_PRICEFIELD']._serialized_start=843
+  _globals['_REQUESTMODIFYORDER_PRICEFIELD']._serialized_end=948
+  _globals['_REQUESTMODIFYORDER_CONDITION']._serialized_start=951
+  _globals['_REQUESTMODIFYORDER_CONDITION']._serialized_end=1109
+  _globals['_REQUESTMODIFYORDER_ORDERPLACEMENT']._serialized_start=1111
+  _globals['_REQUESTMODIFYORDER_ORDERPLACEMENT']._serialized_end=1181
 # @@protoc_insertion_point(module_scope)

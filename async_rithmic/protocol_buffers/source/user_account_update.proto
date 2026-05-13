@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package rti;
+
+message UserAccountUpdate
+	{       
+	int32    template_id      = 154467;
+
+	string   update_type      = 154288; // add_account, modify_account, assign_account_to_user, remove_account_from_user
+	string   access_type      = 154000; // 0 - read_only, 1 - read_write
+
+	string   source_user_id   = 154247;
+	string   user             = 131003;
+	string   fcm_id           = 154013;
+	string   ib_id            = 154014;
+
+	string   account_id       = 154008;
+	string   account_name     = 154002;
+	string   account_status   = 154003;
+
+	int32    ssboe            = 150100;
+	int32    usecs            = 150101;
+	}

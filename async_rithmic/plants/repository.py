@@ -41,27 +41,3 @@ class RepositoryPlant(BasePlant):
             account_id=None,
         )
         return self._first(responses)
-
-    async def accept_agreement(
-        self,
-        agreement_id: str,
-        market_data_usage_capacity: Literal["Professional", "Non-Professional"]
-    ):
-        """
-        Attempt to accept an agreement.
-
-        Notes
-        -----
-        Rithmic appears to restrict this functionality through the API. In practice,
-        this request may fail even when the agreement ID and usage capacity are valid.
-
-        Users may need to accept agreements manually through an official Rithmic app.
-        """
-
-        return await self._send_and_collect(
-            template_id=504,
-            expected_response=dict(template_id=505),
-            agreement_id=agreement_id,
-            market_data_usage_capacity=market_data_usage_capacity,
-            account_id=None,
-        )

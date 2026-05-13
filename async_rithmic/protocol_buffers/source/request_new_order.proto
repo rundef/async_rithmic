@@ -5,19 +5,19 @@ package rti;
 message RequestNewOrder
 	{                                
         enum TransactionType {
-    TRANSACTIONTYPE_UNSPECIFIED = 0;
+        TRANSACTIONTYPE_UNSPECIFIED = 0;
 	                      BUY  = 1;
 		              SELL = 2;
 	                     }
 
         enum OrderPlacement {
-    ORDERPLACEMENT_UNSPECIFIED = 0;
+        ORDERPLACEMENT_UNSPECIFIED = 0;
 	                     MANUAL  = 1;
 			     AUTO    = 2;
 	                    }
 
         enum Duration {
-    DURATION_UNSPECIFIED = 0;
+        DURATION_UNSPECIFIED = 0;
 	               DAY  = 1;
 		       GTC  = 2;
 		       IOC  = 3;
@@ -25,7 +25,7 @@ message RequestNewOrder
                       }
  
         enum PriceType {
-    PRICETYPE_UNSPECIFIED = 0;
+        PRICETYPE_UNSPECIFIED = 0;
 	                LIMIT              =  1;
 			MARKET             =  2;
 			STOP_LIMIT         =  3;
@@ -35,7 +35,7 @@ message RequestNewOrder
                        }
 
 	enum PriceField {
-    PRICEFIELD_UNSPECIFIED = 0;
+	PRICEFIELD_UNSPECIFIED = 0;
 	                 BID_PRICE    =  1;
 			 OFFER_PRICE  =  2;
 			 TRADE_PRICE  =  3;
@@ -43,7 +43,7 @@ message RequestNewOrder
 	                }
 
 	enum Condition {
-    CONDITION_UNSPECIFIED = 0;
+	CONDITION_UNSPECIFIED = 0;
 	     	        EQUAL_TO               =  1;
 			NOT_EQUAL_TO           =  2;
 			GREATER_THAN           =  3;
@@ -76,16 +76,20 @@ message RequestNewOrder
 	 string           trade_route            = 112016;
 	 OrderPlacement   manual_or_auto         = 154710;
 
-	 int32            release_at_ssboe       = 154487;
-	 int32            release_at_usecs       = 154549;
+	 bool             trailing_stop          = 157063;
+  int32            trail_by_ticks         = 157064;   
+  int32            trail_by_price_id      = 157065;
 
-	 int32            cancel_at_ssboe        = 157085;
-	 int32            cancel_at_usecs        = 157086;
-         int32            cancel_after_secs      = 154488;
+	int32            release_at_ssboe       = 154487;
+	int32            release_at_usecs       = 154549;
 
-	 string           if_touched_symbol      = 154451;
-	 string           if_touched_exchange    = 154452;
-	 Condition        if_touched_condition   = 154453;
-	 PriceField       if_touched_price_field = 154454;
-	 double           if_touched_price       = 153632;
+	int32            cancel_at_ssboe        = 157085;
+	int32            cancel_at_usecs        = 157086;
+  int32            cancel_after_secs      = 154488;
+
+	string           if_touched_symbol      = 154451;
+	string           if_touched_exchange    = 154452;
+	Condition        if_touched_condition   = 154453;
+	PriceField       if_touched_price_field = 154454;
+	double           if_touched_price       = 153632;
 	}

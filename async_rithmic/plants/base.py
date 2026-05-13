@@ -132,8 +132,6 @@ TEMPLATES_MAP = {
     501: pb.response_list_unaccepted_agreements_pb2.ResponseListUnacceptedAgreements,
     502: pb.request_list_accepted_agreements_pb2.RequestListAcceptedAgreements,
     503: pb.response_list_accepted_agreements_pb2.ResponseListAcceptedAgreements,
-    504: pb.request_accept_agreement_pb2.RequestAcceptAgreement,
-    505: pb.response_accept_agreement_pb2.ResponseAcceptAgreement,
     506: pb.request_show_agreement_pb2.RequestShowAgreement,
     507: pb.response_show_agreement_pb2.ResponseShowAgreement,
 }
