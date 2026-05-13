@@ -86,8 +86,6 @@ As a market order will be filled immediately, this script submits the order and 
             order_type=OrderType.MARKET,
             transaction_type=TransactionType.SELL,
             # account_id="ABCD",  # Mandatory if you have multiple accounts
-            # stop_ticks=20,      # Optional: stop loss in ticks
-            # target_ticks=40,    # Optional: profit target in ticks
             # trail_ticks=20,     # Optional: trailing stop in ticks. Only supported when both stop_ticks and target_ticks are omitted.
             # cancel_at=datetime.now() + timedelta(minutes=2),  # Optional: auto-cancel time
         )
@@ -325,4 +323,3 @@ If no symbol is provided, exits all active positions.
 
     # Exit a specific position by symbol and exchange
     await client.exit_position(symbol="ESM5", exchange="CME")
-

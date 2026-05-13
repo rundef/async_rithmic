@@ -417,14 +417,31 @@ class HistoryPlant(BasePlant):
             key = response.user_msg[0]
 
             if is_last_bar:
-                if self.historical_tick_requests.get(key) is not None:
-                    self.historical_tick_requests[key].done.set()
-                    self.historical_tick_requests.pop(key, None)
+                if (request := self.historical_tick_requests.get(key)) is not None:
+                    if request.is_finished_downloading:
+                        self.logger.debug(f"Finished downloading historical ticks for {key}")
+
+                        self.historical_tick_requests[key].done.set()
+                        self.historical_tick_requests.pop(key, None)
+
+                    else:
+                        # Request the next page of results
+                        next_start_index = request.last_marker + 1
+                        request.last_marker = 0
+                        request.page_count += 1
+                        request.start_index = next_start_index
+
+                        await asyncio.sleep(0.01)
+                        await self._request_historical_ticks(key)
+
                 return
 
             data = self._response_to_dict(response)
             data["_key"] = key
             data["datetime"] = self._ssboe_usecs_to_datetime(response.data_bar_ssboe[0], response.data_bar_usecs[0])
+
+            if (request := self.historical_tick_requests.get(key)) is not None:
+                request.last_marker = data['data_bar_ssboe'][0]
 
             await self.client.on_historical_tick.call_async(data)
 
