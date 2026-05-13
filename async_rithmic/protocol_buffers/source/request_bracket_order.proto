@@ -12,7 +12,7 @@ message RequestBracketOrder
 	              }
 
 	enum BracketType {
-	BRACKETTYPE_UNSPECIFIED = 0;
+BRACKETTYPE_UNSPECIFIED = 0;
 	                  STOP_ONLY               = 1;
 			  TARGET_ONLY             = 2;
 			  TARGET_AND_STOP         = 3;
@@ -22,13 +22,13 @@ message RequestBracketOrder
                          }
 
         enum TransactionType {
-        TRANSACTIONTYPE_UNSPECIFIED = 0;
+TRANSACTIONTYPE_UNSPECIFIED = 0;
 	                      BUY  = 1;
 		              SELL = 2;
 	                     }
 
         enum Duration {
-        DURATION_UNSPECIFIED = 0;
+DURATION_UNSPECIFIED = 0;
 	               DAY  = 1;
 		       GTC  = 2;
 		       IOC  = 3;
@@ -36,7 +36,7 @@ message RequestBracketOrder
                       }
  
         enum PriceType {
-        PRICETYPE_UNSPECIFIED = 0;
+PRICETYPE_UNSPECIFIED = 0;
 	                LIMIT              =  1;
 			MARKET             =  2;
 			STOP_LIMIT         =  3;
@@ -46,13 +46,13 @@ message RequestBracketOrder
                        }
 
         enum OrderPlacement {
-        ORDERPLACEMENT_UNSPECIFIED = 0;
+ORDERPLACEMENT_UNSPECIFIED = 0;
 	                     MANUAL  = 1;
 			     AUTO    = 2;
 	                    }
 
 	enum PriceField {
-	PRICEFIELD_UNSPECIFIED = 0;
+PRICEFIELD_UNSPECIFIED = 0;
 	                 BID_PRICE    =  1;
 			 OFFER_PRICE  =  2;
 			 TRADE_PRICE  =  3;
@@ -60,7 +60,7 @@ message RequestBracketOrder
 	                }
 
 	enum Condition {
-	CONDITION_UNSPECIFIED = 0;
+CONDITION_UNSPECIFIED = 0;
 	     	        EQUAL_TO               =  1;
 			NOT_EQUAL_TO           =  2;
 			GREATER_THAN           =  3;

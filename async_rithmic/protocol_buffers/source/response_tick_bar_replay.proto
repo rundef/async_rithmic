@@ -5,14 +5,14 @@ package rti;
 message ResponseTickBarReplay
 	{
 	enum BarType {
-	BARTYPE_UNSPECIFIED = 0;
+BARTYPE_UNSPECIFIED = 0;
 	              TICK_BAR     =  1;
 		      RANGE_BAR    =  2;
 		      VOLUME_BAR   =  3;
 	             }
 
         enum BarSubType {
-        BARSUBTYPE_UNSPECIFIED = 0;
+BARSUBTYPE_UNSPECIFIED = 0;
 	                 REGULAR  = 1;
 			 CUSTOM   = 2;
 	                }

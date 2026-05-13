@@ -231,13 +231,13 @@ class OrderPlant(BasePlant):
         # Stop or target specified: use template_id 330 for bracket orders
         if "stop_ticks" in kwargs:
             template_id = 330
-            msg_kwargs["stop_ticks"] = kwargs["stop_ticks"]
-            msg_kwargs["stop_quantity"] = qty
+            msg_kwargs["stop_ticks"] = [kwargs["stop_ticks"]]
+            msg_kwargs["stop_quantity"] = [qty]
             msg_kwargs["bracket_type"] = BracketType.STOP_ONLY_STATIC
         if "target_ticks" in kwargs:
             template_id = 330
-            msg_kwargs["target_ticks"] = kwargs["target_ticks"]
-            msg_kwargs["target_quantity"] = qty
+            msg_kwargs["target_ticks"] = [kwargs["target_ticks"]]
+            msg_kwargs["target_quantity"] = [qty]
             msg_kwargs["bracket_type"] = BracketType.TARGET_AND_STOP_STATIC \
                 if "stop_ticks" in kwargs else BracketType.TARGET_ONLY_STATIC
 
@@ -246,6 +246,10 @@ class OrderPlant(BasePlant):
             if kwargs.get("stop_market_on_reject"):
                 # Market-on-reject: convert a rejected stop order into a market order
                 msg_kwargs["stop_market_on_reject"] = True
+
+        elif "trail_ticks" in kwargs:
+            msg_kwargs["trailing_stop"] = True
+            msg_kwargs["trail_by_ticks"] = kwargs["trail_ticks"]
 
         release_at = kwargs.pop("release_at", None)
         cancel_at = kwargs.pop("cancel_at", None)
@@ -376,6 +380,10 @@ class OrderPlant(BasePlant):
 
         # Update the actual order
         msg_kwargs = self._validate_price_fields(order_type, raise_exception=False, **kwargs)
+
+        if "trail_ticks" in kwargs:
+            msg_kwargs["trailing_stop"] = True
+            msg_kwargs["trail_by_ticks"] = kwargs["trail_ticks"]
 
         manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
 
