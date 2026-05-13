@@ -5,7 +5,7 @@ package rti;
 message ExchangeOrderNotification
 	{       
 	enum NotifyType {
-    NOTIFYTYPE_UNSPECIFIED = 0;
+NOTIFYTYPE_UNSPECIFIED = 0;
 	                 STATUS        =   1;
 			 MODIFY        =   2;
 			 CANCEL        =   3;
@@ -18,14 +18,14 @@ message ExchangeOrderNotification
                         }	
 
         enum TransactionType {
-    TRANSACTIONTYPE_UNSPECIFIED = 0;
+TRANSACTIONTYPE_UNSPECIFIED = 0;
 	                      BUY  = 1;
 		              SELL = 2;
 			      SS   = 3;
 	                     }
 
         enum Duration {
-    DURATION_UNSPECIFIED = 0;
+DURATION_UNSPECIFIED = 0;
 	               DAY  = 1;
 		       GTC  = 2;
 		       IOC  = 3;
@@ -33,7 +33,7 @@ message ExchangeOrderNotification
                       }
  
         enum PriceType {
-    PRICETYPE_UNSPECIFIED = 0;
+PRICETYPE_UNSPECIFIED = 0;
 	                LIMIT        = 1;
 			MARKET       = 2;
 			STOP_LIMIT   = 3;
@@ -41,7 +41,7 @@ message ExchangeOrderNotification
                        }
 
 	enum BracketType {
-    BRACKETTYPE_UNSPECIFIED = 0;
+BRACKETTYPE_UNSPECIFIED = 0;
 	                  STOP_ONLY               = 1;
 			  TARGET_ONLY             = 2;
 			  TARGET_AND_STOP         = 3;
@@ -51,7 +51,7 @@ message ExchangeOrderNotification
                          }
 		       
         enum OrderPlacement {
-    ORDERPLACEMENT_UNSPECIFIED = 0;
+ORDERPLACEMENT_UNSPECIFIED = 0;
 	                     MANUAL  = 1;
 			     AUTO    = 2;
 	                    }
@@ -121,6 +121,9 @@ message ExchangeOrderNotification
 
 	 string           trigger_id             = 149266;
 
+         int32            trail_by_ticks         = 157064;   
+         int32            trail_by_price_id      = 157065;
+
 	string            sequence_number        = 112002;
 	string            orig_sequence_number   = 149263;
 	string            cor_sequence_number    = 149264;
@@ -141,6 +144,10 @@ message ExchangeOrderNotification
 
 	int32             ssboe                  = 150100;
 	int32             usecs                  = 150101;
+
+	int32             source_ssboe           = 150400;
+	int32             source_usecs           = 150401;
+	int32             source_nsecs           = 150404;
 
 	int32             exch_receipt_ssboe     = 150405;
 	int32             exch_receipt_nsecs     = 150406;

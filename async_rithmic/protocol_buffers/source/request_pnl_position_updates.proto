@@ -4,19 +4,18 @@ package rti;
 
 message RequestPnLPositionUpdates
 	{                                
-	// PB_OFFSET = 100000, is the offset added for each MNM field id
- 
         enum Request {
-    REQUEST_UNSPECIFIED = 0;
+        UNSPECIFIED = 0;
 	             SUBSCRIBE   = 1;
 		     UNSUBSCRIBE = 2;
 	             } 
 
-	 int32    template_id     = 154467;    // PB_OFFSET + MNM_TEMPLATE_ID
-	repeated string   user_msg        = 132760;    // PB_OFFSET + MNM_USER_MSG	
-	 Request  request         = 100000;    // PB_OFFSET + MNM_REQUEST
+	int32    template_id       = 154467;
+	repeated string   user_msg          = 132760;
+	Request  request           = 100000;
 
-	 string   fcm_id          = 154013;    // PB_OFFSET + MNM_FCM_ID
-	 string   ib_id           = 154014;    // PB_OFFSET + MNM_IB_ID
-	 string   account_id      = 154008;    // PB_OFFSET + MNM_ACCOUNT_ID
+	string   fcm_id            = 154013;
+	string   ib_id             = 154014;
+	string   account_id        = 154008;
+	bool     rms_updates_only  = 154968;
 	}

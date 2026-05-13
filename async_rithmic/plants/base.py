@@ -132,10 +132,13 @@ TEMPLATES_MAP = {
     501: pb.response_list_unaccepted_agreements_pb2.ResponseListUnacceptedAgreements,
     502: pb.request_list_accepted_agreements_pb2.RequestListAcceptedAgreements,
     503: pb.response_list_accepted_agreements_pb2.ResponseListAcceptedAgreements,
-    504: pb.request_accept_agreement_pb2.RequestAcceptAgreement,
-    505: pb.response_accept_agreement_pb2.ResponseAcceptAgreement,
     506: pb.request_show_agreement_pb2.RequestShowAgreement,
     507: pb.response_show_agreement_pb2.ResponseShowAgreement,
+}
+
+TEMPLATE_ID_BY_NAME = {
+    cls.__name__: template_id
+    for template_id, cls in TEMPLATES_MAP.items()
 }
 
 class BasePlant(BackgroundTaskMixin):
@@ -227,7 +230,7 @@ class BasePlant(BackgroundTaskMixin):
 
     async def _login(self):
         responses = await self._send_and_recv_immediate(
-            template_id=10,
+            template_id=self.get_template_id("RequestLogin"),
             template_version="3.9",
             user=self.credentials["user"],
             password=self.credentials["password"],
@@ -247,7 +250,7 @@ class BasePlant(BackgroundTaskMixin):
 
     async def _logout(self):
         try:
-            request = self._build_request(template_id=12)
+            request = self._build_request(template_id=self.get_template_id("RequestLogout"))
             self.logger.debug("Sending logout message")
 
             buffer = self._convert_request_to_bytes(request)
@@ -598,3 +601,8 @@ class BasePlant(BackgroundTaskMixin):
         if not array:
             return None
         return array[0]
+    
+    def get_template_id(self, name: str):
+        if name not in TEMPLATE_ID_BY_NAME:
+            raise Exception(f"Template id for '{name}' not found")
+        return TEMPLATE_ID_BY_NAME[name]
