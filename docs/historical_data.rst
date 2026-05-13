@@ -48,6 +48,49 @@ The following example fetches historical tick data:
 
     asyncio.run(main())
 
+
+By default, ``get_historical_tick_data()`` waits until the historical replay is
+complete and returns the collected ticks as a list.
+
+Rithmic may truncate historical replay responses. In practice, a single replay
+request can return at most about 10,000 ticks, even if the requested time range
+contains many more ticks.
+
+To handle this, ``async_rithmic`` automatically paginates historical tick
+requests. After each page, it uses the last received tick timestamp as the starting
+point for the next request and continues until one of the following happens:
+
+- the requested ``end_time`` is reached;
+- Rithmic returns no more data;
+- ``max_pages`` is reached.
+
+The ``max_pages`` argument controls how many replay pages can be requested.
+
+The ``idle_timeout`` argument controls how long the client waits without seeing
+progress while waiting for a historical replay to complete.
+
+.. code-block:: python
+
+    ticks = await client.get_historical_tick_data(
+        ...,
+        max_pages=100,
+        idle_timeout=10.0,
+    )
+
+This is an idle timeout, not a total request timeout. The timer resets whenever a
+tick or completion message is received.
+
+If ``wait=False`` is passed, the method sends the replay request and returns
+immediately. Historical ticks are still emitted through the
+``on_historical_tick`` callback.
+
+.. code-block:: python
+
+    async def callback(data):
+        print(f"Received data: {data}")
+
+    client.on_historical_tick += callback
+
 Fetch Historical Time Bars
 --------------------------
 
