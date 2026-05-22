@@ -66,10 +66,6 @@ class HistoryPlant(BasePlant):
         for symbol, exchange, bar_type, bar_type_periods in self._subscriptions["time_bar"]:
             await self.subscribe_to_time_bar_data(symbol, exchange, bar_type, bar_type_periods)
 
-    def _datetime_to_index(self, dt: datetime):
-        dt = self._datetime_to_utc(dt)
-        return int(dt.timestamp())
-
     async def _on_historical_time_bar(self, data):
         key = data["_key"]
         if (request := self.historical_time_bar_requests.get(key)) is not None:

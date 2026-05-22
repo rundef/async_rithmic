@@ -1,5 +1,6 @@
 import asyncio
 from typing import Literal
+from datetime import datetime
 
 from .base import BasePlant
 from ..enums import SysInfraType, OrderType, OrderDuration, OrderPlacement, TransactionType
@@ -452,6 +453,56 @@ class OrderPlant(BasePlant):
             manual_or_auto=manual_or_auto,
             **kwargs
         )
+
+
+    async def get_fill_history(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        **kwargs
+    ):
+        """
+        Returns the fill history between 2 timestamps
+        """
+
+        kwargs.setdefault("index_format", "ssboe") # ssboe or trade_date
+
+        template_id = self.get_template_id("RequestShowFillHistory")
+
+        start_index = self._datetime_to_index(start_time)
+        finish_index = self._datetime_to_index(end_time)
+
+        return await self._send_and_collect(
+            template_id=template_id,
+            expected_response=dict(template_id=self.get_template_id("ResponseShowFillHistory")),
+            start_index=start_index,
+            finish_index=finish_index,
+            **kwargs,
+        )
+
+
+    async def replay_executions(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        **kwargs
+    ):
+        """
+        Replays past executions
+        """
+
+        template_id = self.get_template_id("RequestReplayExecutions")
+
+        start_index = self._datetime_to_index(start_time)
+        finish_index = self._datetime_to_index(end_time)
+
+        await self._send_request(
+            template_id=template_id,
+            start_index=start_index,
+            finish_index=finish_index,
+            **kwargs,
+        )
+
 
     async def _process_response(self, response):
         if await super()._process_response(response):

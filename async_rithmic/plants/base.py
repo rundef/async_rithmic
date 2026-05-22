@@ -106,6 +106,10 @@ TEMPLATES_MAP = {
 
     3504: pb.request_exit_position_pb2.RequestExitPosition,
     3505: pb.response_exit_position_pb2.ResponseExitPosition,
+    3506: pb.request_replay_executions_pb2.RequestReplayExecutions,
+    3507: pb.response_replay_executions_pb2.ResponseReplayExecutions,
+    3512: pb.request_show_fill_history_pb2.RequestShowFillHistory,
+    3513: pb.response_show_fill_history_pb2.ResponseShowFillHistory,
 
     # History Plant Infrastructure
     200: pb.request_time_bar_update_pb2.RequestTimeBarUpdate,
@@ -524,12 +528,13 @@ class BasePlant(BackgroundTaskMixin):
         Handles async responses
         """
 
-        if response.template_id in [13, 19, 161, 401]:
+        if response.template_id in [13, 19, 161, 401, 3507]:
             # Ignore
             # - logout responses
             # - heartbeat responses
             # - market depth end event
             # - pnl subscription responses
+            # - replay executions response
             return True
 
         if response.template_id in [203, 207]:
@@ -593,6 +598,10 @@ class BasePlant(BackgroundTaskMixin):
             dt = dt.astimezone(pytz.utc)
 
         return dt
+
+    def _datetime_to_index(self, dt: datetime):
+        dt = self._datetime_to_utc(dt)
+        return int(dt.timestamp())
 
     def _ssboe_usecs_to_datetime(self, ssboe: int, usecs: int):
         return datetime.fromtimestamp(ssboe, tz=pytz.utc).replace(microsecond=usecs)

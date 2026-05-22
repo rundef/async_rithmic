@@ -323,3 +323,38 @@ If no symbol is provided, exits all active positions.
 
     # Exit a specific position by symbol and exchange
     await client.exit_position(symbol="ESM5", exchange="CME")
+
+Fill History
+------------
+
+Use ``get_fill_history()`` to retrieve fill history between two timestamps.
+
+.. code-block:: python
+
+    fills = await client.get_fill_history(
+        start_time=datetime(2026, 5, 2, 13, 30, tzinfo=pytz.utc),
+        end_time=datetime(2026, 5, 22, 20, 0, tzinfo=pytz.utc),
+    )
+
+Replay Executions
+-----------------
+
+Use ``replay_executions()`` to replay past executions between two timestamps.
+
+Unlike ``get_fill_history()``, this method does not return a collected list of
+responses. It sends a replay request, and matching execution events are emitted
+through the ``on_exchange_order_notification`` callback. Replayed execution
+notifications have ``is_snapshot = True``.
+
+.. code-block:: python
+
+    async def callback(notification):
+        if notification.is_snapshot:
+            print("replayed execution", notification)
+
+    client.on_exchange_order_notification += callback
+
+    await client.replay_executions(
+        start_time=datetime(2026, 5, 2, 13, 30, tzinfo=pytz.utc),
+        end_time=datetime(2026, 5, 22, 20, 0, tzinfo=pytz.utc),
+    )

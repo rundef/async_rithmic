@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.1] - 2026-05-22
+### Added
+- Order: added support for retrieving fill history between two timestamps.
+- Order: added support for replaying past executions through `on_exchange_order_notification` callbacks.
+
 ## [1.6.0] - 2026-05-10
 ### Added
 - Added support for repository plant connections.

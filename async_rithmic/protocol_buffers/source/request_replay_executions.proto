@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package rti;
+
+message RequestReplayExecutions
+	{
+	int32    template_id    = 154467;
+	repeated string   user_msg       = 132760;
+
+	string   fcm_id         = 154013;
+	string   ib_id          = 154014;
+	string   account_id     = 154008;
+
+	int32    start_index    = 153002;
+	int32    finish_index   = 153003;
+	}
