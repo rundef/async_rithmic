@@ -57,7 +57,7 @@ class BackgroundTaskMixin:
                 async with DisconnectionHandler(self):
                     buffer = None
 
-                    async with try_acquire_lock(self, context="_recv_loop"):
+                    async with try_acquire_lock(self, context="_recv_loop", lock=self.recv_lock):
                         try:
                             buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
                         except asyncio.TimeoutError:
