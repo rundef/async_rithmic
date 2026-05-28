@@ -153,7 +153,8 @@ class BasePlant(BackgroundTaskMixin):
 
         self.ws = None
         self.client = client
-        self.lock = asyncio.Lock()
+        self.send_lock = asyncio.Lock()  # SEND lock: serializes ALL websocket writes (incl. heartbeat); concurrent ws.send() is unsafe
+        self.recv_lock = asyncio.Lock()  # RECV lock: serializes websocket reads (recv loop + inline-recv) so reads never block the heartbeat send
         self.request_manager = RequestManager(self)
 
         # Heartbeats have to be sent every {interval} seconds, unless an update was received
@@ -344,13 +345,17 @@ class BasePlant(BackgroundTaskMixin):
         """
         responses = []
 
-        async with try_acquire_lock(self, context=f"send_and_recv_immediate_{kwargs.get('template_id')}"):
+        # Hold the RECV lock across the send+recv (serializes with _recv_loop — no concurrent
+        # ws.recv()), and take the SEND lock only for the write. The heartbeat (send lock only)
+        # is therefore never blocked by this inline recv.
+        async with try_acquire_lock(self, context=f"send_and_recv_immediate_{kwargs.get('template_id')}", lock=self.recv_lock):
 
             request = self._build_request(**kwargs)
             self.logger.debug(f"Sending message {MessageToDict(request)}")
 
             buffer = self._convert_request_to_bytes(request)
-            await self.ws.send(buffer)
+            async with try_acquire_lock(self, context=f"send_immediate_{kwargs.get('template_id')}"):
+                await self.ws.send(buffer)
 
             while True:
                 buffer = await self.ws.recv()
@@ -387,7 +392,7 @@ class BasePlant(BackgroundTaskMixin):
 
         while True:
             async with DisconnectionHandler(self):
-                async with try_acquire_lock(self, context=f"send_and_recv_{template_id}"):
+                async with try_acquire_lock(self, context=f"send_and_recv_{template_id}", lock=self.recv_lock):
                     buffer = await self._recv()
 
                 response = self._convert_bytes_to_response(buffer)

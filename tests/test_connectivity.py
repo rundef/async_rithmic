@@ -110,8 +110,10 @@ async def test_no_deadlock_on_reconnect(ticker_plant_mock, function_name):
 
 
     async def fake_connect():
-        # Simulate reconnect path that also acquires the lock
-        async with plant.lock:
+        # Simulate a reconnect path that also acquires the lock the recv-path listener
+        # holds (recv_lock since the send/recv lock split), to assert no deadlock: the
+        # listener must release it on disconnect so the reconnect can proceed.
+        async with plant.recv_lock:
             await asyncio.sleep(0.1)
 
     plant._connect = fake_connect
