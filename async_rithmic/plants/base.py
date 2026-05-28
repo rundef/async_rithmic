@@ -574,7 +574,12 @@ class BasePlant(BackgroundTaskMixin):
                         # 15: reference data response
                         # 114: front month contract response
                         # 301: login info response
-                        _terminal_carries_data = {11, 15, 114, 301}
+                        # 313/315/317/331: order-path single-response acks (submit/modify/
+                        #   cancel/bracket). Under concurrent order submits on one session the
+                        #   terminal ack (rp_code=0) is the only frame, so it must be stored
+                        #   before mark_complete or send_and_collect returns [] -> missed orders.
+                        #   See tests/test_order_terminal_response.py.
+                        _terminal_carries_data = {11, 15, 114, 301, 313, 315, 317, 331}
 
                         if response.template_id in _terminal_carries_data:
                             self.request_manager.handle_response(response)
