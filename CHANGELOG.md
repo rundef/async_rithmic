@@ -99,4 +99,4 @@ Use the `url` parameter to specify the connection endpoint.
 ### Added
 - Added retries
 - Added documentation for the `order` plant
-- Various improvement in the `order` plant
+- Various improvements in the `order` plant

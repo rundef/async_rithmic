@@ -341,13 +341,15 @@ class HistoryPlant(BasePlant):
         sub = (symbol, exchange, bar_type, bar_type_periods)
         self._subscriptions["time_bar"].add(sub)
 
-        return await self._send_and_recv_immediate(
+        return await self._send_and_collect(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
             request=pb.request_time_bar_update_pb2.RequestTimeBarUpdate.Request.SUBSCRIBE,
             bar_type=bar_type,
             bar_type_period=bar_type_periods,
+            account_id=None,
+            expected_response=dict(template_id=201),
         )
 
     async def unsubscribe_from_time_bar_data(
@@ -360,13 +362,15 @@ class HistoryPlant(BasePlant):
         sub = (symbol, exchange, bar_type, bar_type_periods)
         self._subscriptions["time_bar"].discard(sub)
 
-        return await self._send_and_recv_immediate(
+        return await self._send_and_collect(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
             request=pb.request_time_bar_update_pb2.RequestTimeBarUpdate.Request.UNSUBSCRIBE,
             bar_type=bar_type,
             bar_type_period=bar_type_periods,
+            account_id=None,
+            expected_response=dict(template_id=201),
         )
 
     async def _process_response(self, response):
