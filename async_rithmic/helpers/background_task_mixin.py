@@ -1,8 +1,7 @@
 import asyncio
 from google.protobuf.json_format import MessageToDict
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from .connectivity import DisconnectionHandler
-from .concurrency import try_acquire_lock
 
 class BackgroundTaskMixin:
     """
@@ -12,26 +11,32 @@ class BackgroundTaskMixin:
     - A recv loop for receiving raw messages
     - A process loop for decoding and dispatching responses
     - A heartbeat loop for regular keep-alives
+    - A reconnect loop that owns the full reconnect lifecycle
     """
 
     def __init__(self, **kwargs):
         self._inbound_queue = asyncio.Queue()
         self._bg_tasks: list[asyncio.Task] = []
 
-    async def _start_background_tasks(self):
-        """
-        Starts background tasks and stores their references for graceful shutdown.
-        """
+    async def _start_io_tasks(self):
         self._bg_tasks.append(asyncio.create_task(self._recv_loop(), name="recv_loop"))
         self._bg_tasks.append(asyncio.create_task(self._process_loop(), name="process_loop"))
         self._bg_tasks.append(asyncio.create_task(self._heartbeat_loop(), name="heartbeat_loop"))
 
+    async def _stop_io_tasks(self):
+        io_tasks = [t for t in self._bg_tasks if t.get_name() in {"recv_loop", "process_loop", "heartbeat_loop"}]
+        for task in io_tasks:
+            task.cancel()
+        await asyncio.gather(*io_tasks, return_exceptions=True)
+        for task in io_tasks:
+            self._bg_tasks.remove(task)
+
+    async def _start_background_tasks(self):
+        await self._start_io_tasks()
+        self._bg_tasks.append(asyncio.create_task(self._reconnect_loop(), name="reconnect_loop"))
         self.logger.debug("Background tasks started")
 
     async def _stop_background_tasks(self):
-        """
-        Cancels and awaits all background tasks.
-        """
         if not self._bg_tasks:
             return
 
@@ -50,30 +55,91 @@ class BackgroundTaskMixin:
     async def _recv_loop(self):
         """
         Continuously reads from the WebSocket and pushes raw messages to the inbound queue.
+        Exits cleanly on disconnect; _reconnect_loop takes over from there.
         """
-
         while True:
             try:
-                async with DisconnectionHandler(self):
-                    buffer = None
+                buffer = None
+                try:
+                    buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
+                except asyncio.TimeoutError:
+                    pass
 
-                    async with try_acquire_lock(self, context="_recv_loop"):
-                        try:
-                            buffer = await asyncio.wait_for(self._recv(), timeout=self.listen_interval)
-                        except asyncio.TimeoutError:
-                            pass
+                if buffer is not None:
+                    await self._inbound_queue.put(buffer)
 
-                    if buffer is not None:
-                        await self._inbound_queue.put(buffer)
-
-            except asyncio.TimeoutError:
-                pass
+            except (ConnectionClosedError, ConnectionClosedOK):
+                self.logger.warning("WebSocket connection closed — signalling reconnect")
+                self._disconnect_event.set()
+                return
 
             except asyncio.CancelledError:
-                break
+                return
 
-            except:
+            except Exception:
                 self.logger.exception("Exception in background listener")
+
+    async def _reconnect_loop(self):
+        """
+        Waits for a disconnect signal, then owns the full reconnect lifecycle:
+        stop IO tasks → retry _connect → start IO tasks → _login.
+        By starting IO tasks (including _recv_loop) before calling _login, the login
+        flow can safely use the request manager instead of _send_and_recv_immediate.
+        """
+        while True:
+            try:
+                await self._disconnect_event.wait()
+                self._disconnect_event.clear()
+                self._reconnected_event.clear()
+
+                self.logger.warning("Connection lost - attempting to reconnect")
+                await self._stop_io_tasks()
+
+                settings = self.client.reconnection_settings
+                attempt = 1
+                connected = False
+
+                while True:
+                    wait_time = settings.get_delay(attempt)
+                    self.logger.info(f"Waiting {wait_time:.1f}s before reconnect attempt #{attempt}")
+                    await asyncio.sleep(wait_time)
+
+                    self.logger.info(f"Reconnection attempt #{attempt}")
+
+                    if settings.max_retries is not None and attempt > settings.max_retries:
+                        self.logger.error("Max reconnection attempts reached. Giving up.")
+                        break
+
+                    try:
+                        await asyncio.wait_for(self._connect(), timeout=5)
+                        connected = True
+                        break
+                    except asyncio.TimeoutError:
+                        self.logger.warning(f"Reconnect attempt #{attempt} timed out")
+                    except Exception as e:
+                        self.logger.warning(f"Reconnect attempt #{attempt} failed: {e}")
+
+                    attempt += 1
+
+                if not connected:
+                    self._reconnected_event.set()
+                    return
+
+                await self._start_io_tasks()
+
+                try:
+                    await asyncio.wait_for(self._login(), timeout=30)
+                except Exception as e:
+                    self.logger.error(f"Login failed after reconnect: {e}. Will retry.")
+                    self._disconnect_event.set()
+                    self._reconnected_event.set()
+                    continue
+
+                self._reconnected_event.set()
+                self.logger.info("Reconnection successful.")
+
+            except asyncio.CancelledError:
+                return
 
     async def _process_loop(self):
         """
@@ -107,4 +173,3 @@ class BackgroundTaskMixin:
 
             except Exception as e:
                 self.logger.warning("Heartbeat failed", exc_info=e)
-

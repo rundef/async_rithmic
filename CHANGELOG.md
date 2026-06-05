@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.6.2] - 2026-06-05
+### Added
+- Refactored reconnect flow to improve reliability
+
 ## [1.6.1] - 2026-05-22
 ### Added
 - Order: added support for retrieving fill history between two timestamps.
@@ -99,4 +103,4 @@ Use the `url` parameter to specify the connection endpoint.
 ### Added
 - Added retries
 - Added documentation for the `order` plant
-- Various improvement in the `order` plant
+- Various improvements in the `order` plant

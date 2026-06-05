@@ -16,7 +16,6 @@ from ..logger import logger
 from ..enums import SysInfraType
 from ..exceptions import RithmicErrorResponse
 from ..helpers.request_manager import RequestManager
-from ..helpers.connectivity import DisconnectionHandler, try_to_reconnect
 from ..helpers.concurrency import try_acquire_lock
 from ..helpers.background_task_mixin import BackgroundTaskMixin
 
@@ -166,10 +165,12 @@ class BasePlant(BackgroundTaskMixin):
             logger_name += kwargs["logger_name_suffix"]
         self.logger = logger.getChild(logger_name)
 
-        # To avoid concurrent reconnections
-        self._reconnect_lock = asyncio.Lock()
-        self._reconnect_event = asyncio.Event()
-        self._reconnect_event.set()
+        # Signalled by _recv_loop / _send on disconnect; awaited by _reconnect_loop.
+        self._disconnect_event = asyncio.Event()
+        # Cleared by _reconnect_loop when reconnect starts; set when it finishes.
+        # _send awaits this before retrying.
+        self._reconnected_event = asyncio.Event()
+        self._reconnected_event.set()
 
         # Keep list of subscriptions in order to resubscribe automatically after disconnections
         self._subscriptions = defaultdict(set)
@@ -233,8 +234,9 @@ class BasePlant(BackgroundTaskMixin):
                 await self.client.on_disconnected.call_async(self.plant_type)
 
     async def _login(self):
-        responses = await self._send_and_recv_immediate(
-            template_id=self.get_template_id("RequestLogin"),
+        login_template_id = self.get_template_id("RequestLogin")
+        responses = await self._send_and_collect(
+            template_id=login_template_id,
             template_version="3.9",
             user=self.credentials["user"],
             password=self.credentials["password"],
@@ -242,6 +244,8 @@ class BasePlant(BackgroundTaskMixin):
             app_name=self.credentials["app_name"],
             app_version=self.credentials["app_version"],
             infra_type=self.infra_type,
+            account_id=None,
+            expected_response=dict(template_id=login_template_id + 1),
         )
         response = self._first(responses)
 
@@ -288,8 +292,14 @@ class BasePlant(BackgroundTaskMixin):
         except (ConnectionClosedError, ConnectionClosedOK) as e:
             self.logger.exception(f"WebSocket connection closed unexpectedly while sending a message (template_id={template_id})")
 
-            if not await try_to_reconnect(self):
-                self.logger.error("Failed to reconnect - giving up")
+            self._disconnect_event.set()
+            self._reconnected_event.clear()
+            try:
+                await asyncio.wait_for(self._reconnected_event.wait(), timeout=60)
+            except asyncio.TimeoutError:
+                raise RuntimeError("Unable to reconnect WebSocket") from e
+
+            if not self.is_connected:
                 raise RuntimeError("Unable to reconnect WebSocket") from e
 
             self.logger.info("Retrying send after successful reconnect")
@@ -377,35 +387,6 @@ class BasePlant(BackgroundTaskMixin):
             raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(responses[-1])} for the request={kwargs}")
 
         return responses
-
-    async def _send_and_recv(self, **kwargs):
-        """
-        Sends a request to the API and decode the response
-        """
-
-        template_id = await self._send_request(**kwargs)
-
-        while True:
-            async with DisconnectionHandler(self):
-                async with try_acquire_lock(self, context=f"send_and_recv_{template_id}"):
-                    buffer = await self._recv()
-
-                response = self._convert_bytes_to_response(buffer)
-                self.logger.debug(f"Received message {MessageToDict(response)}")
-
-                if not hasattr(response, "rp_code") or response.template_id != template_id + 1:
-                    await self._process_response(response)
-                    continue
-
-                break
-
-        if len(response.rp_code) and response.rp_code[0] != '0':
-            if response.rp_code[0] == '7':
-                self.logger.debug(f"Rithmic returned no data for the request={kwargs}")
-                return response
-            raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={kwargs}")
-
-        return response
 
     async def _send_and_collect(self, template_id, **kwargs):
         """
@@ -570,11 +551,7 @@ class BasePlant(BackgroundTaskMixin):
 
                     else:
                         # single-response endpoints that carries data along with the terminal sentinel
-                        # 11: login response
-                        # 15: reference data response
-                        # 114: front month contract response
-                        # 301: login info response
-                        _terminal_carries_data = {11, 15, 114, 301}
+                        _terminal_carries_data = {11, 15, 114, 201, 301, 313, 315, 317, 331}
 
                         if response.template_id in _terminal_carries_data:
                             self.request_manager.handle_response(response)
