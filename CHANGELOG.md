@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.6.2] - 2026-06-05
+### Added
+- Refactored reconnect flow to improve reliability
+
 ## [1.6.1] - 2026-05-22
 ### Added
 - Order: added support for retrieving fill history between two timestamps.

@@ -63,6 +63,10 @@ class HistoryPlant(BasePlant):
     async def _login(self):
         await super()._login()
 
+        count = len(self._subscriptions["time_bar"])
+        if count > 0:
+            self.logger.debug(f"Resubscribing to {count} time bar streams after reconnect")
+
         for symbol, exchange, bar_type, bar_type_periods in self._subscriptions["time_bar"]:
             await self.subscribe_to_time_bar_data(symbol, exchange, bar_type, bar_type_periods)
 
@@ -341,7 +345,7 @@ class HistoryPlant(BasePlant):
         sub = (symbol, exchange, bar_type, bar_type_periods)
         self._subscriptions["time_bar"].add(sub)
 
-        return await self._send_and_collect(
+        responses = await self._send_and_collect(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
@@ -351,6 +355,7 @@ class HistoryPlant(BasePlant):
             account_id=None,
             expected_response=dict(template_id=201),
         )
+        return self._first(responses)
 
     async def unsubscribe_from_time_bar_data(
         self,
@@ -362,7 +367,7 @@ class HistoryPlant(BasePlant):
         sub = (symbol, exchange, bar_type, bar_type_periods)
         self._subscriptions["time_bar"].discard(sub)
 
-        return await self._send_and_collect(
+        responses = await self._send_and_collect(
             template_id=200,
             symbol=symbol,
             exchange=exchange,
@@ -372,6 +377,7 @@ class HistoryPlant(BasePlant):
             account_id=None,
             expected_response=dict(template_id=201),
         )
+        return self._first(responses)
 
     async def _process_response(self, response):
         if await super()._process_response(response):
