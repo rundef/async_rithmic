@@ -252,14 +252,8 @@ class OrderPlant(BasePlant):
         if template_id == 330:
             msg_kwargs["user_type"] = self.login_info["user_type"]
 
-            order_operation_type: Literal[
-                "AFOCCA",   # All Fill Or Cancel Cancels All
-                "FOCCA",    # Fill Or Cancel Cancels All
-                "CCA",      # Cancel Cancels All
-                "FCA",      # Fill Cancels All
-                "OCA",      # One Cancels All (classic bracket/OCO-style grouping)
-            ] = kwargs.get("order_operation_type", "OCA")
-            msg_kwargs["order_operation_type"] = order_operation_type
+            if "order_operation_type" in kwargs:
+                msg_kwargs["order_operation_type"] = kwargs["order_operation_type"]
 
             if kwargs.get("stop_market_on_reject"):
                 # Market-on-reject: convert a rejected stop order into a market order
