@@ -46,6 +46,7 @@ class RithmicClient(DelegateMixin):
         self.on_exchange_order_notification = Event()
         self.on_bracket_update = Event()
         self.on_trade_route_update = Event()
+        self.on_account_rms_update = Event()
 
         # Historical data events
         self.on_historical_tick = Event()
