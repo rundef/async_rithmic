@@ -102,6 +102,7 @@ TEMPLATES_MAP = {
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
     353: pb.bracket_updates_pb2.BracketUpdates,
+    358: pb.account_rms_updates_pb2.AccountRmsUpdates,
 
     3504: pb.request_exit_position_pb2.RequestExitPosition,
     3505: pb.response_exit_position_pb2.ResponseExitPosition,
@@ -174,6 +175,12 @@ class BasePlant(BackgroundTaskMixin):
 
         # Keep list of subscriptions in order to resubscribe automatically after disconnections
         self._subscriptions = defaultdict(set)
+
+        # Template ids we've already warned about (see _convert_bytes_to_response).
+        # Rithmic can push message types this library doesn't map yet; we log the
+        # first occurrence of each and then stay quiet so a single unknown stream
+        # doesn't flood the logs with tracebacks.
+        self._warned_unknown_template_ids = set()
 
     @property
     def is_connected(self) -> bool:
@@ -366,6 +373,10 @@ class BasePlant(BackgroundTaskMixin):
                 buffer = await self.ws.recv()
 
                 response = self._convert_bytes_to_response(buffer)
+                if response is None:
+                    # Unmapped template id (already warned once) — keep waiting
+                    # for the response we actually expect.
+                    continue
                 self.logger.debug(f"Received message {MessageToDict(response)}")
 
                 if response.template_id != kwargs["template_id"] + 1:
@@ -449,6 +460,12 @@ class BasePlant(BackgroundTaskMixin):
     def _convert_bytes_to_response(self, buffer):
         """
         Bytes to Response class conversion
+
+        Returns ``None`` when the message carries a template id this library
+        does not map. Rithmic occasionally pushes message types we don't
+        handle yet; treating that as fatal caused the read loop to log a full
+        traceback for every such message, flooding the logs. Instead we warn
+        once per unknown template id and let the caller skip the message.
         """
         raw_data = buffer[4:]
 
@@ -458,7 +475,14 @@ class BasePlant(BackgroundTaskMixin):
 
         template_id = base.template_id
         if template_id not in TEMPLATES_MAP:
-            raise Exception(f"Unknown template ID: {template_id}")
+            if template_id not in self._warned_unknown_template_ids:
+                self._warned_unknown_template_ids.add(template_id)
+                self.logger.warning(
+                    f"Received a message with an unmapped template_id={template_id}; "
+                    "ignoring it. Further messages with this template id will be "
+                    "silently dropped."
+                )
+            return None
 
         # Parse as specific response class
         response_cls = TEMPLATES_MAP[template_id]

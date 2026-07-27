@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Order: added `on_account_rms_update` callback for account RMS updates (template id 358).
+
+### Fixed
+- Fail-soft on unmapped template ids: instead of raising (which flooded the logs with tracebacks for every message), the read loop now warns once per unknown template id and drops the message.
+
 ## [1.6.2] - 2026-06-05
 ### Added
 - Refactored reconnect flow to improve reliability

@@ -522,5 +522,9 @@ class OrderPlant(BasePlant):
             # Bracket update
             await self.client.on_bracket_update.call_async(response)
 
+        elif response.template_id == 358:
+            # Account RMS update (auto-liquidation thresholds, buying power, etc.)
+            await self.client.on_account_rms_update.call_async(response)
+
         else:
             self.logger.warning(f"Unhandled inbound message with template_id={response.template_id}")
