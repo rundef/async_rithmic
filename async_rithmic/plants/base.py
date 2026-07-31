@@ -470,7 +470,12 @@ class BasePlant(BackgroundTaskMixin):
     def _set_pb_field(self, obj, field_name, value):
         field_descriptor = obj.DESCRIPTOR.fields_by_name[field_name]
 
-        if field_descriptor.label == FieldDescriptor.LABEL_REPEATED:
+        if hasattr(field_descriptor, "is_repeated"):
+            is_repeated = field_descriptor.is_repeated
+        else:
+            is_repeated = field_descriptor.label == FieldDescriptor.LABEL_REPEATED
+
+        if is_repeated:
             # Handle repeated fields (lists in protobuf)
             field = getattr(obj, field_name)
             if isinstance(value, list):

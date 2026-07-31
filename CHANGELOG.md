@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.4] - 2026-07-31
+### Changed
+- Updated protobuf version requirement from `>=4.25.4,<5` to `>=5.29.3,<8`
+
+## [1.6.3] - 2026-06-29
+### Fixed
+- Fix bracket order regression (broken SL/TP)
+
 ## [1.6.2] - 2026-06-05
 ### Added
 - Refactored reconnect flow to improve reliability

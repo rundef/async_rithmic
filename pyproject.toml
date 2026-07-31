@@ -29,7 +29,7 @@ classifiers = [
 dependencies = [
     "pattern_kit>=2.0.0",
     "websockets>=11.0,<15.0",
-    "protobuf>=4.25.4,<5",
+    "protobuf>=5.29.3,<8",
     "pytz>=2022.5",
     "tzlocal>=5.2"
 ]
