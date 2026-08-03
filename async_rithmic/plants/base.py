@@ -42,6 +42,8 @@ TEMPLATES_MAP = {
     101: pb.response_market_data_update_pb2.ResponseMarketDataUpdate,
     109: pb.request_search_symbols_pb2.RequestSearchSymbols,
     110: pb.response_search_symbols_pb2.ResponseSearchSymbols,
+    111: pb.request_product_codes_pb2.RequestProductCodes,
+    112: pb.response_product_codes_pb2.ResponseProductCodes,
     113: pb.request_front_month_contract_pb2.RequestFrontMonthContract,
     114: pb.response_front_month_contract_pb2.ResponseFrontMonthContract,
 
@@ -49,6 +51,9 @@ TEMPLATES_MAP = {
     116: pb.response_depth_by_order_snapshot_pb2.ResponseDepthByOrderSnapshot,
     117: pb.request_depth_by_order_updates_pb2.RequestDepthByOrderUpdates,
     118: pb.response_depth_by_order_updates_pb2.ResponseDepthByOrderUpdates,
+
+    121: pb.request_auxilliary_reference_data_pb2.RequestAuxilliaryReferenceData,
+    122: pb.response_auxilliary_reference_data_pb2.ResponseAuxilliaryReferenceData,
 
     150: pb.last_trade_pb2.LastTrade,
     151: pb.best_bid_offer_pb2.BestBidOffer,

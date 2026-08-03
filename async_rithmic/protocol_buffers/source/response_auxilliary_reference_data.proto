@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package rti;
+
+message ResponseAuxilliaryReferenceData
+	{
+	// presence bits defined here is also referred in response_get_instrument_by_underlying.proto and response_search_symbols.proto
+	// make sure both these proto files are always same.
+
+	// PB_OFFSET = 100000, is the offset added for each MNM field id
+
+	// bit constants are defined using enum
+        enum PresenceBits {
+        UNSPECIFIED = 0;
+	     		   SETTLEMENT_METHOD     =       1;
+			   FIRST_NOTICE_DATE     =       2;
+			   LAST_NOTICE_DATE      =       4;
+			   FIRST_TRADING_DATE    =       8;
+			   LAST_TRADING_DATE     =      16;
+			   FIRST_DELIVERY_DATE   =      32;
+			   LAST_DELIVERY_DATE    =      64;
+			   FIRST_POSITION_DATE   =     128;
+			   LAST_POSITION_DATE    =     256;
+			   UNIT_OF_MEASURE       =     512;
+			   UNIT_OF_MEASURE_QTY   =    1024;
+	                  }
+
+	 int32  template_id             = 154467;  // PB_OFFSET + MNM_TEMPLATE_ID
+	repeated string user_msg                = 132760;  // PB_OFFSET + MNM_USER_MSG	
+	repeated string rp_code                 = 132766;  // PB_OFFSET + MNM_RESPONSE_CODE
+
+	optional uint32 presence_bits           = 149138;  // PB_OFFSET + MNM_PRICING_INDICATOR
+	optional uint32 clear_bits              = 154571;  // PB_OFFSET + MNM_DISPLAY_INDICATOR
+
+	optional string symbol                  = 110100;  // PB_OFFSET + MNM_SYMBOL
+	optional string exchange                = 110101;  // PB_OFFSET + MNM_EXCHANGE
+
+	optional string  settlement_method      = 153294;  // PB_OFFSET + MNM_SETTLEMENT_METHOD                               
+	optional string  first_notice_date      = 154932;  // PB_OFFSET + MNM_FIRST_NOTICE_DATE                               
+	optional string  last_notice_date       = 154933;  // PB_OFFSET + MNM_LAST_NOTICE_DATE                                
+	optional string  first_trading_date     = 154996;  // PB_OFFSET + MNM_FIRST_TRADING_DATE                              
+	optional string  last_trading_date      = 154236;  // PB_OFFSET + MNM_LAST_TRADING_DATE                               
+	optional string  first_delivery_date    = 154994;  // PB_OFFSET + MNM_FIRST_DELIVERY_DATE                             
+	optional string  last_delivery_date     = 154995;  // PB_OFFSET + MNM_LAST_DELIVERY_DATE                              
+	optional string  first_position_date    = 154997;  // PB_OFFSET + MNM_FIRST_POSITION_DATE                             
+	optional string  last_position_date     = 154998;  // PB_OFFSET + MNM_LAST_POSITION_DATE                              
+	optional string  unit_of_measure        = 157023;  // PB_OFFSET + MNM_UNIT_OF_MEASURE                                 
+	optional double  unit_of_measure_qty    = 157024;  // PB_OFFSET + MNM_UNIT_OF_MEASURE_QTY                             
+	}

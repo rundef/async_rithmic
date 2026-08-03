@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional
 
 from .base import BasePlant
 from ..enums import SysInfraType, DataType, SearchPattern
@@ -92,7 +92,14 @@ class TickerPlant(BasePlant):
             update_bits=update_bits,
         )
 
-    async def search_symbols(self, search_text, **kwargs):
+    async def search_symbols(
+        self,
+        search_text: str,
+        exchange: Optional[str] = None,
+        product_code: Optional[str] = None,
+        instrument_type: int | None = None,
+        pattern: int = SearchPattern.CONTAINS,
+    ):
         """
         Search symbols
 
@@ -102,14 +109,49 @@ class TickerPlant(BasePlant):
         :param instrument_type: (InstrumentType)
         """
 
-        kwargs.setdefault("pattern", SearchPattern.CONTAINS)
+        params = {
+            "search_text": search_text,
+            "exchange": exchange,
+            "product_code": product_code,
+            "instrument_type": instrument_type,
+            "pattern": pattern,
+        }
 
         return await self._send_and_collect(
             template_id=109,
             expected_response=dict(template_id=110),
-            search_text=search_text,
+            **{key: value for key, value in params.items() if value is not None},
             account_id=None,
-            **kwargs
+        )
+
+    async def get_product_codes(
+        self,
+        exchange: str,
+        toi_products_only: bool = True,
+    ):
+        """
+        Returns the product codes
+        """
+
+        return await self._send_and_collect(
+            template_id=111,
+            expected_response=dict(template_id=112),
+            exchange=exchange,
+            give_toi_products_only=toi_products_only,
+            account_id=None,
+        )
+
+    async def get_auxilliary_reference_data(
+        self,
+        symbol: str,
+        exchange: str,
+    ):
+        return await self._send_and_collect(
+            template_id=121,
+            expected_response=dict(template_id=122),
+            symbol=symbol,
+            exchange=exchange,
+            account_id=None,
         )
 
     async def request_market_depth(
