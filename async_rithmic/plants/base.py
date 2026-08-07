@@ -288,7 +288,12 @@ class BasePlant(BackgroundTaskMixin):
         )
         return self._first(responses)
 
-    async def _send(self, message: bytes, template_id: int = None):
+    async def _send(
+        self,
+        message: bytes,
+        template_id: int = None,
+        retry_on_reconnect: bool = True,
+    ):
 
         try:
             async with try_acquire_lock(self, context=f"send_{template_id}"):
@@ -299,6 +304,8 @@ class BasePlant(BackgroundTaskMixin):
 
             self._disconnect_event.set()
             self._reconnected_event.clear()
+            if not retry_on_reconnect:
+                raise
             try:
                 await asyncio.wait_for(self._reconnected_event.wait(), timeout=60)
             except asyncio.TimeoutError:
@@ -315,7 +322,7 @@ class BasePlant(BackgroundTaskMixin):
     async def _recv(self):
         return await self.ws.recv()
 
-    async def _send_request(self, **kwargs):
+    async def _send_request(self, retry_on_reconnect: bool = True, **kwargs):
         """
         Create Request class instance, convert it to bytes and send it to the server
         """
@@ -324,7 +331,11 @@ class BasePlant(BackgroundTaskMixin):
 
         template_id = kwargs["template_id"]
         buffer = self._convert_request_to_bytes(request)
-        await self._send(buffer, template_id=template_id)
+        await self._send(
+            buffer,
+            template_id=template_id,
+            retry_on_reconnect=retry_on_reconnect,
+        )
 
         return template_id
 

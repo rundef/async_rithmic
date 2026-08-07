@@ -52,17 +52,24 @@ The following example fetches historical tick data:
 By default, ``get_historical_tick_data()`` waits until the historical replay is
 complete and returns the collected ticks as a list.
 
-Rithmic may truncate historical replay responses. In practice, a single replay
-request can return at most about 10,000 ticks, even if the requested time range
-contains many more ticks.
+Rithmic historical replay bounds have whole-second resolution. The library floors
+the requested datetimes to whole seconds and explicitly requests pages of 10,000
+ticks. A full page may end partway through its final second, so that final second
+is discarded and replayed from its beginning on the next request. This prevents
+ticks in the same second from being silently skipped. Historical tick callbacks
+are emitted after the current provider page has completed, because only then is
+the final second known to be incomplete.
 
-To handle this, ``async_rithmic`` automatically paginates historical tick
-requests. After each page, it uses the last received tick timestamp as the starting
-point for the next request and continues until one of the following happens:
+By default, historical tick requests are strict. If ``max_pages`` is reached
+before the provider naturally completes the replay, the request raises
+``HistoricalDataIncompleteError`` instead of returning a partial list as a
+successful result. Set ``strict=False`` only when intentionally accepting a
+partial result.
 
-- the requested ``end_time`` is reached;
-- Rithmic returns no more data;
-- ``max_pages`` is reached.
+If a single second contains enough ticks to require more than one page, the
+provider's whole-second bounds cannot express a lossless continuation; the
+request raises ``HistoricalDataPaginationError`` instead of looping or
+returning incomplete data as though it were complete.
 
 The ``max_pages`` argument controls how many replay pages can be requested.
 
@@ -78,11 +85,24 @@ progress while waiting for a historical replay to complete.
     )
 
 This is an idle timeout, not a total request timeout. The timer resets whenever a
-tick or completion message is received.
+provider page or completion message is received.
+
+Because Rithmic cannot represent subsecond replay bounds, nonzero microseconds in
+``start_time`` or ``end_time`` are floored to the containing second. Returned
+ticks should be locally filtered if an application needs a subsecond range.
 
 If ``wait=False`` is passed, the method sends the replay request and returns
 immediately. Historical ticks are still emitted through the
 ``on_historical_tick`` callback.
+
+Historical callbacks are non-transactional. If a callback raises, the active
+request fails immediately and a waiting caller receives the original callback
+exception; records delivered before the failure are not withdrawn.
+
+If the history plant connection is interrupted while a historical replay is
+active, the request raises ``HistoricalDataConnectionError`` promptly. The
+library does not resume that replay after reconnecting; callers may retry the
+complete interval after the connection is restored.
 
 .. code-block:: python
 
