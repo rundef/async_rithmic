@@ -1,11 +1,20 @@
 from datetime import datetime
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from .base import BasePlant
-from ..exceptions import HistoricalDataRequestInProgressError
+from ..exceptions import (
+    HistoricalDataConnectionError,
+    HistoricalDataIncompleteError,
+    HistoricalDataPaginationError,
+    HistoricalDataRequestInProgressError,
+    RithmicErrorResponse,
+)
 from ..enums import SysInfraType, TimeBarType
 from .. import protocol_buffers as pb
+
+HISTORICAL_TICK_PAGE_SIZE = 10_000
 
 
 @dataclass
@@ -30,7 +39,10 @@ class HistoricalDataRequest:
     data_received: asyncio.Event
     data: list[dict]
 
+    strict: bool = False
     last_marker: int = 0
+    tick_page: list[tuple[int, int, dict]] = field(default_factory=list)
+    error: BaseException | None = None
 
     @property
     def reached_max_pages(self) -> bool:
@@ -59,6 +71,7 @@ class HistoryPlant(BasePlant):
 
         self.client.on_historical_tick += self._on_historical_tick
         self.client.on_historical_time_bar += self._on_historical_time_bar
+        self.client.on_disconnected += self._on_disconnected
 
     async def _login(self):
         await super()._login()
@@ -81,6 +94,35 @@ class HistoryPlant(BasePlant):
         if (request := self.historical_tick_requests.get(key)) is not None:
             request.data.append(data)
             request.data_received.set()
+
+    async def _on_disconnected(self, plant_type):
+        if plant_type != self.plant_type:
+            return
+
+        for key, request in list(self.historical_tick_requests.items()):
+            self._finish_historical_tick_request(
+                key,
+                request,
+                HistoricalDataConnectionError(
+                    f"Historical tick replay for {key} was interrupted by "
+                    "a connection loss."
+                ),
+            )
+
+    def _finish_historical_tick_request(
+        self,
+        key: str,
+        request: HistoricalDataRequest,
+        error: BaseException | None = None,
+    ):
+        if error is not None and request.error is None:
+            request.error = error
+        request.done.set()
+        self.historical_tick_requests.pop(key, None)
+
+    def _fail_historical_tick_requests(self, error: BaseException):
+        for key, request in list(self.historical_tick_requests.items()):
+            self._finish_historical_tick_request(key, request, error)
 
     async def _wait_for_historical_request_completion(
         self,
@@ -120,6 +162,10 @@ class HistoryPlant(BasePlant):
                 for task in (done_task, data_task):
                     if not task.done():
                         task.cancel()
+                await asyncio.gather(done_task, data_task, return_exceptions=True)
+
+        if request.error is not None:
+            raise request.error
 
         return request.data
 
@@ -132,6 +178,7 @@ class HistoryPlant(BasePlant):
         wait: bool = True,
         idle_timeout: float = 5.0,
         max_pages: int = 1_000,
+        strict: bool = True,
     ):
         """
         Requests historical ticks for a symbol/exchange over a time range.
@@ -143,7 +190,7 @@ class HistoryPlant(BasePlant):
         :param wait: If True, wait for the historical replay to complete and return
             the collected ticks. If False, return immediately after sending the
             request; ticks are still emitted through the ``on_historical_tick``
-            callback.
+            callback after each provider page completes.
         :param idle_timeout: Maximum number of seconds to wait without receiving
             either a historical bar or the replay completion message. This is an
             idle/stall timeout, not a total request timeout; the timer resets every
@@ -152,10 +199,19 @@ class HistoryPlant(BasePlant):
             a single replay request without pagination. Values greater than `1` allow
             the client to issue additional replay requests until the returned bars cover
             the requested `end_time`. This handles Rithmic replay truncation.
+        :param strict: If True, reaching ``max_pages`` before natural replay
+            completion raises ``HistoricalDataIncompleteError``. If False, the
+            complete seconds received before the limit are returned.
         :return: A list of historical tick dictionaries when ``wait=True``;
             otherwise ``None``.
         :raises HistoricalDataRequestInProgressError: If another historical tick
             request is already in progress.
+        :raises HistoricalDataPaginationError: If a full replay page ends within
+            the request's starting second and cannot be continued losslessly.
+        :raises HistoricalDataIncompleteError: If ``strict`` is True and the
+            request reaches ``max_pages`` before natural completion.
+        :raises HistoricalDataConnectionError: If the history plant disconnects
+            while this request is active.
         :raises TimeoutError: If no bar or completion message is received for
             ``idle_timeout`` seconds while waiting.
         """
@@ -167,11 +223,14 @@ class HistoryPlant(BasePlant):
                 "Cannot start another historical tick request with the same "
                 "symbol and exchange while one is already in progress."
             )
+
+        if max_pages < 1:
+            raise ValueError("max_pages must be at least 1")
         
         start_index = self._datetime_to_index(start_time)
         end_index = self._datetime_to_index(end_time)
 
-        self.historical_tick_requests[key] = HistoricalDataRequest(
+        request = HistoricalDataRequest(
             # Request range
             start_index=start_index,
             end_index=end_index,
@@ -184,19 +243,26 @@ class HistoryPlant(BasePlant):
                 bar_type_specifier="1",
                 bar_sub_type=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.BarSubType.REGULAR,
                 time_order=pb.request_tick_bar_replay_pb2.RequestTickBarReplay.TimeOrder.FORWARDS,
+                user_max_count=HISTORICAL_TICK_PAGE_SIZE,
             ),
 
             # Pagination
             page_count=1,
             max_pages=max_pages,
+            strict=strict,
 
             # State
             done=asyncio.Event(),
             data_received=asyncio.Event(),
             data=[],
         )
+        self.historical_tick_requests[key] = request
 
-        await self._request_historical_ticks(key)
+        try:
+            await self._request_historical_ticks(key)
+        except BaseException:
+            self.historical_tick_requests.pop(key, None)
+            raise
 
         if not wait:
             # Historical ticks will still be emitted through `on_historical_tick`,
@@ -206,9 +272,12 @@ class HistoryPlant(BasePlant):
         # Wait until Rithmic sends the completion message, and return ticks.
         try:
             return await self._wait_for_historical_request_completion(
-                request=self.historical_tick_requests[key],
+                request=request,
                 idle_timeout=idle_timeout,
             )
+        except asyncio.CancelledError:
+            self._finish_historical_tick_request(key, request)
+            raise
         finally:
             self.historical_tick_requests.pop(key, None)
 
@@ -323,13 +392,159 @@ class HistoryPlant(BasePlant):
 
         self.logger.debug(f"Requesting page {request.page_count} (start index = {request.start_index}) of historical ticks for {key}")
 
-        await self._send_request(
-            template_id=206,
-            user_msg=key,
-            start_index=request.start_index,
-            finish_index=request.end_index,
-            **request.params,
-        )
+        try:
+            await self._send_request(
+                retry_on_reconnect=False,
+                template_id=206,
+                user_msg=key,
+                start_index=request.start_index,
+                finish_index=request.end_index,
+                **request.params,
+            )
+        except (ConnectionClosedError, ConnectionClosedOK) as error:
+            connection_error = HistoricalDataConnectionError(
+                f"Historical tick replay for {key} was interrupted by "
+                "a connection loss."
+            )
+            self._finish_historical_tick_request(key, request, connection_error)
+            raise connection_error from error
+
+    def _historical_tick_records(self, response, key: str):
+        """Return the tick represented by one replay response."""
+        try:
+            ssboes = list(response.data_bar_ssboe)
+            usecs = list(response.data_bar_usecs)
+        except (TypeError, ValueError) as error:
+            raise HistoricalDataPaginationError(
+                "Historical tick replay returned invalid timestamp fields."
+            ) from error
+        if not ssboes or not usecs:
+            raise HistoricalDataPaginationError(
+                "Historical tick replay returned no timestamp values."
+            )
+        if len(ssboes) != len(usecs):
+            raise HistoricalDataPaginationError(
+                "Historical tick replay returned mismatched timestamp arrays."
+            )
+        if not all(isinstance(ssboe, int) for ssboe in ssboes) or not all(
+            isinstance(usec, int) for usec in usecs
+        ):
+            raise HistoricalDataPaginationError(
+                "Historical tick replay returned non-integer timestamp markers."
+            )
+        if any(ssboe != ssboes[0] for ssboe in ssboes) or any(
+            usec != usecs[0] for usec in usecs
+        ):
+            raise HistoricalDataPaginationError(
+                "Historical tick replay returned non-repeated timestamp values."
+            )
+        if not 0 <= usecs[0] < 1_000_000:
+            raise HistoricalDataPaginationError(
+                "Historical tick replay returned an invalid microsecond marker."
+            )
+
+        # Rithmic repeats each timestamp value; one response represents one tick.
+        ssboe = ssboes[0]
+        usec = usecs[0]
+        data = self._response_to_dict(response)
+        data["_key"] = key
+        try:
+            data["datetime"] = self._ssboe_usecs_to_datetime(ssboe, usec)
+        except (OverflowError, OSError, ValueError) as error:
+            raise HistoricalDataPaginationError(
+                "Historical tick replay returned an invalid timestamp marker."
+            ) from error
+
+        return [(ssboe, usec, data)]
+
+    async def _process_historical_tick_page(
+        self,
+        key: str,
+        request: HistoricalDataRequest,
+    ):
+        page = sorted(request.tick_page, key=lambda tick: (tick[0], tick[1]))
+        request.tick_page.clear()
+
+        if page and page[0][0] < request.start_index:
+            error = HistoricalDataPaginationError(
+                "Historical tick replay returned a timestamp before the "
+                f"requested continuation second {request.start_index}."
+            )
+            self.logger.error(str(error))
+            self._finish_historical_tick_request(key, request, error)
+            return
+
+        if len(page) < HISTORICAL_TICK_PAGE_SIZE:
+            accepted_ticks = page
+            is_complete = True
+        elif len(page) > HISTORICAL_TICK_PAGE_SIZE:
+            error = HistoricalDataPaginationError(
+                "Historical tick replay returned more records than the requested "
+                f"page size of {HISTORICAL_TICK_PAGE_SIZE}."
+            )
+            self.logger.error(str(error))
+            self._finish_historical_tick_request(key, request, error)
+            return
+        else:
+            boundary_second = page[-1][0]
+
+            if (
+                page[0][0] == boundary_second
+                or boundary_second <= request.start_index
+            ):
+                error = HistoricalDataPaginationError(
+                    "Historical tick replay requires more than one page within "
+                    f"second {boundary_second}, but the provider only accepts "
+                    "whole-second continuation bounds."
+                )
+                self.logger.error(str(error))
+                self._finish_historical_tick_request(key, request, error)
+                return
+
+            accepted_ticks = [tick for tick in page if tick[0] < boundary_second]
+            is_complete = False
+
+        try:
+            for _, _, data in accepted_ticks:
+                await self.client.on_historical_tick.call_async(data)
+        except asyncio.CancelledError as error:
+            self._finish_historical_tick_request(key, request, error)
+            raise
+        except Exception as error:
+            self._finish_historical_tick_request(key, request, error)
+            raise
+
+        if is_complete:
+            self.logger.debug(f"Finished downloading historical ticks for {key}")
+            self._finish_historical_tick_request(key, request)
+            return
+
+        if request.reached_max_pages:
+            if request.strict:
+                error = HistoricalDataIncompleteError(
+                    f"Historical tick replay for {key} reached max_pages="
+                    f"{request.max_pages} before completion."
+                )
+                self.logger.error(str(error))
+                self._finish_historical_tick_request(key, request, error)
+            else:
+                self.logger.debug(f"Finished downloading historical ticks for {key}")
+                self._finish_historical_tick_request(key, request)
+            return
+
+        request.page_count += 1
+        request.start_index = boundary_second
+
+        await asyncio.sleep(0.01)
+        if self.historical_tick_requests.get(key) is not request:
+            return
+        try:
+            await self._request_historical_ticks(key)
+        except asyncio.CancelledError as error:
+            self._finish_historical_tick_request(key, request, error)
+            raise
+        except Exception as error:
+            self._finish_historical_tick_request(key, request, error)
 
     async def subscribe_to_time_bar_data(
         self,
@@ -419,37 +634,63 @@ class HistoryPlant(BasePlant):
 
         elif response.template_id == 207:
             # Historical tick bar
-            is_last_bar = response.rp_code == ['0'] or response.rq_handler_rp_code == []
-            key = response.user_msg[0]
+            rp_code = list(response.rp_code)
+            rq_handler_rp_code = list(response.rq_handler_rp_code)
+            user_msg = list(response.user_msg)
+            if not user_msg:
+                error = HistoricalDataPaginationError(
+                    "Historical tick replay response did not include a request key."
+                )
+                self._fail_historical_tick_requests(error)
+                raise error
+            if len(rp_code) > 1 or len(rq_handler_rp_code) > 1:
+                error = HistoricalDataPaginationError(
+                    "Historical tick replay response contained unexpected response "
+                    "markers."
+                )
+                self._fail_historical_tick_requests(error)
+                raise error
+            key = user_msg[0]
 
+            if rp_code and rp_code[0] != "0":
+                if (request := self.historical_tick_requests.get(key)) is not None:
+                    if rp_code[0] == "7":  # Rithmic "no data" response
+                        if request.tick_page:
+                            await self._process_historical_tick_page(key, request)
+                        else:
+                            self._finish_historical_tick_request(key, request)
+                    else:
+                        error = RithmicErrorResponse(
+                            "Rithmic returned an error for historical tick replay: "
+                            f"{rp_code[0]}"
+                        )
+                        self._finish_historical_tick_request(key, request, error)
+                return
+
+            is_last_bar = rp_code == ['0'] or rq_handler_rp_code == []
             if is_last_bar:
                 if (request := self.historical_tick_requests.get(key)) is not None:
-                    if request.is_finished_downloading:
-                        self.logger.debug(f"Finished downloading historical ticks for {key}")
-
-                        self.historical_tick_requests[key].done.set()
-                        self.historical_tick_requests.pop(key, None)
-
-                    else:
-                        # Request the next page of results
-                        next_start_index = request.last_marker + 1
-                        request.last_marker = 0
-                        request.page_count += 1
-                        request.start_index = next_start_index
-
-                        await asyncio.sleep(0.01)
-                        await self._request_historical_ticks(key)
+                    if list(response.data_bar_ssboe) or list(response.data_bar_usecs):
+                        self._finish_historical_tick_request(
+                            key,
+                            request,
+                            HistoricalDataPaginationError(
+                                "Historical tick replay terminal response contained "
+                                "timestamp data."
+                            ),
+                        )
+                        return
+                    await self._process_historical_tick_page(key, request)
 
                 return
 
-            data = self._response_to_dict(response)
-            data["_key"] = key
-            data["datetime"] = self._ssboe_usecs_to_datetime(response.data_bar_ssboe[0], response.data_bar_usecs[0])
-
             if (request := self.historical_tick_requests.get(key)) is not None:
-                request.last_marker = data['data_bar_ssboe'][0]
-
-            await self.client.on_historical_tick.call_async(data)
+                try:
+                    request.tick_page.extend(self._historical_tick_records(response, key))
+                except HistoricalDataPaginationError as error:
+                    self._finish_historical_tick_request(key, request, error)
+                    return
+                request.data_received.set()
 
         elif response.template_id == 250:
             # Time Bar
