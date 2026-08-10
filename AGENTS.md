@@ -59,6 +59,23 @@ Public docstrings should briefly describe behavior, important side effects, and 
 
 Keep behavior in the narrowest appropriate owner. Do not move endpoint-specific logic into the client or base plant for convenience.
 
+
+## Testing style
+
+Tests should protect meaningful behavior without overspecifying incidental details.
+
+- Test public behavior, correctness invariants, important failure modes, and regressions.
+- Prefer a small number of high-signal scenario tests over many narrow micro-tests.
+- A test may assert several related outcomes when they belong to the same scenario. Do not split tests merely to achieve one assertion per test.
+- Keep one coherent behavior or scenario per test, not one field, branch, or assertion per test.
+- Avoid locking in implementation details such as private helper structure, incidental internal call counts, or exact intermediate state unless correctness depends on them.
+- Do not add exhaustive permutations of equivalent cases. Choose representative edge cases based on realistic failure risk.
+- Assert exact error text, ordering, formatting, or other small details only when they are part of the public contract or materially affect callers.
+- Add a regression test when a bug exposes a meaningful gap. Do not create tests solely to increase test count or line coverage.
+- When an existing test already exercises the changed behavior, extend it when that keeps the scenario readable instead of creating another near-duplicate test.
+
+The goal is confidence in general correctness with low cognitive load, not maximum test granularity.
+
 ## Python style
 
 - Use descriptive domain names.
@@ -86,6 +103,6 @@ Async lifecycle behavior is part of the public contract.
 - [ ] Comments are concise and useful.
 - [ ] Async tasks and request state are cleaned up.
 - [ ] Errors are explicit.
-- [ ] Focused tests cover the change.
+- [ ] Focused, high-signal tests cover meaningful behavior without overspecifying implementation details.
 - [ ] The full test suite passes.
 - [ ] The diff contains no unrelated changes.

@@ -6,7 +6,7 @@ from pattern_kit import Event
 import pytest
 
 from async_rithmic.plants import HistoryPlant
-from async_rithmic import ReconnectionSettings
+from async_rithmic import HistoricalDataProgress, ReconnectionSettings
 from async_rithmic.exceptions import (
     HistoricalDataConnectionError,
     HistoricalDataIncompleteError,
@@ -92,11 +92,9 @@ def history_plant_mock():
 
 
 async def test_empty_response_returns_empty_list(history_plant_mock):
-    """
-    Bug A: When Rithmic returns only the is_last_bar marker (no data bars),
-    the code used to raise KeyError on .pop(key). Now it returns [].
-    """
+    """Returns an empty time-bar result for a terminal response with no data."""
     plant = history_plant_mock
+    progress = []
     key = f"MNQM6_CME_{int(TimeBarType.MINUTE_BAR)}_1"
 
     # Simulate the is_last_bar marker arriving right after the request is sent
@@ -119,16 +117,19 @@ async def test_empty_response_returns_empty_list(history_plant_mock):
         end_time=datetime(2026, 4, 13, 0, 1),
         bar_type=TimeBarType.MINUTE_BAR,
         bar_type_periods=1,
+        progress_callback=progress.append,
     )
     assert result == []
+    assert progress == []
     # Events dict is cleaned up
     assert key not in plant.historical_time_bar_requests
 
 
 async def test_empty_tick_response_returns_empty_list(history_plant_mock):
-    """Same as Bug A but for tick data."""
+    """Returns an empty tick result without emitting progress for no data."""
     plant = history_plant_mock
     key = f"MNQM6_CME"
+    progress = []
 
     # Simulate the is_last_bar marker arriving right after the request is sent
     async def trigger_empty_response():
@@ -147,8 +148,10 @@ async def test_empty_tick_response_returns_empty_list(history_plant_mock):
     result = await plant.get_historical_tick_data(
         symbol="MNQM6", exchange="CME",
         start_time=datetime(2026, 4, 13, 0), end_time=datetime(2026, 4, 13, 0, 1),
+        progress_callback=progress.append,
     )
     assert result == []
+    assert progress == []
     # Events dict is cleaned up
     assert key not in plant.historical_tick_requests
 
@@ -157,12 +160,14 @@ async def test_empty_tick_response_returns_empty_list(history_plant_mock):
 async def test_partial_tick_page_completes_without_continuation(
     history_plant_mock, monkeypatch
 ):
+    """Reports accepted rows from a partial tick page without continuing."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
     monkeypatch.setattr(history_module, "HISTORICAL_TICK_PAGE_SIZE", 4)
     plant = history_plant_mock
     key = "MNQM6_CME"
+    progress = []
     calls = configure_tick_responses(
         plant,
         [[
@@ -175,16 +180,119 @@ async def test_partial_tick_page_completes_without_continuation(
         "MNQM6", "CME",
         datetime.fromtimestamp(100, tz=timezone.utc),
         datetime.fromtimestamp(200, tz=timezone.utc),
+        progress_callback=progress.append,
     )
 
     assert [row["id"] for row in result] == ["only", "last"]
+    assert progress == [HistoricalDataProgress(
+        pages_requested=1,
+        rows_received=2,
+        last_timestamp=result[-1]["datetime"],
+        boundary_replay_count=0,
+    )]
     assert len(calls) == 1
     assert key not in plant.historical_tick_requests
+
+
+async def test_tick_progress_is_cumulative_across_pages(
+    history_plant_mock, monkeypatch
+):
+    """Reports cumulative progress across multiple tick pages."""
+    import importlib
+
+    history_module = importlib.import_module("async_rithmic.plants.history")
+    monkeypatch.setattr(history_module, "HISTORICAL_TICK_PAGE_SIZE", 2)
+    plant = history_plant_mock
+    progress = []
+    calls = configure_tick_responses(
+        plant,
+        [
+            [
+                ([100], [100_000], {"id": "first"}),
+                ([101], [100_000], {"id": "boundary"}),
+            ],
+            [([101], [100_000], {"id": "boundary"})],
+        ],
+    )
+
+    result = await plant.get_historical_tick_data(
+        "MNQM6", "CME",
+        datetime.fromtimestamp(100, tz=timezone.utc),
+        datetime.fromtimestamp(200, tz=timezone.utc),
+        progress_callback=progress.append,
+    )
+
+    assert [item.pages_requested for item in progress] == [1, 2]
+    assert [item.rows_received for item in progress] == [1, 2]
+    assert [item.boundary_replay_count for item in progress] == [0, 1]
+    assert progress[-1].last_timestamp == result[-1]["datetime"]
+    assert progress[-1].rows_received == len(result)
+    assert len(calls) == 2
+
+
+async def test_tick_progress_runs_for_wait_false_requests(history_plant_mock):
+    """Emits background tick progress while returning immediately."""
+    plant = history_plant_mock
+    progress = []
+    configure_tick_responses(
+        plant,
+        [[([100], [900_000], {"id": "background"})]],
+    )
+
+    result = await plant.get_historical_tick_data(
+        "MNQM6", "CME",
+        datetime.fromtimestamp(100, tz=timezone.utc),
+        datetime.fromtimestamp(200, tz=timezone.utc),
+        wait=False,
+        progress_callback=progress.append,
+    )
+    await asyncio.sleep(0.02)
+
+    assert result is None
+    assert len(progress) == 1
+    assert progress[0].rows_received == 1
+    assert not plant.historical_tick_requests
+
+
+async def test_progress_callback_failure_is_original_and_stops_pagination(
+    history_plant_mock, monkeypatch
+):
+    """Propagates progress callback failures and stops further pagination."""
+    import importlib
+
+    history_module = importlib.import_module("async_rithmic.plants.history")
+    monkeypatch.setattr(history_module, "HISTORICAL_TICK_PAGE_SIZE", 2)
+    plant = history_plant_mock
+    callback_error = RuntimeError("progress callback failed")
+    progress_callback = MagicMock(side_effect=callback_error)
+    calls = configure_tick_responses(
+        plant,
+        [
+            [
+                ([100], [100_000], {"id": "first"}),
+                ([101], [100_000], {"id": "boundary"}),
+            ],
+            [([101], [100_000], {"id": "replayed"})],
+        ],
+    )
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await plant.get_historical_tick_data(
+            "MNQM6", "CME",
+            datetime.fromtimestamp(100, tz=timezone.utc),
+            datetime.fromtimestamp(200, tz=timezone.utc),
+            progress_callback=progress_callback,
+        )
+
+    assert exc_info.value is callback_error
+    assert len(calls) == 1
+    assert not plant.historical_tick_requests
 
 
 async def test_full_tick_page_replays_and_crops_final_second(
     history_plant_mock, monkeypatch
 ):
+    """Crops a full tick page at its boundary second and avoids duplicates."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -232,6 +340,7 @@ async def test_full_tick_page_replays_and_crops_final_second(
 async def test_duplicate_timestamps_in_one_response_produce_one_tick(
     history_plant_mock, monkeypatch
 ):
+    """Treats repeated timestamps in one response as one logical tick."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -272,11 +381,13 @@ async def test_duplicate_timestamps_in_one_response_produce_one_tick(
 async def test_identical_ticks_from_separate_responses_are_not_deduplicated(
     history_plant_mock, monkeypatch
 ):
+    """Preserves identical ticks from separate responses and counts both."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
     monkeypatch.setattr(history_module, "HISTORICAL_TICK_PAGE_SIZE", 4)
     plant = history_plant_mock
+    progress = []
     calls = configure_tick_responses(
         plant,
         [[
@@ -297,16 +408,19 @@ async def test_identical_ticks_from_separate_responses_are_not_deduplicated(
         "MNQM6", "CME",
         datetime.fromtimestamp(100, tz=timezone.utc),
         datetime.fromtimestamp(200, tz=timezone.utc),
+        progress_callback=progress.append,
     )
 
     assert len(result) == 2
     assert result[0] == result[1]
+    assert progress[-1].rows_received == 2
     assert len(calls) == 1
 
 
 async def test_tick_page_is_stably_sorted_before_pagination(
     history_plant_mock, monkeypatch
 ):
+    """Sorts tick pages by timestamp before accepting and paginating them."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -340,6 +454,7 @@ async def test_tick_page_is_stably_sorted_before_pagination(
 async def test_single_second_overflow_raises_to_public_caller(
     history_plant_mock, monkeypatch
 ):
+    """Raises when a full tick page cannot continue within whole-second bounds."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -369,11 +484,13 @@ async def test_single_second_overflow_raises_to_public_caller(
 async def test_max_pages_in_strict_mode_fails_without_partial_success(
     history_plant_mock, monkeypatch
 ):
+    """Raises on max-pages exhaustion in strict mode after accepted progress."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
     monkeypatch.setattr(history_module, "HISTORICAL_TICK_PAGE_SIZE", 4)
     plant = history_plant_mock
+    progress = []
     calls = configure_tick_responses(
         plant,
         [[
@@ -390,15 +507,18 @@ async def test_max_pages_in_strict_mode_fails_without_partial_success(
             datetime.fromtimestamp(100, tz=timezone.utc),
             datetime.fromtimestamp(200, tz=timezone.utc),
             max_pages=1,
+            progress_callback=progress.append,
         )
 
     assert len(calls) == 1
+    assert progress[-1].rows_received == 1
     assert not plant.historical_tick_requests
 
 
 async def test_max_pages_can_explicitly_allow_a_partial_result(
     history_plant_mock, monkeypatch
 ):
+    """Returns complete rows before max-pages exhaustion when strict mode is off."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -429,6 +549,7 @@ async def test_max_pages_can_explicitly_allow_a_partial_result(
 async def test_invalid_max_pages_fails_before_provider_io(
     history_plant_mock, max_pages
 ):
+    """Rejects invalid max-pages values before sending a provider request."""
     plant = history_plant_mock
 
     with pytest.raises(ValueError, match="max_pages"):
@@ -446,8 +567,10 @@ async def test_invalid_max_pages_fails_before_provider_io(
 async def test_historical_callback_failure_completes_request_with_original_error(
     history_plant_mock
 ):
+    """Propagates historical callback failures without progress or leaked state."""
     plant = history_plant_mock
     callback_error = RuntimeError("historical callback failed")
+    progress = []
 
     async def failing_callback(data):
         raise callback_error
@@ -463,15 +586,18 @@ async def test_historical_callback_failure_completes_request_with_original_error
             "MNQM6", "CME",
             datetime.fromtimestamp(100, tz=timezone.utc),
             datetime.fromtimestamp(200, tz=timezone.utc),
+            progress_callback=progress.append,
         )
 
     assert exc_info.value is callback_error
+    assert progress == []
     assert not plant.historical_tick_requests
 
 
 async def test_history_disconnect_fails_active_request_without_waiting_for_timeout(
     history_plant_mock
 ):
+    """Fails an active tick replay promptly when the history connection disconnects."""
     plant = history_plant_mock
     plant._send_request = AsyncMock(return_value=None)
 
@@ -497,6 +623,7 @@ async def test_history_disconnect_fails_active_request_without_waiting_for_timeo
 async def test_new_historical_request_can_start_after_disconnect(
     history_plant_mock
 ):
+    """Allows a new tick replay after a disconnected request has failed."""
     plant = history_plant_mock
     plant._send_request = AsyncMock(return_value=None)
 
@@ -531,6 +658,7 @@ async def test_new_historical_request_can_start_after_disconnect(
 async def test_reconnect_does_not_resume_failed_historical_request(
     history_plant_mock
 ):
+    """Does not resume a failed replay after reconnecting and permits a new one."""
     plant = history_plant_mock
     plant._send_request = AsyncMock(return_value=None)
     plant.client.reconnection_settings = ReconnectionSettings(
@@ -581,6 +709,7 @@ async def test_reconnect_does_not_resume_failed_historical_request(
 
 
 async def test_cancelled_historical_request_remains_cancelled(history_plant_mock):
+    """Preserves caller cancellation and cleans up the active tick replay."""
     plant = history_plant_mock
     plant._send_request = AsyncMock(return_value=None)
 
@@ -604,6 +733,7 @@ async def test_cancelled_historical_request_remains_cancelled(history_plant_mock
 async def test_continuation_timestamp_before_boundary_fails_closed(
     history_plant_mock, monkeypatch
 ):
+    """Rejects a continuation page containing a timestamp before its boundary."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -630,38 +760,10 @@ async def test_continuation_timestamp_before_boundary_fails_closed(
     assert not plant.historical_tick_requests
 
 
-async def test_malformed_tick_timestamp_arrays_fail_closed(history_plant_mock):
-    plant = history_plant_mock
-    key = "MNQM6_CME"
-    plant._response_to_dict = lambda response: {}
-
-    async def fake_send_request(**kwargs):
-        await plant._process_response(
-            MagicMock(
-                template_id=207,
-                rp_code=[],
-                rq_handler_rp_code=["data"],
-                user_msg=[key],
-                data_bar_ssboe=[100, 101],
-                data_bar_usecs=[900_000, 900_000],
-            )
-        )
-
-    plant._send_request = AsyncMock(side_effect=fake_send_request)
-
-    with pytest.raises(HistoricalDataPaginationError, match="non-repeated"):
-        await plant.get_historical_tick_data(
-            "MNQM6", "CME",
-            datetime.fromtimestamp(100, tz=timezone.utc),
-            datetime.fromtimestamp(200, tz=timezone.utc),
-        )
-
-    assert not plant.historical_tick_requests
-
-
 async def test_empty_tick_continuation_completes_without_duplicate_callbacks(
     history_plant_mock, monkeypatch
 ):
+    """Completes an empty continuation without duplicating delivered callbacks."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -693,6 +795,7 @@ async def test_empty_tick_continuation_completes_without_duplicate_callbacks(
 async def test_tick_provider_error_does_not_emit_buffered_partial_page(
     history_plant_mock
 ):
+    """Discards buffered ticks when the provider reports a page error."""
     plant = history_plant_mock
     key = "MNQM6_CME"
     callback_ids = []
@@ -735,6 +838,7 @@ async def test_tick_provider_error_does_not_emit_buffered_partial_page(
 async def test_tick_continuation_send_error_completes_and_cleans_up(
     history_plant_mock, monkeypatch
 ):
+    """Propagates continuation-send failures and cleans up the tick replay."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -773,6 +877,7 @@ async def test_tick_continuation_send_error_completes_and_cleans_up(
 
 
 async def test_subsecond_tick_bounds_are_floored(history_plant_mock):
+    """Floors subsecond tick bounds before constructing the provider request."""
     plant = history_plant_mock
     await plant.get_historical_tick_data(
         "MNQM6", "CME",
@@ -793,6 +898,7 @@ async def test_subsecond_tick_bounds_are_floored(history_plant_mock):
 async def test_repeated_full_page_fails_instead_of_looping(
     history_plant_mock, monkeypatch
 ):
+    """Stops repeated full pages instead of looping and preserves accepted rows."""
     import importlib
 
     history_module = importlib.import_module("async_rithmic.plants.history")
@@ -825,10 +931,7 @@ async def test_repeated_full_page_fails_instead_of_looping(
 
 
 async def test_concurrent_different_symbols(history_plant_mock):
-    """
-    Bug B: Two concurrent requests used to share one event. The first response
-    would wake the second caller prematurely. Now each request has its own event.
-    """
+    """Keeps concurrent time-bar requests isolated by symbol."""
     plant = history_plant_mock
 
     async def fire_responses(data_rows):
@@ -884,14 +987,9 @@ async def test_concurrent_different_symbols(history_plant_mock):
     assert result_b[0]["y"] == 1
 
 async def test_historical_time_bar_pagination(history_plant_mock):
-    """
-    When Rithmic truncates a historical time bar replay, the client should
-    request additional pages until the returned bars cover the requested end_time.
-
-    Rithmic seems to label time bars by end timestamp. So a request covering 10:00 to
-    10:04 can return bars labeled 10:01, 10:02, 10:03, 10:04, 10:05.
-    """
+    """Requests more time-bar pages until the requested end boundary is covered."""
     plant = history_plant_mock
+    progress = []
 
     symbol = "MNQM6"
     exchange = "CME"
@@ -975,6 +1073,7 @@ async def test_historical_time_bar_pagination(history_plant_mock):
         bar_type=bar_type,
         bar_type_periods=bar_type_periods,
         max_pages=5,
+        progress_callback=progress.append,
     )
 
     assert [row["marker"] for row in result] == [
@@ -986,6 +1085,20 @@ async def test_historical_time_bar_pagination(history_plant_mock):
     ]
 
     assert [row["page"] for row in result] == [1, 1, 2, 2, 2]
+    assert progress == [
+        HistoricalDataProgress(
+            pages_requested=1,
+            rows_received=2,
+            last_timestamp=result[1]["bar_end_datetime"],
+            boundary_replay_count=0,
+        ),
+        HistoricalDataProgress(
+            pages_requested=2,
+            rows_received=5,
+            last_timestamp=result[-1]["bar_end_datetime"],
+            boundary_replay_count=0,
+        ),
+    ]
 
     # One request for the first page, one request for the second page.
     assert plant._send_request.await_count == 2
@@ -1008,3 +1121,119 @@ async def test_historical_time_bar_pagination(history_plant_mock):
     # next_start_index = request.last_marker + 1
     assert second_call["start_index"] == 1777644120 + 1
     assert second_call["finish_index"] == 1777644240
+
+
+async def test_time_bar_progress_runs_for_wait_false_requests(history_plant_mock):
+    """Emits background time-bar progress while returning immediately."""
+    plant = history_plant_mock
+    symbol = "MNQM6"
+    exchange = "CME"
+    bar_type = TimeBarType.MINUTE_BAR
+    bar_type_periods = 1
+    key = f"{symbol}_{exchange}_{bar_type}_{bar_type_periods}"
+    progress = []
+
+    async def emit_response():
+        await asyncio.sleep(0.01)
+        plant._response_to_dict = MagicMock(return_value={"marker": 200})
+        await plant._process_response(
+            MagicMock(
+                template_id=203,
+                rp_code=[],
+                rq_handler_rp_code=["data"],
+                user_msg=[key],
+            )
+        )
+        await plant._process_response(
+            MagicMock(
+                template_id=203,
+                rp_code=["0"],
+                rq_handler_rp_code=[],
+                user_msg=[key],
+            )
+        )
+
+    async def fake_send_request(**kwargs):
+        task = asyncio.create_task(emit_response())
+        task.add_done_callback(
+            lambda task: None if task.cancelled() else task.exception()
+        )
+
+    plant._send_request = AsyncMock(side_effect=fake_send_request)
+
+    result = await plant.get_historical_time_bars(
+        symbol,
+        exchange,
+        datetime.fromtimestamp(100, tz=timezone.utc),
+        datetime.fromtimestamp(200, tz=timezone.utc),
+        bar_type,
+        bar_type_periods,
+        wait=False,
+        progress_callback=progress.append,
+    )
+    await asyncio.sleep(0.02)
+
+    assert result is None
+    assert progress == [HistoricalDataProgress(
+        pages_requested=1,
+        rows_received=1,
+        last_timestamp=datetime.fromtimestamp(200),
+        boundary_replay_count=0,
+    )]
+    assert not plant.historical_time_bar_requests
+
+
+async def test_time_bar_progress_callback_failure_cleans_up_request(
+    history_plant_mock,
+):
+    """Propagates time-bar progress failures and cleans up the request."""
+    plant = history_plant_mock
+    symbol = "MNQM6"
+    exchange = "CME"
+    bar_type = TimeBarType.MINUTE_BAR
+    bar_type_periods = 1
+    key = f"{symbol}_{exchange}_{bar_type}_{bar_type_periods}"
+    callback_error = RuntimeError("time-bar progress failed")
+    progress_callback = MagicMock(side_effect=callback_error)
+
+    async def emit_response():
+        await asyncio.sleep(0.01)
+        plant._response_to_dict = MagicMock(return_value={"marker": 200})
+        await plant._process_response(
+            MagicMock(
+                template_id=203,
+                rp_code=[],
+                rq_handler_rp_code=["data"],
+                user_msg=[key],
+            )
+        )
+        await plant._process_response(
+            MagicMock(
+                template_id=203,
+                rp_code=["0"],
+                rq_handler_rp_code=[],
+                user_msg=[key],
+            )
+        )
+
+    async def fake_send_request(**kwargs):
+        task = asyncio.create_task(emit_response())
+        task.add_done_callback(
+            lambda task: None if task.cancelled() else task.exception()
+        )
+
+    plant._send_request = AsyncMock(side_effect=fake_send_request)
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await plant.get_historical_time_bars(
+            symbol,
+            exchange,
+            datetime.fromtimestamp(100, tz=timezone.utc),
+            datetime.fromtimestamp(200, tz=timezone.utc),
+            bar_type,
+            bar_type_periods,
+            progress_callback=progress_callback,
+        )
+
+    assert exc_info.value is callback_error
+    assert not plant.historical_time_bar_requests

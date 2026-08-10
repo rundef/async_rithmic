@@ -1,6 +1,15 @@
 import random
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Literal
+
+
+@dataclass(frozen=True, slots=True)
+class HistoricalDataProgress:
+    pages_requested: int
+    rows_received: int
+    last_timestamp: datetime | None
+    boundary_replay_count: int
 
 
 @dataclass

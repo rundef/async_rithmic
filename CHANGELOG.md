@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.7.0] - 2026-08-xx
+### Improved
+- Historical data replay with lossless tick pagination, strict incomplete-result handling, connection-loss errors, and page-level progress callbacks for ticks and time bars
+
 ## [1.6.4] - 2026-07-31
 ### Changed
 - Updated protobuf version requirement from `>=4.25.4,<5` to `>=5.29.3,<8`
