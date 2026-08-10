@@ -3,7 +3,7 @@ import asyncio
 import uuid
 import random
 from collections import namedtuple
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from async_rithmic.helpers.request_manager import RequestManager
 
@@ -96,3 +96,47 @@ class TestRequestManager:
                 expected_response=dict(template_id=313, user_msg=[request_id]),
             )
 
+        assert not manager.requests
+        assert not manager.responses
+        assert not manager.expected_responses
+        assert not manager.done_events
+        assert not manager.start_times
+
+    async def test_send_failure_cleans_up_request(self, manager, plant):
+        request_id = str(uuid.uuid4())
+        send_error = RuntimeError("send failed")
+        plant._send_request = AsyncMock(side_effect=send_error)
+
+        with pytest.raises(RuntimeError, match="send failed"):
+            await manager.send_and_collect(
+                user_msg=request_id,
+                template_id=312,
+                expected_response=dict(template_id=313, user_msg=[request_id]),
+            )
+
+        assert not manager.requests
+        assert not manager.responses
+        assert not manager.expected_responses
+        assert not manager.done_events
+        assert not manager.start_times
+
+    async def test_cancelled_request_cleans_up_request(self, manager, plant):
+        request_id = str(uuid.uuid4())
+        plant._send_request = AsyncMock()
+
+        task = asyncio.create_task(manager.send_and_collect(
+            user_msg=request_id,
+            template_id=312,
+            expected_response=dict(template_id=313, user_msg=[request_id]),
+        ))
+        await asyncio.sleep(0)
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert not manager.requests
+        assert not manager.responses
+        assert not manager.expected_responses
+        assert not manager.done_events
+        assert not manager.start_times
