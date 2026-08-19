@@ -149,6 +149,8 @@ class BackgroundTaskMixin:
             buffer = await self._inbound_queue.get()
             try:
                 response = self._convert_bytes_to_response(buffer)
+                if response is None:
+                    continue
                 self.logger.debug(f"Received message {MessageToDict(response)}")
 
                 await self._process_response(response)

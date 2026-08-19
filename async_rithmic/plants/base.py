@@ -371,6 +371,8 @@ class BasePlant(BackgroundTaskMixin):
                 buffer = await self.ws.recv()
 
                 response = self._convert_bytes_to_response(buffer)
+                if response is None:
+                    continue
                 self.logger.debug(f"Received message {MessageToDict(response)}")
 
                 if response.template_id != kwargs["template_id"] + 1:
@@ -463,7 +465,12 @@ class BasePlant(BackgroundTaskMixin):
 
         template_id = base.template_id
         if template_id not in TEMPLATES_MAP:
-            raise Exception(f"Unknown template ID: {template_id}")
+            # Rithmic servers send templates newer than this map (e.g. 358 was
+            # observed on Rithmic 01 in production). An unknown frame is dropped
+            # with a warning instead of raising, so one unrecognized push cannot
+            # break response processing during a burst.
+            self.logger.warning(f"Skipping frame with unknown template ID: {template_id}")
+            return None
 
         # Parse as specific response class
         response_cls = TEMPLATES_MAP[template_id]
