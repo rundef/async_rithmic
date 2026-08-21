@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.6] - 2026-08-21
+### Fixed
+- Tolerate unknown template IDs instead of raising per frame. Thanks [@Landonbrandvik](https://github.com/Landonbrandvik)
+
+## [1.6.5] - 2026-08-03
+### Changed
+- Improve search_symbols
+### Added
+- `get_product_codes` method
+- `get_auxilliary_reference_data` method
+
 ## [1.6.4] - 2026-07-31
 ### Changed
 - Updated protobuf version requirement from `>=4.25.4,<5` to `>=5.29.3,<8`
