@@ -6,6 +6,7 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 from websockets.exceptions import ConnectionClosedError
 from websockets.protocol import OPEN
+from pattern_kit import Event
 
 from async_rithmic import ReconnectionSettings, RithmicClient
 from async_rithmic.enums import SysInfraType
@@ -101,24 +102,24 @@ async def test_send_retries_after_reconnect_success(ticker_plant_mock):
     assert plant.ws.send.call_count == 2
 
 
-async def test_public_disconnect_waiter_observes_receive_loop_loss(ticker_plant_mock):
+async def test_unexpected_disconnect_handler_observes_receive_loop_loss(ticker_plant_mock):
     client = MagicMock()
-    client._disconnect_event = asyncio.Event()
-    client._disconnect_plant_type = None
+    client.on_unexpected_disconnected = Event()
+    observed = []
 
-    def signal_disconnect(plant_type):
-        client._disconnect_plant_type = plant_type
-        client._disconnect_event.set()
+    async def on_unexpected_disconnected(plant_type):
+        observed.append(plant_type)
 
-    client._signal_disconnect = signal_disconnect
-    client.wait_for_unexpected_disconnect = RithmicClient.wait_for_unexpected_disconnect.__get__(
-        client
-    )
+    client.on_unexpected_disconnected += on_unexpected_disconnected
+
+    async def signal_disconnect(plant_type):
+        await client.on_unexpected_disconnected.call_async(plant_type)
+
+    client._signal_unexpected_disconnect = signal_disconnect
     plant = ticker_plant_mock
     plant.client = client
     plant._recv = AsyncMock(side_effect=ConnectionClosedError(rcvd=None, sent=None))
 
-    waiter = asyncio.create_task(client.wait_for_unexpected_disconnect())
     task = asyncio.create_task(plant._recv_loop())
-    assert await asyncio.wait_for(waiter, 1) == plant.plant_type
     await task
+    assert observed == [plant.plant_type]

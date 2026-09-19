@@ -298,7 +298,7 @@ class BasePlant(BackgroundTaskMixin):
             self.logger.exception(f"WebSocket connection closed unexpectedly while sending a message (template_id={template_id})")
 
             self._disconnect_event.set()
-            self.client._signal_disconnect(self.plant_type)
+            await self.client._signal_unexpected_disconnect(self.plant_type)
             self._reconnected_event.clear()
             try:
                 await asyncio.wait_for(self._reconnected_event.wait(), timeout=60)

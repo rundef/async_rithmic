@@ -2,10 +2,9 @@
 
 ## [1.7.0] - 2026-09-19
 ### Added
-- Add `RithmicClient.wait_for_unexpected_disconnect()` to await an unexpected
-  provider connection loss and return the first affected plant type. The
-  signal stays set across automatic reconnects; intentional
-  `client.disconnect()` does not trigger it.
+- Add `RithmicClient.on_unexpected_disconnected` for callbacks when a plant
+  detects unexpected provider connection loss. The callback receives the
+  affected plant type while automatic reconnection proceeds independently.
 
 ### Fixed
 - Make provider error responses carrying a pending request's `user_msg` ID raise

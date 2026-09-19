@@ -90,12 +90,12 @@ You can customize the retry behavior using `RetrySettings`.
     - If all attempts time out, a `TimeoutError` is raised.
     - This mechanism makes your client more robust to occasional slowdowns in the Rithmic infrastructure, network hiccups, or other unpredictable delays.
 
-Provider response errors
-------------------------
+Rithmic response errors
+-----------------------
 
-Starting with version 1.7.0, a request that receives a non-success provider
-response raises `RithmicErrorResponse` in the coroutine that issued it. Catch
-this exception when the application needs to handle a provider rejection:
+Starting with version 1.7.0, a request that receives a non-success response
+raises `RithmicErrorResponse` to the caller instead of returning an empty result.
+Catch this exception when the application needs to handle a rejection:
 
 .. code-block:: python
 
@@ -128,33 +128,17 @@ You can register callbacks to respond to connection lifecycle events such as suc
 Unexpected connection loss
 --------------------------
 
-`RithmicClient.wait_for_unexpected_disconnect()` waits until any plant detects
-an unexpected connection loss and returns the affected plant type. It does not
-wait for reconnection. If several plants disconnect, it returns the first one
-detected. The signal stays set across automatic reconnects. Calling
-`client.disconnect()` intentionally does not signal this waiter.
-
-These mechanisms are not interchangeable:
-
-- Use `client.on_disconnected` to run a callback when a plant is explicitly
-  disconnected. The callback receives that plant's type.
-- Use `client.wait_for_unexpected_disconnect()` to await an unexpected
-  connection loss detected while receiving or sending. It returns the first
-  affected plant type, and remains signaled while automatic reconnection
-  proceeds.
-
-After connecting, monitor it in a background task:
+Use `client.on_unexpected_disconnected` to handle connection loss detected while
+a plant is receiving or sending. The callback receives the affected plant's
+type, and automatic reconnection proceeds independently. This is separate from
+`client.on_disconnected`, which continues to cover explicit disconnections.
 
 .. code-block:: python
 
-    async def monitor_disconnect(client):
-        plant_type = await client.wait_for_unexpected_disconnect()
-        print(f"{plant_type} connection lost; apply application-specific policy.")
+    async def on_unexpected_disconnected(plant_type: str):
+        print(f"Unexpected connection loss on {plant_type}")
 
-    await client.connect()
-    disconnect_task = asyncio.create_task(monitor_disconnect(client))
-
-    # Continue normal application work here.
+    client.on_unexpected_disconnected += on_unexpected_disconnected
 
 Debugging & Logging
 -------------------
