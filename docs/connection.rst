@@ -90,6 +90,24 @@ You can customize the retry behavior using `RetrySettings`.
     - If all attempts time out, a `TimeoutError` is raised.
     - This mechanism makes your client more robust to occasional slowdowns in the Rithmic infrastructure, network hiccups, or other unpredictable delays.
 
+Provider response errors
+------------------------
+
+Starting with version 1.7.0, a request that receives a non-success provider
+response raises `RithmicErrorResponse` in the coroutine that issued it. Catch
+this exception when the application needs to handle a provider rejection:
+
+.. code-block:: python
+
+    from async_rithmic import RithmicErrorResponse
+
+    try:
+        await client.cancel_order(order_id=order_id)
+    except RithmicErrorResponse as exc:
+        print(f"Order request rejected: {exc}")
+
+Provider response code `7` remains the no-data case and returns an empty result.
+
 
 Event Handlers
 --------------
@@ -106,6 +124,37 @@ You can register callbacks to respond to connection lifecycle events such as suc
 
     client.on_connected += on_connected
     client.on_disconnected += on_disconnected
+
+Unexpected connection loss
+--------------------------
+
+`RithmicClient.wait_for_unexpected_disconnect()` waits until any plant detects
+an unexpected connection loss and returns the affected plant type. It does not
+wait for reconnection. If several plants disconnect, it returns the first one
+detected. The signal stays set across automatic reconnects. Calling
+`client.disconnect()` intentionally does not signal this waiter.
+
+These mechanisms are not interchangeable:
+
+- Use `client.on_disconnected` to run a callback when a plant is explicitly
+  disconnected. The callback receives that plant's type.
+- Use `client.wait_for_unexpected_disconnect()` to await an unexpected
+  connection loss detected while receiving or sending. It returns the first
+  affected plant type, and remains signaled while automatic reconnection
+  proceeds.
+
+After connecting, monitor it in a background task:
+
+.. code-block:: python
+
+    async def monitor_disconnect(client):
+        plant_type = await client.wait_for_unexpected_disconnect()
+        print(f"{plant_type} connection lost; apply application-specific policy.")
+
+    await client.connect()
+    disconnect_task = asyncio.create_task(monitor_disconnect(client))
+
+    # Continue normal application work here.
 
 Debugging & Logging
 -------------------

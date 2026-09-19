@@ -1,11 +1,14 @@
 import pytest
 import asyncio
 import contextlib
+import io
+import logging
 from unittest.mock import AsyncMock, MagicMock
 from websockets.exceptions import ConnectionClosedError
 from websockets.protocol import OPEN
 
-from async_rithmic import ReconnectionSettings
+from async_rithmic import ReconnectionSettings, RithmicClient
+from async_rithmic.enums import SysInfraType
 
 
 @pytest.mark.parametrize("settings, attempt, expected_range", [
@@ -96,3 +99,26 @@ async def test_send_retries_after_reconnect_success(ticker_plant_mock):
     await plant._send(b"test-message")
 
     assert plant.ws.send.call_count == 2
+
+
+async def test_public_disconnect_waiter_observes_receive_loop_loss(ticker_plant_mock):
+    client = MagicMock()
+    client._disconnect_event = asyncio.Event()
+    client._disconnect_plant_type = None
+
+    def signal_disconnect(plant_type):
+        client._disconnect_plant_type = plant_type
+        client._disconnect_event.set()
+
+    client._signal_disconnect = signal_disconnect
+    client.wait_for_unexpected_disconnect = RithmicClient.wait_for_unexpected_disconnect.__get__(
+        client
+    )
+    plant = ticker_plant_mock
+    plant.client = client
+    plant._recv = AsyncMock(side_effect=ConnectionClosedError(rcvd=None, sent=None))
+
+    waiter = asyncio.create_task(client.wait_for_unexpected_disconnect())
+    task = asyncio.create_task(plant._recv_loop())
+    assert await asyncio.wait_for(waiter, 1) == plant.plant_type
+    await task

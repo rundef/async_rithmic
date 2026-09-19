@@ -34,6 +34,8 @@ class RithmicClient(DelegateMixin):
         # Connection events
         self.on_connected = Event()
         self.on_disconnected = Event()
+        self._disconnect_event = asyncio.Event()
+        self._disconnect_plant_type = None
 
         # Real-time market updates events
         self.on_tick = Event()
@@ -108,6 +110,8 @@ class RithmicClient(DelegateMixin):
         self.on_disconnected += lambda plant_type: self.plants[plant_type].logger.debug("Disconnected")
 
     async def connect(self, **kwargs):
+        self._disconnect_event.clear()
+        self._disconnect_plant_type = None
         target_plants = kwargs.get("plants", [
             SysInfraType.ORDER_PLANT,
             SysInfraType.HISTORY_PLANT,
@@ -127,13 +131,29 @@ class RithmicClient(DelegateMixin):
                 await plant._login()
                 await asyncio.sleep(plant_connect_delay)
 
-        except:
+        except Exception:
             logger.exception("Failed to connect")
 
             for plant in self.plants.values():
                 await plant._stop_background_tasks()
 
             raise
+
+    def _signal_disconnect(self, plant_type: str) -> None:
+        """Record the first unexpected connection loss and its plant."""
+        if not self._disconnect_event.is_set():
+            self._disconnect_plant_type = plant_type
+        self._disconnect_event.set()
+
+    async def wait_for_unexpected_disconnect(self) -> str:
+        """Wait until a plant observes connection loss and return its type.
+
+        The signal is sticky for this client instance and is not cleared by
+        automatic reconnects. If several plants disconnect, the first one is
+        returned. Explicit ``disconnect()`` does not signal it.
+        """
+        await self._disconnect_event.wait()
+        return self._disconnect_plant_type
 
     async def disconnect(self, timeout=5.0):
         for plant in self.plants.values():
@@ -146,7 +166,7 @@ class RithmicClient(DelegateMixin):
                 await asyncio.wait_for(self._disconnect_plant(plant), timeout=timeout)
             except asyncio.TimeoutError:
                 plant.logger.error("Timeout disconnecting")
-            except:
+            except Exception:
                 plant.logger.exception("Error disconnecting")
 
     async def _disconnect_plant(self, plant):

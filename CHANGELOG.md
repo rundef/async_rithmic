@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.0] - 2026-09-19
+### Added
+- Add `RithmicClient.wait_for_unexpected_disconnect()` to await an unexpected
+  provider connection loss and return the first affected plant type. The
+  signal stays set across automatic reconnects; intentional
+  `client.disconnect()` does not trigger it.
+
+### Fixed
+- Make provider error responses carrying a pending request's `user_msg` ID raise
+  `RithmicErrorResponse` in the coroutine that issued the request instead of
+  returning an empty result while the background task logs the error.
+
 ## [1.6.6] - 2026-08-21
 ### Fixed
 - Tolerate unknown template IDs instead of raising per frame. Thanks [@Landonbrandvik](https://github.com/Landonbrandvik)
