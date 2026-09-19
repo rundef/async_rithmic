@@ -106,7 +106,7 @@ Catch this exception when the application needs to handle a rejection:
     except RithmicErrorResponse as exc:
         print(f"Order request rejected: {exc}")
 
-Provider response code `7` remains the no-data case and returns an empty result.
+Rithmic response code `7` remains the no-data case and returns an empty result.
 
 
 Event Handlers
@@ -128,9 +128,9 @@ You can register callbacks to respond to connection lifecycle events such as suc
 Unexpected connection loss
 --------------------------
 
-Use `client.on_unexpected_disconnected` to handle connection loss detected while
-a plant is receiving or sending. The callback receives the affected plant's
-type, and automatic reconnection proceeds independently. This is separate from
+Use `client.on_unexpected_disconnected` to handle an unexpected 
+connection loss. The callback receives the affected plant's type, and automatic
+reconnection proceeds independently. This is separate from
 `client.on_disconnected`, which continues to cover explicit disconnections.
 
 .. code-block:: python

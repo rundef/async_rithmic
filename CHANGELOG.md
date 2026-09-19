@@ -3,11 +3,11 @@
 ## [1.7.0] - 2026-09-19
 ### Added
 - Add `RithmicClient.on_unexpected_disconnected` for callbacks when a plant
-  detects unexpected provider connection loss. The callback receives the
+  detects unexpected connection loss. The callback receives the
   affected plant type while automatic reconnection proceeds independently.
 
 ### Fixed
-- Make provider error responses carrying a pending request's `user_msg` ID raise
+- Make Rithmic error responses carrying a pending request's `user_msg` ID raise
   `RithmicErrorResponse` in the coroutine that issued the request instead of
   returning an empty result while the background task logs the error.
 

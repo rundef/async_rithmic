@@ -108,7 +108,7 @@ class RequestManager:
             self.plant.logger.error(f"Unknown request {request_id}")
 
     def mark_error(self, request_id: str, error: Exception):
-        """Deliver a request-scoped provider error to its waiting coroutine."""
+        """Deliver a request-scoped rithmic error to its waiting coroutine."""
         if request_id not in self.done_events:
             self.plant.logger.error(f"Unknown request {request_id}")
             return

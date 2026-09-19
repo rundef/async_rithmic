@@ -99,7 +99,7 @@ class TestRequestManager:
                 expected_response=dict(template_id=313, user_msg=[request_id]),
             )
 
-    async def test_correlated_provider_error_reaches_cancel_waiter(self):
+    async def test_error_reaches_caller(self):
         client = SimpleNamespace(
             retry_settings=SimpleNamespace(
                 max_retries=1, timeout=1, jitter_range=None
@@ -160,7 +160,7 @@ class TestRequestManager:
         result = await waiter
         assert result == [response]
 
-    async def test_provider_errors_complete_only_the_matching_waiter(self, manager):
+    async def test_errors_complete_only_the_matching_caller(self, manager):
         first = asyncio.create_task(
             manager.send_and_collect(
                 user_msg="first",
