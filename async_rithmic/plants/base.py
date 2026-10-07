@@ -107,6 +107,8 @@ TEMPLATES_MAP = {
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
     353: pb.bracket_updates_pb2.BracketUpdates,
+    357: pb.user_info_update_pb2.UserInfoUpdate,
+    358: pb.user_account_update_pb2.UserAccountUpdate, 
 
     3504: pb.request_exit_position_pb2.RequestExitPosition,
     3505: pb.response_exit_position_pb2.ResponseExitPosition,
