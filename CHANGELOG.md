@@ -8,6 +8,7 @@
     - Fail active historical requests promptly on disconnect.
 ### Fixed
 - `modify_order`: make qty optional (to avoid partial-fill race conditions)
+- Map `template_id` 357 and 358 to protobuf models
 
 ## [1.6.6] - 2026-08-21
 ### Fixed
