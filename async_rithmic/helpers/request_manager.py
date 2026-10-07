@@ -25,6 +25,14 @@ class RequestManager:
         self.expected_responses[request_id] = expected_response
         self.start_times[request_id] = time.time()
 
+    def _cleanup(self, request_id: str):
+        self.requests.pop(request_id, None)
+        self.responses.pop(request_id, None)
+        self.errors.pop(request_id, None)
+        self.expected_responses.pop(request_id, None)
+        self.done_events.pop(request_id, None)
+        self.start_times.pop(request_id, None)
+
     async def send_and_collect(self, timeout: float = 30.0, **kwargs):
         """
         Sends a message and waits for all responses tied to the given request_id.
@@ -44,29 +52,21 @@ class RequestManager:
 
         self.plant.logger.debug(f"Sending request {request_id}")
         self.start(request_id, kwargs, expected_response)
-        await self.plant._send_request(**kwargs)
+        done_event = self.done_events[request_id]
 
         try:
-            await asyncio.wait_for(self.done_events[request_id].wait(), timeout=timeout)
+            await self.plant._send_request(**kwargs)
+            await asyncio.wait_for(done_event.wait(), timeout=timeout)
 
         except asyncio.TimeoutError:
             self.plant.logger.exception(f"Timeout waiting for complete response stream for request_id={request_id}")
-            self.requests.pop(request_id, None)
-            self.responses.pop(request_id, None)
-            self.errors.pop(request_id, None)
-            self.done_events.pop(request_id, None)
-            self.expected_responses.pop(request_id, None)
-            self.start_times.pop(request_id, None)
             raise
 
         finally:
-            self.done_events.pop(request_id, None)
+            responses = self.responses.get(request_id, [])
+            error = self.errors.get(request_id)
+            self._cleanup(request_id)
 
-        error = self.errors.pop(request_id, None)
-        self.requests.pop(request_id, None)
-        self.expected_responses.pop(request_id, None)
-        self.start_times.pop(request_id, None)
-        responses = self.responses.pop(request_id, [])
         if error is not None:
             raise error
 
@@ -100,8 +100,7 @@ class RequestManager:
             )
 
             self.done_events[request_id].set()
-
-            # Clean up
+            self.done_events.pop(request_id, None)
             self.expected_responses.pop(request_id, None)
             self.start_times.pop(request_id, None)
         else:

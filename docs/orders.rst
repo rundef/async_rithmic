@@ -30,6 +30,20 @@ To retrieve a list of currently active orders, use the `list_orders` method:
 
     await client.list_orders()
 
+Get Order
+---------
+
+Use ``get_order()`` to find an order by its user-assigned ``order_id`` or
+Rithmic-assigned ``basket_id``:
+
+.. code-block:: python
+
+    order = await client.get_order(order_id="abc123")
+
+The method searches all accounts unless ``account_id`` is provided. It returns
+the first matching order, or ``None`` if no order is found. It raises
+``InvalidRequestError`` if neither identifier is provided.
+
 Show Order History Summary
 --------------------------
 
@@ -267,7 +281,7 @@ as quantity, order type, price, stop-loss, or take-profit levels.
 
 **Supported attributes:**
 
-- ``qty``: New quantity for the order.
+- ``qty``: New quantity for the order. (optional)
 - ``order_type``: Order type, for example ``OrderType.MARKET``, ``OrderType.LIMIT``, or ``OrderType.STOP_LIMIT``.
 - ``price``: Updated price, used for limit or stop-limit orders.
 - ``trigger_price``: Updated trigger price, used for stop orders.

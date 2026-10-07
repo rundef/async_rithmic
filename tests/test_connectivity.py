@@ -51,6 +51,21 @@ async def test_recv_loop_exits_on_disconnect(ticker_plant_mock):
         await task
 
 
+async def test_recv_loop_notifies_disconnected_listeners(ticker_plant_mock):
+    plant = ticker_plant_mock
+    disconnected = []
+
+    async def on_disconnected(plant_type):
+        disconnected.append(plant_type)
+
+    plant.client.on_disconnected += on_disconnected
+    plant._recv = AsyncMock(side_effect=ConnectionClosedError(rcvd=None, sent=None))
+
+    await plant._recv_loop()
+
+    assert disconnected == [plant.plant_type]
+
+
 async def test_reconnect_loop_restarts_and_calls_login(ticker_plant_mock):
     plant = ticker_plant_mock
     plant.client.reconnection_settings = ReconnectionSettings(
@@ -115,6 +130,7 @@ async def test_send_retries_after_reconnect_success(ticker_plant_mock):
 
 async def test_unexpected_disconnect_handler_observes_receive_loop_loss(ticker_plant_mock):
     client = MagicMock()
+    client.on_disconnected = Event()
     client.on_unexpected_disconnected = Event()
     observed = []
 
@@ -158,6 +174,7 @@ async def test_unexpected_disconnect_callback_failure_does_not_break_receive_cle
     ticker_plant_mock,
 ):
     client = MagicMock()
+    client.on_disconnected = Event()
     client.on_unexpected_disconnected = Event()
 
     async def failing_callback(plant_type):

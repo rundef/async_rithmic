@@ -1,12 +1,17 @@
 # Changelog
 
-## [1.7.0] - 2026-09-19
+## [2.0.0] - 2026-10-xx
+### Improved
+- Historical data replay:
+    - Make tick pagination safe across same-second boundaries.
+    - Added progress_callback when requesting historical data to notify consumers of progress
+    - Fail active historical requests promptly on disconnect.
 ### Added
 - Add `RithmicClient.on_unexpected_disconnected` for callbacks when a plant
   detects unexpected connection loss. The callback receives the
   affected plant type while automatic reconnection proceeds independently.
-
 ### Fixed
+- `modify_order`: make qty optional (to avoid partial-fill race conditions)
 - Make Rithmic error responses carrying a pending request's `user_msg` ID raise
   `RithmicErrorResponse` in the coroutine that issued the request instead of
   returning an empty result while the background task logs the error.
