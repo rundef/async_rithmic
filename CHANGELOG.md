@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.7.0] - 2026-10-xx
+### Improved
+- Historical data replay:
+    - Make tick pagination safe across same-second boundaries.
+    - Added progress_callback when requesting historical data to notify consumers of progress
+    - Fail active historical requests promptly on disconnect.
+- PNL snapshots: fetch snapshots for every account when `account_id` is omitted (`list_positions` and `list_account_summary`)
+### Fixed
+- `modify_order`: make qty optional (to avoid partial-fill race conditions)
+- Map `template_id` 357 and 358 to protobuf models
+### Added
+- Support `window_name` parameter for order notification↔request correlation
+
 ## [1.6.6] - 2026-08-21
 ### Fixed
 - Tolerate unknown template IDs instead of raising per frame. Thanks [@Landonbrandvik](https://github.com/Landonbrandvik)

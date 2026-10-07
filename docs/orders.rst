@@ -30,6 +30,20 @@ To retrieve a list of currently active orders, use the `list_orders` method:
 
     await client.list_orders()
 
+Get Order
+---------
+
+Use ``get_order()`` to find an order by its user-assigned ``order_id`` or
+Rithmic-assigned ``basket_id``:
+
+.. code-block:: python
+
+    order = await client.get_order(order_id="abc123")
+
+The method searches all accounts unless ``account_id`` is provided. It returns
+the first matching order, or ``None`` if no order is found. It raises
+``InvalidRequestError`` if neither identifier is provided.
+
 Show Order History Summary
 --------------------------
 
@@ -208,7 +222,6 @@ Stop-loss and take-profit
         target_ticks=40,
     )
 
-
 Market-on-reject for stop orders
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -235,6 +248,40 @@ without stop protection.
 
 Use this option only when that behavior is desired. A market order can fill with
 slippage, especially during fast markets or thin liquidity.
+
+Correlating order requests with notifications
+---------------------------------------------
+
+The optional ``window_name`` keyword argument is a caller-provided ID for
+associating an order request with asynchronous notifications. It is
+available on ``submit_order()``, ``cancel_order()``, ``modify_order()``, and
+``exit_position()``.
+
+Use a distinct value for each logical request when concurrent operations must
+be distinguished. The value is preserved across client retries of the same
+request.
+
+For example:
+
+.. code-block:: python
+
+    window_name = "strategy-a-entry-001"
+
+    async def on_order_notification(notification):
+        if notification.originator_window_name == window_name:
+            print("notification for", window_name, notification)
+
+    client.on_exchange_order_notification += on_order_notification
+
+    await client.submit_order(
+        order_id="entry-001",
+        symbol=security_code,
+        exchange="CME",
+        qty=1,
+        order_type=OrderType.MARKET,
+        transaction_type=TransactionType.BUY,
+        window_name=window_name,
+    )
 
 Cancelling an order
 -------------------
@@ -267,7 +314,7 @@ as quantity, order type, price, stop-loss, or take-profit levels.
 
 **Supported attributes:**
 
-- ``qty``: New quantity for the order.
+- ``qty``: New quantity for the order. (optional)
 - ``order_type``: Order type, for example ``OrderType.MARKET``, ``OrderType.LIMIT``, or ``OrderType.STOP_LIMIT``.
 - ``price``: Updated price, used for limit or stop-limit orders.
 - ``trigger_price``: Updated trigger price, used for stop orders.

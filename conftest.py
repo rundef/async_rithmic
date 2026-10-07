@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, AsyncMock
+from pattern_kit import Event
 
 from async_rithmic.plants import TickerPlant, PnlPlant, OrderPlant
 
@@ -12,6 +13,7 @@ def ticker_plant_mock():
 
     plant.client = MagicMock()
     plant.client.retry_settings = MagicMock(max_retries=1, timeout=3, jitter_range=None)
+    plant.client.on_disconnected = Event()
     return plant
 
 @pytest.fixture
