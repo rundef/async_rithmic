@@ -6,6 +6,8 @@
     - Make tick pagination safe across same-second boundaries.
     - Added progress_callback when requesting historical data to notify consumers of progress
     - Fail active historical requests promptly on disconnect.
+### Fixed
+- `modify_order`: make qty optional (to avoid partial-fill race conditions)
 
 ## [1.6.6] - 2026-08-21
 ### Fixed

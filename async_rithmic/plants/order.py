@@ -334,7 +334,7 @@ class OrderPlant(BasePlant):
         Modify an existing order with updated parameters.
 
         Supported attributes:
-        - `qty`: New quantity
+        - `qty`: New quantity (optional)
         - `order_type`: Order type (e.g., "MKT", "LMT", "STOP LMT", etc.)
         - `price`: Updated price (for limit or stop-limit orders)
         - `trigger_price`: Updated trigger price (for stop orders)
@@ -344,7 +344,7 @@ class OrderPlant(BasePlant):
         Note: we can't update SL/TP/main order concurrently or Rithmic will send back an error: 'Atomic order operation in progress'
 
         For time-critical modifications, pass `order=` with an object containing
-        the required fields (account_id, basket_id, symbol, exchange, quantity,
+        the required fields (account_id, basket_id, symbol, exchange,
         price_type, price) to skip the get_order() network call.
         """
 
@@ -355,7 +355,6 @@ class OrderPlant(BasePlant):
             raise Exception(f"Order not found: {kwargs}")
 
         order_type: OrderType = kwargs.pop("order_type", order.price_type)
-        qty: int = kwargs.pop("qty", order.quantity)
 
         # Get the current stop ticks and target ticks, we will have to submit the old values when modifying them
         current_stop_ticks, current_target_ticks = None, None
@@ -393,6 +392,9 @@ class OrderPlant(BasePlant):
         # Update the actual order
         msg_kwargs = self._validate_price_fields(order_type, raise_exception=False, **kwargs)
 
+        if "qty" in kwargs and kwargs["qty"] is not None:
+            msg_kwargs["quantity"] = kwargs["qty"]
+
         if "trail_ticks" in kwargs:
             msg_kwargs["trailing_stop"] = True
             msg_kwargs["trail_by_ticks"] = kwargs["trail_ticks"]
@@ -407,7 +409,6 @@ class OrderPlant(BasePlant):
             basket_id=order.basket_id,
             symbol=order.symbol,
             exchange=order.exchange,
-            quantity=qty,
             price_type=order_type,
             price=msg_kwargs.pop("price", order.price),
             **msg_kwargs
