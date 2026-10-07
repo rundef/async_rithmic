@@ -392,7 +392,7 @@ class OrderPlant(BasePlant):
         # Update the actual order
         msg_kwargs = self._validate_price_fields(order_type, raise_exception=False, **kwargs)
 
-        if "qty" in kwargs:
+        if "qty" in kwargs and kwargs["qty"] is not None:
             msg_kwargs["quantity"] = kwargs["qty"]
 
         if "trail_ticks" in kwargs:
