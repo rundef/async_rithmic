@@ -267,7 +267,7 @@ as quantity, order type, price, stop-loss, or take-profit levels.
 
 **Supported attributes:**
 
-- ``qty``: New quantity for the order.
+- ``qty``: New quantity for the order. (optional)
 - ``order_type``: Order type, for example ``OrderType.MARKET``, ``OrderType.LIMIT``, or ``OrderType.STOP_LIMIT``.
 - ``price``: Updated price, used for limit or stop-limit orders.
 - ``trigger_price``: Updated trigger price, used for stop orders.
