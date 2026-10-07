@@ -6,6 +6,7 @@
     - Make tick pagination safe across same-second boundaries.
     - Added progress_callback when requesting historical data to notify consumers of progress
     - Fail active historical requests promptly on disconnect.
+- PNL snapshots: fetch snapshots for every account when `account_id` is omitted (`list_positions` and `list_account_summary`)
 ### Fixed
 - `modify_order`: make qty optional (to avoid partial-fill race conditions)
 - Map `template_id` 357 and 358 to protobuf models
