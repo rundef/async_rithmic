@@ -222,6 +222,7 @@ class OrderPlant(BasePlant):
         order_type: OrderType,
         **kwargs
     ):
+        window_name = kwargs.pop("window_name", None)
         kwargs.setdefault("duration", OrderDuration.DAY)
 
         msg_kwargs = self._validate_price_fields(order_type, **kwargs)
@@ -274,6 +275,9 @@ class OrderPlant(BasePlant):
             msg_kwargs["cancel_at_ssboe"] = ssboe
             msg_kwargs["cancel_at_usecs"] = usecs
 
+        if window_name is not None:
+            msg_kwargs["window_name"] = window_name
+
         manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
 
         return await self._send_and_collect(
@@ -295,6 +299,7 @@ class OrderPlant(BasePlant):
         Cancel an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
         """
 
+        window_name = kwargs.pop("window_name", None)
         basket_id = kwargs.get("basket_id")
         account_id = kwargs.get("account_id")
 
@@ -308,12 +313,17 @@ class OrderPlant(BasePlant):
 
         manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
 
+        request_kwargs = {}
+        if window_name is not None:
+            request_kwargs["window_name"] = window_name
+
         return await self._send_and_collect(
             template_id=316,
             expected_response=dict(template_id=317),
             manual_or_auto=manual_or_auto,
             basket_id=basket_id,
             account_id=account_id,
+            **request_kwargs,
         )
 
     async def cancel_all_orders(self, **kwargs):
@@ -348,6 +358,7 @@ class OrderPlant(BasePlant):
         price_type, price) to skip the get_order() network call.
         """
 
+        window_name = kwargs.pop("window_name", None)
         order = kwargs.pop('order', None)
         if order is None:
             order = await self.get_order(**kwargs)
@@ -401,6 +412,9 @@ class OrderPlant(BasePlant):
 
         manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
 
+        if window_name is not None:
+            msg_kwargs["window_name"] = window_name
+
         return await self._send_and_collect(
             template_id=314,
             expected_response=dict(template_id=315),
@@ -411,7 +425,7 @@ class OrderPlant(BasePlant):
             exchange=order.exchange,
             price_type=order_type,
             price=msg_kwargs.pop("price", order.price),
-            **msg_kwargs
+            **msg_kwargs,
         )
 
     async def show_order_history_dates(self):
