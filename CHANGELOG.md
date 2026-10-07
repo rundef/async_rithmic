@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0] - 2026-10-xx
+### Improved
+- Historical data replay:
+    - Make tick pagination safe across same-second boundaries.
+    - Added progress_callback when requesting historical data to notify consumers of progress
+    - Fail active historical requests promptly on disconnect.
+
 ## [1.6.6] - 2026-08-21
 ### Fixed
 - Tolerate unknown template IDs instead of raising per frame. Thanks [@Landonbrandvik](https://github.com/Landonbrandvik)
