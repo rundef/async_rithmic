@@ -10,6 +10,8 @@
 ### Fixed
 - `modify_order`: make qty optional (to avoid partial-fill race conditions)
 - Map `template_id` 357 and 358 to protobuf models
+### Added
+- Support `window_name` parameter for order notification↔request correlation
 
 ## [1.6.6] - 2026-08-21
 ### Fixed
