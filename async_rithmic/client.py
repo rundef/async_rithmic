@@ -136,9 +136,15 @@ class RithmicClient(DelegateMixin):
 
             raise
 
-    async def _signal_disconnect(self, plant_type: str) -> None:
+    async def _signal_unexpected_disconnect(self, plant_type: str) -> None:
         """Notify listeners about an unexpected connection loss."""
-        await self.on_unexpected_disconnected.call_async(plant_type)
+        try:
+            await self.on_unexpected_disconnected.call_async(plant_type)
+        except Exception:
+            logger.exception(
+                "Unexpected-disconnect callback failed for plant %s",
+                plant_type,
+            )
 
     async def disconnect(self, timeout=5.0):
         for plant in self.plants.values():
