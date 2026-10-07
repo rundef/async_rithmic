@@ -71,6 +71,12 @@ class BackgroundTaskMixin:
             except (ConnectionClosedError, ConnectionClosedOK):
                 self.logger.warning("WebSocket connection closed — signalling reconnect")
                 self._disconnect_event.set()
+                try:
+                    await self.client.on_disconnected.call_async(self.plant_type)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    self.logger.exception("Error notifying connection loss")
                 return
 
             except asyncio.CancelledError:

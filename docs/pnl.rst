@@ -1,7 +1,17 @@
-list_account_summary
-
 PNL API
 =========
+
+Account positions
+-----------------
+
+Use ``list_positions()`` to retrieve instrument-level PNL snapshots:
+
+.. code-block:: python
+
+    positions = await client.list_positions(account_id="1234")
+
+The result is a list of position snapshot objects.
+
 
 Account PNL snapshot
 --------------------
