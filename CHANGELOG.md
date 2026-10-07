@@ -15,6 +15,7 @@
 - Make Rithmic error responses carrying a pending request's `user_msg` ID raise
   `RithmicErrorResponse` in the coroutine that issued the request instead of
   returning an empty result while the background task logs the error.
+- Map `template_id` 357 and 358 to protobuf models (user update & account update)
 
 ## [1.6.6] - 2026-08-21
 ### Fixed
