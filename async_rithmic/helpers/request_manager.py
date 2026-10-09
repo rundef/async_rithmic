@@ -12,6 +12,7 @@ class RequestManager:
         self.plant = plant
         self.requests = {}
         self.responses = defaultdict(list)
+        self.errors = {}
         self.expected_responses = {}
         self.done_events = {}
         self.start_times = {}
@@ -19,6 +20,7 @@ class RequestManager:
     def start(self, request_id: str, request: dict, expected_response: dict):
         self.requests[request_id] = request
         self.responses[request_id] = []
+        self.errors.pop(request_id, None)
         self.done_events[request_id] = asyncio.Event()
         self.expected_responses[request_id] = expected_response
         self.start_times[request_id] = time.time()
@@ -26,6 +28,7 @@ class RequestManager:
     def _cleanup(self, request_id: str):
         self.requests.pop(request_id, None)
         self.responses.pop(request_id, None)
+        self.errors.pop(request_id, None)
         self.expected_responses.pop(request_id, None)
         self.done_events.pop(request_id, None)
         self.start_times.pop(request_id, None)
@@ -60,8 +63,12 @@ class RequestManager:
             raise
 
         finally:
-            responses = self.responses.pop(request_id, [])
+            responses = self.responses.get(request_id, [])
+            error = self.errors.get(request_id)
             self._cleanup(request_id)
+
+        if error is not None:
+            raise error
 
         return responses
 
@@ -98,6 +105,15 @@ class RequestManager:
             self.start_times.pop(request_id, None)
         else:
             self.plant.logger.error(f"Unknown request {request_id}")
+
+    def mark_error(self, request_id: str, error: Exception):
+        """Deliver a request-scoped rithmic error to its waiting coroutine."""
+        if request_id not in self.done_events:
+            self.plant.logger.error(f"Unknown request {request_id}")
+            return
+
+        self.errors[request_id] = error
+        self.mark_complete(request_id)
 
     def has_pending(self, request_id: str):
         return request_id in self.responses

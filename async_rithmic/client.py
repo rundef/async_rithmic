@@ -34,6 +34,7 @@ class RithmicClient(DelegateMixin):
         # Connection events
         self.on_connected = Event()
         self.on_disconnected = Event()
+        self.on_unexpected_disconnected = Event()
 
         # Real-time market updates events
         self.on_tick = Event()
@@ -127,13 +128,23 @@ class RithmicClient(DelegateMixin):
                 await plant._login()
                 await asyncio.sleep(plant_connect_delay)
 
-        except:
+        except Exception:
             logger.exception("Failed to connect")
 
             for plant in self.plants.values():
                 await plant._stop_background_tasks()
 
             raise
+
+    async def _signal_unexpected_disconnect(self, plant_type: str) -> None:
+        """Notify listeners about an unexpected connection loss."""
+        try:
+            await self.on_unexpected_disconnected.call_async(plant_type)
+        except Exception:
+            logger.exception(
+                "Unexpected-disconnect callback failed for plant %s",
+                plant_type,
+            )
 
     async def disconnect(self, timeout=5.0):
         for plant in self.plants.values():
@@ -146,7 +157,7 @@ class RithmicClient(DelegateMixin):
                 await asyncio.wait_for(self._disconnect_plant(plant), timeout=timeout)
             except asyncio.TimeoutError:
                 plant.logger.error("Timeout disconnecting")
-            except:
+            except Exception:
                 plant.logger.exception("Error disconnecting")
 
     async def _disconnect_plant(self, plant):

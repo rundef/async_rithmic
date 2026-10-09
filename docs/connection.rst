@@ -90,6 +90,24 @@ You can customize the retry behavior using `RetrySettings`.
     - If all attempts time out, a `TimeoutError` is raised.
     - This mechanism makes your client more robust to occasional slowdowns in the Rithmic infrastructure, network hiccups, or other unpredictable delays.
 
+Rithmic response errors
+-----------------------
+
+Starting with version 1.7.0, a request that receives a non-success response
+raises `RithmicErrorResponse` to the caller instead of returning an empty result.
+Catch this exception when the application needs to handle a rejection:
+
+.. code-block:: python
+
+    from async_rithmic import RithmicErrorResponse
+
+    try:
+        await client.cancel_order(order_id=order_id)
+    except RithmicErrorResponse as exc:
+        print(f"Order request rejected: {exc}")
+
+Rithmic response code `7` remains the no-data case and returns an empty result.
+
 
 Event Handlers
 --------------
@@ -106,6 +124,21 @@ You can register callbacks to respond to connection lifecycle events such as suc
 
     client.on_connected += on_connected
     client.on_disconnected += on_disconnected
+
+Unexpected connection loss
+--------------------------
+
+Use `client.on_unexpected_disconnected` to handle an unexpected 
+connection loss. The callback receives the affected plant's type, and automatic
+reconnection proceeds independently. This is separate from
+`client.on_disconnected`, which continues to cover explicit disconnections.
+
+.. code-block:: python
+
+    async def on_unexpected_disconnected(plant_type: str):
+        print(f"Unexpected connection loss on {plant_type}")
+
+    client.on_unexpected_disconnected += on_unexpected_disconnected
 
 Debugging & Logging
 -------------------
