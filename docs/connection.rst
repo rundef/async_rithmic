@@ -93,7 +93,7 @@ You can customize the retry behavior using `RetrySettings`.
 Rithmic response errors
 -----------------------
 
-Starting with version 1.7.0, a request that receives a non-success response
+Starting with version 2.0.0, a request that receives a non-success response
 raises `RithmicErrorResponse` to the caller instead of returning an empty result.
 Catch this exception when the application needs to handle a rejection:
 
