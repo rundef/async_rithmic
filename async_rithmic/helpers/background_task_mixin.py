@@ -77,6 +77,7 @@ class BackgroundTaskMixin:
                     raise
                 except Exception:
                     self.logger.exception("Error notifying connection loss")
+                await self.client._signal_unexpected_disconnect(self.plant_type)
                 return
 
             except asyncio.CancelledError:

@@ -3,9 +3,13 @@ import asyncio
 import uuid
 import random
 from collections import namedtuple
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 from async_rithmic.helpers.request_manager import RequestManager
+from async_rithmic.plants.order import OrderPlant
+from async_rithmic import protocol_buffers as pb
+from async_rithmic.exceptions import RithmicErrorResponse
 
 FakeResponse = namedtuple("FakeResponse", ["template_id", "account_id"])
 
@@ -25,7 +29,6 @@ class FakePlant:
         await asyncio.sleep(random.uniform(0.001, 0.01))
 
 
-@pytest.mark.asyncio
 class TestRequestManager:
 
     @pytest.fixture
@@ -96,8 +99,97 @@ class TestRequestManager:
                 expected_response=dict(template_id=313, user_msg=[request_id]),
             )
 
+    async def test_error_reaches_caller(self):
+        client = SimpleNamespace(
+            retry_settings=SimpleNamespace(
+                max_retries=1, timeout=1, jitter_range=None
+            ),
+            credentials={},
+        )
+        plant = OrderPlant(client)
+        plant._send_request = AsyncMock()
+
+        waiter = asyncio.create_task(
+            plant._send_and_collect(
+                template_id=316,
+                account_id=None,
+                expected_response={"template_id": 317},
+            )
+        )
+        await asyncio.sleep(0)
+        request_id = next(iter(plant.request_manager.done_events))
+
+        response = pb.response_cancel_order_pb2.ResponseCancelOrder(
+            template_id=317,
+            user_msg=[request_id],
+            rp_code=["1"],
+        )
+        await plant._process_response(response)
+
+        with pytest.raises(RithmicErrorResponse):
+            await waiter
+
+    async def test_successful_cancel_response_remains_an_acknowledgement(self):
+        client = SimpleNamespace(
+            retry_settings=SimpleNamespace(
+                max_retries=1, timeout=1, jitter_range=None
+            ),
+            credentials={},
+        )
+        plant = OrderPlant(client)
+        plant._send_request = AsyncMock()
+
+        waiter = asyncio.create_task(
+            plant._send_and_collect(
+                template_id=316,
+                account_id=None,
+                expected_response={"template_id": 317},
+            )
+        )
+        await asyncio.sleep(0)
+        request_id = next(iter(plant.request_manager.done_events))
+
+        response = pb.response_cancel_order_pb2.ResponseCancelOrder(
+            template_id=317,
+            user_msg=[request_id],
+            rp_code=["0"],
+            basket_id="broker-order",
+        )
+        await plant._process_response(response)
+
+        result = await waiter
+        assert result == [response]
+
+    async def test_errors_complete_only_the_matching_caller(self, manager):
+        first = asyncio.create_task(
+            manager.send_and_collect(
+                user_msg="first",
+                template_id=316,
+                expected_response={"template_id": 317},
+            )
+        )
+        second = asyncio.create_task(
+            manager.send_and_collect(
+                user_msg="second",
+                template_id=316,
+                expected_response={"template_id": 317},
+            )
+        )
+        while set(manager.done_events) != {"first", "second"}:
+            await asyncio.sleep(0)
+
+        first_error = RithmicErrorResponse("first rejected")
+        manager.mark_error("first", first_error)
+        manager.mark_complete("second")
+
+        with pytest.raises(RithmicErrorResponse) as caught:
+            await first
+        assert caught.value is first_error
+        assert await second == []
+
         assert not manager.requests
         assert not manager.responses
+        assert not manager.errors
         assert not manager.expected_responses
         assert not manager.done_events
         assert not manager.start_times
@@ -116,6 +208,7 @@ class TestRequestManager:
 
         assert not manager.requests
         assert not manager.responses
+        assert not manager.errors
         assert not manager.expected_responses
         assert not manager.done_events
         assert not manager.start_times
@@ -137,6 +230,7 @@ class TestRequestManager:
 
         assert not manager.requests
         assert not manager.responses
+        assert not manager.errors
         assert not manager.expected_responses
         assert not manager.done_events
         assert not manager.start_times

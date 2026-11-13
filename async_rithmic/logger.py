@@ -1,6 +1,7 @@
 import logging
 import sys
 
+
 class Logger:
     def __init__(self, level: int = logging.INFO):
         self.logger = logging.getLogger("rithmic")

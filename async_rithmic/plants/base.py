@@ -305,6 +305,7 @@ class BasePlant(BackgroundTaskMixin):
             self.logger.exception(f"WebSocket connection closed unexpectedly while sending a message (template_id={template_id})")
 
             self._disconnect_event.set()
+            await self.client._signal_unexpected_disconnect(self.plant_type)
             self._reconnected_event.clear()
             if not retry_on_reconnect:
                 raise
@@ -405,6 +406,7 @@ class BasePlant(BackgroundTaskMixin):
                 self.logger.debug(f"Rithmic returned no data for the request={kwargs}")
                 return []
             raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(responses[-1])} for the request={kwargs}")
+
 
         return responses
 
@@ -576,8 +578,11 @@ class BasePlant(BackgroundTaskMixin):
                             self.request_manager.mark_complete(request_id)
                             return True
                         request = self.request_manager.requests.get(request_id)
-                        self.request_manager.mark_complete(request_id)
-                        raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}")
+                        self.request_manager.mark_error(
+                            request_id,
+                            RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}"),
+                        )
+                        return True
 
                     else:
                         # single-response endpoints that carries data along with the terminal sentinel

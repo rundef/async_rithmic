@@ -1,11 +1,15 @@
 import pytest
 import asyncio
 import contextlib
+import io
+import logging
 from unittest.mock import AsyncMock, MagicMock
 from websockets.exceptions import ConnectionClosedError
 from websockets.protocol import OPEN
+from pattern_kit import Event
 
-from async_rithmic import ReconnectionSettings
+from async_rithmic import ReconnectionSettings, RithmicClient
+from async_rithmic.enums import SysInfraType
 
 
 @pytest.mark.parametrize("settings, attempt, expected_range", [
@@ -92,6 +96,16 @@ async def test_reconnect_loop_restarts_and_calls_login(ticker_plant_mock):
 
 async def test_send_retries_after_reconnect_success(ticker_plant_mock):
     plant = ticker_plant_mock
+    client = MagicMock()
+    client.on_unexpected_disconnected = Event()
+    observed = []
+    client.on_unexpected_disconnected += (
+        lambda plant_type: observed.append(plant_type)
+    )
+    client._signal_unexpected_disconnect = RithmicClient._signal_unexpected_disconnect.__get__(
+        client
+    )
+    plant.client = client
     plant.client.reconnection_settings = ReconnectionSettings(
         backoff_type="constant",
         interval=0.01,
@@ -111,3 +125,67 @@ async def test_send_retries_after_reconnect_success(ticker_plant_mock):
     await plant._send(b"test-message")
 
     assert plant.ws.send.call_count == 2
+    assert observed == [plant.plant_type]
+
+
+async def test_unexpected_disconnect_handler_observes_receive_loop_loss(ticker_plant_mock):
+    client = MagicMock()
+    client.on_disconnected = Event()
+    client.on_unexpected_disconnected = Event()
+    observed = []
+
+    async def on_unexpected_disconnected(plant_type):
+        observed.append(plant_type)
+
+    client.on_unexpected_disconnected += on_unexpected_disconnected
+
+    client._signal_unexpected_disconnect = RithmicClient._signal_unexpected_disconnect.__get__(client)
+    plant = ticker_plant_mock
+    plant.client = client
+    plant._recv = AsyncMock(side_effect=ConnectionClosedError(rcvd=None, sent=None))
+
+    task = asyncio.create_task(plant._recv_loop())
+    await task
+    assert observed == [plant.plant_type]
+
+
+async def test_explicit_disconnect_does_not_invoke_unexpected_hook(ticker_plant_mock):
+    client = MagicMock()
+    client.on_disconnected = Event()
+    client.on_unexpected_disconnected = Event()
+    disconnected = []
+    unexpected = []
+    client.on_disconnected += lambda plant_type: disconnected.append(plant_type)
+    client.on_unexpected_disconnected += (
+        lambda plant_type: unexpected.append(plant_type)
+    )
+    plant = ticker_plant_mock
+    plant.client = client
+    plant.ws.state = OPEN
+    plant.ws.close = AsyncMock()
+
+    await plant._disconnect()
+
+    assert disconnected == [plant.plant_type]
+    assert unexpected == []
+
+
+async def test_unexpected_disconnect_callback_failure_does_not_break_receive_cleanup(
+    ticker_plant_mock,
+):
+    client = MagicMock()
+    client.on_disconnected = Event()
+    client.on_unexpected_disconnected = Event()
+
+    async def failing_callback(plant_type):
+        raise RuntimeError("callback failed")
+
+    client.on_unexpected_disconnected += failing_callback
+    client._signal_unexpected_disconnect = RithmicClient._signal_unexpected_disconnect.__get__(client)
+    plant = ticker_plant_mock
+    plant.client = client
+    plant._recv = AsyncMock(side_effect=ConnectionClosedError(rcvd=None, sent=None))
+
+    await plant._recv_loop()
+
+    assert plant._disconnect_event.is_set()
