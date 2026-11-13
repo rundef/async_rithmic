@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package rti;
+
+message UserInfoUpdate
+	{       
+	int32    template_id           = 154467;
+
+	string   update_type           = 154288;		// add_user, modify_user, set_exchange_permission, om_process_reset_password, change_password
+		 	  			  			// set_fcm_application_user_entitlement_status, omd_reset_agreement
+
+	string   source_user_id        = 154247;
+	string   user                  = 131003;
+	string   fcm_id                = 154013;
+	string   ib_id                 = 154014;
+	
+	string   first_name            = 154216;
+	string   last_name             = 154217;
+	string   email_address         = 150110;
+
+	string   country_code          = 154712;
+	string   state_code            = 154713;
+	
+	string   address_street_1      = 144511;
+	string   address_street_2      = 144512;
+	string   address_city          = 144513;
+	string   address_state         = 144514;
+	string   address_country       = 144515;
+	string   address_zip           = 144519;
+
+	string   phone_residence       = 144516;
+	string   phone_work            = 144517;
+	string   phone_mobile          = 144518;
+
+	string   type                  = 154036;		// possbile values - 3 (trader), 2 (ib user), 1 (fcm user)
+	string   status                = 156975; 		// enabled or disabled
+	string   order_copy_status     = 158206;		// enabled or disabled	
+
+	string   exchange              = 110101;		// exchange related to market data entitlements
+	string   level_1_market_data   = 153400;               // level_1 (top of book) entitlement status
+	string   level_2_market_data   = 153217;               // level_2 (order book) entitlement status
+
+	string   app_entitlement       = 153195;		// all or none
+	string   app_name              = 130002;
+
+	string   agreement_id          = 153407;
+
+	int32    tp_max_session_count  = 140000;               // ticker_plant (market data) max session count
+	int32    op_max_session_count  = 140012;               // order_plant max session count
+	
+	int32    ssboe                 = 150100;
+	int32    usecs                 = 150101;
+	}

@@ -52,17 +52,21 @@ The following example fetches historical tick data:
 By default, ``get_historical_tick_data()`` waits until the historical replay is
 complete and returns the collected ticks as a list.
 
-Rithmic may truncate historical replay responses. In practice, a single replay
-request can return at most about 10,000 ticks, even if the requested time range
-contains many more ticks.
+Historical replays are paginated automatically. Rithmic typically returns at most
+about 10,000 ticks per page; the client requests additional pages until the
+range is complete, no more data is available, or ``max_pages`` is reached.
 
-To handle this, ``async_rithmic`` automatically paginates historical tick
-requests. After each page, it uses the last received tick timestamp as the starting
-point for the next request and continues until one of the following happens:
+Tick replay uses whole-second boundaries, so microseconds in ``start_time`` and
+``end_time`` are rounded down. If a page ends in the middle of a second, the
+client replays that second from its beginning before continuing. This avoids
+skipping ticks that share the page's final second. If one second contains more
+ticks than a page can hold, the client raises ``HistoricalDataPaginationError``
+because the range cannot be continued without risking data loss.
 
-- the requested ``end_time`` is reached;
-- Rithmic returns no more data;
-- ``max_pages`` is reached.
+By default, historical tick requests are strict. If ``max_pages`` is reached
+before the replay completes, the request raises ``HistoricalDataIncompleteError``
+instead of returning a partial result. Set ``strict=False`` only when a partial
+result is acceptable.
 
 The ``max_pages`` argument controls how many replay pages can be requested.
 
@@ -78,11 +82,40 @@ progress while waiting for a historical replay to complete.
     )
 
 This is an idle timeout, not a total request timeout. The timer resets whenever a
-tick or completion message is received.
+page or completion message is received.
 
 If ``wait=False`` is passed, the method sends the replay request and returns
 immediately. Historical ticks are still emitted through the
 ``on_historical_tick`` callback.
+
+For long replays, pass ``progress_callback`` to receive one update after each
+completed page:
+
+.. code-block:: python
+
+    def on_progress(progress):
+        print(
+            progress.pages_requested,
+            progress.rows_received,
+            progress.last_timestamp,
+        )
+
+    ticks = await client.get_historical_tick_data(
+        ...,
+        progress_callback=on_progress,
+    )
+
+``HistoricalDataProgress`` reports cumulative pages and rows; it is not a
+percentage because the total is not known in advance. ``last_timestamp`` is the
+timestamp of the most recently delivered record. Empty results do not produce a
+progress update. For ticks, ``boundary_replay_count`` tells you how often the
+client had to replay a partial final second; it is always zero for time bars.
+
+If a data or progress callback raises, the replay stops and a waiting call
+receives that exception. Records delivered before the error are not undone.
+
+If the connection is lost during a replay, the request raises
+``HistoricalDataConnectionError`` and is not resumed automatically.
 
 .. code-block:: python
 
@@ -138,19 +171,10 @@ Fetch historical time bars for a symbol over a time range.
 By default, ``get_historical_time_bars()`` waits until the historical replay is
 complete and returns the collected bars as a list.
 
-Rithmic may truncate historical replay responses. In practice, a single replay
-request can return at most about 10,000 bars, even if the requested time range
-contains many more bars. For example, requesting several months of 1-minute bars
-may cover hundreds of thousands of bars, but Rithmic may only return the first
-page of results.
-
-To handle this, ``async_rithmic`` automatically paginates historical time bar
-requests. After each page, it uses the last received bar marker as the starting
-point for the next request and continues until one of the following happens:
-
-- the requested ``end_time`` is reached;
-- Rithmic returns no more data;
-- ``max_pages`` is reached.
+Historical time-bar replays are paginated automatically. Rithmic typically
+returns at most about 10,000 bars per page; the client requests additional pages
+until the range is complete, no more data is available, or ``max_pages`` is
+reached.
 
 The ``max_pages`` argument controls how many replay pages can be requested.
 
@@ -171,6 +195,9 @@ bar or completion message is received.
 If ``wait=False`` is passed, the method sends the replay request and returns
 immediately. Historical bars are still emitted through the
 ``on_historical_time_bar`` callback.
+
+Time-bar requests support the same ``progress_callback`` described above. The
+callback runs after each completed page and reports cumulative bars received.
 
 .. code-block:: python
 

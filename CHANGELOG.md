@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0] - 2026-10-xx
+### Improved
+- Historical data replay:
+    - Make tick pagination safe across same-second boundaries.
+    - Added progress_callback when requesting historical data to notify consumers of progress
+    - Fail active historical requests promptly on disconnect.
+### Added
+- Support `window_name` parameter for order notification↔request correlation
+- PNL snapshots: fetch snapshots for every account when `account_id` is omitted (`list_positions` and `list_account_summary`)
+- Add `RithmicClient.on_unexpected_disconnected` for callbacks when a plant
+  detects unexpected connection loss. The callback receives the
+  affected plant type while automatic reconnection proceeds independently.
+### Fixed
+- `modify_order`: make qty optional (to avoid partial-fill race conditions)
+- Make Rithmic error responses carrying a pending request's `user_msg` ID raise
+  `RithmicErrorResponse` in the coroutine that issued the request instead of
+  returning an empty result while the background task logs the error.
+- Map `template_id` 357 and 358 to protobuf models (user update & account update)
+- Keep password out of log messages.
+
 ## [1.6.6] - 2026-08-21
 ### Fixed
 - Tolerate unknown template IDs instead of raising per frame. Thanks [@Landonbrandvik](https://github.com/Landonbrandvik)
