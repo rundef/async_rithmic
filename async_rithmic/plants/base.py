@@ -204,6 +204,13 @@ class BasePlant(BackgroundTaskMixin):
             SysInfraType.REPOSITORY_PLANT: "repository",
         }[self.infra_type]
 
+    def _request_to_log(self, request):
+        data = MessageToDict(request)
+        if "password" in data:
+            data["password"] = "****"
+
+        return data
+
     async def _connect(self):
         """
         Clients should follow the below sequence for communicating with protocol server,
@@ -245,8 +252,6 @@ class BasePlant(BackgroundTaskMixin):
         responses = await self._send_and_collect(
             template_id=login_template_id,
             template_version="3.9",
-            user=self.credentials["user"],
-            password=self.credentials["password"],
             system_name=self.credentials["system_name"],
             app_name=self.credentials["app_name"],
             app_version=self.credentials["app_version"],
@@ -330,7 +335,7 @@ class BasePlant(BackgroundTaskMixin):
         Create Request class instance, convert it to bytes and send it to the server
         """
         request = self._build_request(**kwargs)
-        self.logger.debug(f"Sending message {MessageToDict(request)}")
+        self.logger.debug(f"Sending message {self._request_to_log(request)}")
 
         template_id = kwargs["template_id"]
         buffer = self._convert_request_to_bytes(request)
@@ -358,6 +363,9 @@ class BasePlant(BackgroundTaskMixin):
             request.ib_id = self.client.ib_id
         if request.DESCRIPTOR.fields_by_name.get("user_type"):
             request.user_type = self.client.user_type
+        if request.DESCRIPTOR.fields_by_name.get("password"):
+            request.user = self.credentials["user"]
+            request.password = self.credentials["password"]
 
         return request
 
@@ -376,7 +384,7 @@ class BasePlant(BackgroundTaskMixin):
         async with try_acquire_lock(self, context=f"send_and_recv_immediate_{kwargs.get('template_id')}"):
 
             request = self._build_request(**kwargs)
-            self.logger.debug(f"Sending message {MessageToDict(request)}")
+            self.logger.debug(f"Sending message {self._request_to_log(request)}")
 
             buffer = self._convert_request_to_bytes(request)
             await self.ws.send(buffer)
