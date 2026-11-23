@@ -109,7 +109,11 @@ Catch this exception when the application needs to handle a rejection:
     except RithmicErrorResponse as exc:
         print(f"Order request rejected: {exc}")
 
-Rithmic response code `7` remains the no-data case and returns an empty result.
+Rithmic response code `7` is the no-data case and returns an empty result,
+except for the account snapshots `list_orders`, `list_positions` and
+`list_account_summary`: they raise `RithmicNoDataResponse`, a subclass of
+`RithmicErrorResponse`, rather than present the records received before it as
+complete.
 
 
 Event Handlers

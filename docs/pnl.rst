@@ -15,6 +15,10 @@ When ``account_id`` is omitted for a multi-account login, the request is made
 for every account and the results are returned as one list. Each object
 contains its ``account_id``.
 
+If Rithmic answers with response code ``7`` (no data) for any requested
+account, ``list_positions`` raises ``RithmicNoDataResponse`` (a
+``RithmicErrorResponse``) and returns no snapshot.
+
 
 Account PNL snapshot
 --------------------
@@ -31,6 +35,8 @@ multi-account login, the request is made for every account and the results are
 returned as one list. Each object contains its ``account_id``. See the
 `account_pnl_position_update.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/account_pnl_position_update.proto>`_
 definition for field details.
+As with ``list_positions``, response code ``7`` for any requested account
+raises ``RithmicNoDataResponse``.
 
 
 Streaming PNL updates

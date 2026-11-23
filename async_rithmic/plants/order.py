@@ -4,7 +4,7 @@ from datetime import datetime
 
 from .base import BasePlant
 from ..enums import SysInfraType, OrderType, OrderDuration, OrderPlacement, TransactionType
-from ..exceptions import InvalidRequestError
+from ..exceptions import InvalidRequestError, RithmicNoDataResponse
 from .. import protocol_buffers as pb
 
 BracketType = pb.request_bracket_order_pb2.RequestBracketOrder.BracketType
@@ -94,9 +94,16 @@ class OrderPlant(BasePlant):
         )
 
     async def list_orders(self, **kwargs):
+        """
+        List the account's orders.
+
+        Raises RithmicNoDataResponse when Rithmic answers with no data (response code 7),
+        which does not prove the account has no orders.
+        """
         return await self._send_and_collect(
             template_id=320,
             expected_response=dict(template_id=352, is_snapshot=True),
+            no_data_is_error=True,
             **kwargs
         )
 
@@ -154,7 +161,11 @@ class OrderPlant(BasePlant):
 
         # Fetch order from each sub account
         for account_id in account_ids:
-            orders = await self.list_orders(account_id=account_id)
+            try:
+                orders = await self.list_orders(account_id=account_id)
+            except RithmicNoDataResponse:
+                # No data for this account: keep looking in the next one
+                continue
 
             if order_id:
                 orders = [o for o in orders if o.user_tag == order_id]

@@ -77,6 +77,16 @@ def use_local_gateway(plant, server):
 
     plant._connect = connect
 
+def answer_requests(plant, respond):
+    """Answer each request the plant sends with the responses returned by `respond(request)`."""
+    async def send(buffer):
+        request = plant._convert_bytes_to_response(buffer)
+        for response in respond(request):
+            await plant._process_response(response)
+
+    plant.ws = AsyncMock()
+    plant.ws.send.side_effect = send
+
 def load_response_mock_from_filename(name):
     if isinstance(name, list):
         return [load_response_mock_from_filename(n) for n in name]

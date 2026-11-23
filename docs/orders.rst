@@ -30,6 +30,11 @@ To retrieve a list of currently active orders, use the `list_orders` method:
 
     await client.list_orders()
 
+An account without orders returns an empty list. If Rithmic answers with
+response code ``7`` (no data), ``list_orders`` raises ``RithmicNoDataResponse``
+(a ``RithmicErrorResponse``) instead of returning a list that may be
+incomplete.
+
 Get Order
 ---------
 
@@ -43,6 +48,7 @@ Rithmic-assigned ``basket_id``:
 The method searches all accounts unless ``account_id`` is provided. It returns
 the first matching order, or ``None`` if no order is found. It raises
 ``InvalidRequestError`` if neither identifier is provided.
+An account for which Rithmic answers with no data is skipped.
 
 Show Order History Summary
 --------------------------

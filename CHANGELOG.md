@@ -16,6 +16,12 @@
 - Before reconnecting, a plant finishes processing the messages it had already
   received (for up to 5 s), so a ForcedLogout followed at once by a socket
   close still prevents the reconnection.
+- `list_orders`, `list_positions` and `list_account_summary` raise the new
+  `RithmicNoDataResponse` (a `RithmicErrorResponse`) when Rithmic answers with
+  response code 7, instead of returning the records received before it as a
+  complete result. With several accounts, one such answer fails the whole call.
+  `get_order` skips such an account; other endpoints still return an empty
+  result.
 
 ## [2.0.0] - 2026-11-23
 ### Improved

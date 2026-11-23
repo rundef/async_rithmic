@@ -44,6 +44,8 @@ class PnlPlant(BasePlant):
     async def list_positions(self, **kwargs):
         """
         Instrument PNL snapshots
+
+        Raises RithmicNoDataResponse when Rithmic answers with no data (response code 7) for any account.
         """
         return await self._list_snapshot(
             expected_response=dict(template_id=450, is_snapshot=True),
@@ -53,6 +55,8 @@ class PnlPlant(BasePlant):
     async def list_account_summary(self, **kwargs):
         """
         Account PNL snapshots
+
+        Raises RithmicNoDataResponse when Rithmic answers with no data (response code 7) for any account.
         """
         return await self._list_snapshot(
             expected_response=dict(template_id=451, is_snapshot=True),
@@ -66,6 +70,7 @@ class PnlPlant(BasePlant):
                 snapshots.extend(await self._send_and_collect(
                     template_id=402,
                     expected_response=dict(expected_response),
+                    no_data_is_error=True,
                     account_id=account.account_id,
                 ))
             return snapshots
@@ -73,6 +78,7 @@ class PnlPlant(BasePlant):
         return await self._send_and_collect(
             template_id=402,
             expected_response=dict(expected_response),
+            no_data_is_error=True,
             **kwargs,
         )
 

@@ -17,14 +17,16 @@ class RequestManager:
         self.expected_responses = {}
         self.done_events = {}
         self.start_times = {}
+        self.no_data_is_error = {}
 
-    def start(self, request_id: str, request: dict, expected_response: dict):
+    def start(self, request_id: str, request: dict, expected_response: dict, no_data_is_error: bool = False):
         self.requests[request_id] = request
         self.responses[request_id] = []
         self.errors.pop(request_id, None)
         self.done_events[request_id] = asyncio.Event()
         self.expected_responses[request_id] = expected_response
         self.start_times[request_id] = time.time()
+        self.no_data_is_error[request_id] = no_data_is_error
 
     def _cleanup(self, request_id: str):
         self.requests.pop(request_id, None)
@@ -33,10 +35,12 @@ class RequestManager:
         self.expected_responses.pop(request_id, None)
         self.done_events.pop(request_id, None)
         self.start_times.pop(request_id, None)
+        self.no_data_is_error.pop(request_id, None)
 
-    async def send_and_collect(self, timeout: float = 30.0, **kwargs):
+    async def send_and_collect(self, timeout: float = 30.0, no_data_is_error: bool = False, **kwargs):
         """
         Sends a message and waits for all responses tied to the given request_id.
+        `no_data_is_error` tells the plant to fail the request on response code 7 instead of completing it.
         """
 
         request_id = kwargs.get("user_msg")
@@ -52,7 +56,7 @@ class RequestManager:
             expected_response["account_id"] = kwargs["account_id"]
 
         self.plant.logger.debug(f"Sending request {request_id}")
-        self.start(request_id, kwargs, expected_response)
+        self.start(request_id, kwargs, expected_response, no_data_is_error)
         done_event = self.done_events[request_id]
 
         try:
@@ -111,6 +115,7 @@ class RequestManager:
             self.done_events.pop(request_id, None)
             self.expected_responses.pop(request_id, None)
             self.start_times.pop(request_id, None)
+            self.no_data_is_error.pop(request_id, None)
         else:
             self.plant.logger.error(f"Unknown request {request_id}")
 

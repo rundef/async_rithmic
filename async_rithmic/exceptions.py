@@ -3,6 +3,11 @@ class RithmicErrorResponse(Exception):
     pass
 
 
+class RithmicNoDataResponse(RithmicErrorResponse):
+    """Raised when Rithmic answers with response code 7 (no data) where an empty result would mislead."""
+    pass
+
+
 class RithmicConnectionLostError(ConnectionError):
     """Raised when the connection is lost while a request is pending.
 

@@ -14,7 +14,7 @@ from google.protobuf.json_format import MessageToDict
 from .. import protocol_buffers as pb
 from ..logger import logger
 from ..enums import SysInfraType
-from ..exceptions import RithmicConnectionLostError, RithmicErrorResponse
+from ..exceptions import RithmicConnectionLostError, RithmicErrorResponse, RithmicNoDataResponse
 from ..helpers.request_manager import RequestManager
 from ..helpers.concurrency import try_acquire_lock
 from ..helpers.background_task_mixin import BackgroundTaskMixin
@@ -421,10 +421,13 @@ class BasePlant(BackgroundTaskMixin):
 
         return responses
 
-    async def _send_and_collect(self, template_id, **kwargs):
+    async def _send_and_collect(self, template_id, *, no_data_is_error: bool = False, **kwargs):
         """
         Send a request, wait for the RequestManager to collect related responses asynchronously
         And return the array of responses
+
+        With `no_data_is_error`, response code 7 raises RithmicNoDataResponse instead of
+        returning the responses collected before it.
         """
 
         if "account_id" in kwargs and kwargs["account_id"] is None:
@@ -447,6 +450,7 @@ class BasePlant(BackgroundTaskMixin):
             try:
                 return await self.request_manager.send_and_collect(
                     timeout=timeout,
+                    no_data_is_error=no_data_is_error,
                     user_msg=request_id,
                     template_id=template_id,
                     **kwargs
@@ -587,11 +591,17 @@ class BasePlant(BackgroundTaskMixin):
             if self.request_manager.has_pending(request_id):
                 if response.rp_code:
                     if response.rp_code[0] != '0':
+                        request = self.request_manager.requests.get(request_id)
                         if response.rp_code[0] == '7':
+                            if self.request_manager.no_data_is_error.get(request_id):
+                                self.request_manager.mark_error(
+                                    request_id,
+                                    RithmicNoDataResponse(f"Rithmic returned no data={MessageToDict(response)} for the request={request}"),
+                                )
+                                return True
                             self.logger.debug(f"Rithmic returned no data for request_id={request_id}")
                             self.request_manager.mark_complete(request_id)
                             return True
-                        request = self.request_manager.requests.get(request_id)
                         self.request_manager.mark_error(
                             request_id,
                             RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}"),
