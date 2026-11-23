@@ -86,6 +86,11 @@ You can customize the retry behavior using `RetrySettings`.
 .. note::
 
     - Only timeouts are retried; other errors (like bad requests) will not trigger retries.
+    - Order operations (`submit_order`, `modify_order`, `cancel_order`,
+      `cancel_all_orders`, `exit_position`) are sent exactly once: they are never
+      retried after a timeout, nor re-sent after a reconnection. A connection loss
+      while sending one raises `RithmicConnectionLostError`. After a timeout or a
+      connection loss, their outcome is unknown.
     - A request still pending when its plant loses the connection raises
       `RithmicConnectionLostError` (a `ConnectionError`) at once and is not retried.
       For an order operation, whether Rithmic received or executed it is unknown.

@@ -22,10 +22,17 @@
   complete result. With several accounts, one such answer fails the whole call.
   `get_order` skips such an account; other endpoints still return an empty
   result.
+- Order operations (new, modify and cancel order, bracket order and bracket
+  level updates, cancel all, exit position) are sent exactly once: never
+  retried after a timeout, as only new and bracket orders were before, and
+  never re-sent after a reconnection. A connection loss while sending one
+  raises `RithmicConnectionLostError`.
 ### Fixed
 - A Reject (template 75) that names a pending request raises
   `RithmicErrorResponse` in that request's caller, instead of being only logged
   while the request waits for its timeout and is sent again.
+- A send that hits a closed connection no longer waits 60 s for a reconnection
+  outcome reached while `on_unexpected_disconnected` listeners were running.
 
 ## [2.0.0] - 2026-11-23
 ### Improved

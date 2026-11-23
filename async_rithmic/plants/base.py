@@ -151,6 +151,11 @@ TEMPLATE_ID_BY_NAME = {
     for template_id, cls in TEMPLATES_MAP.items()
 }
 
+# Requests that place, modify or cancel orders, or exit positions. They are sent exactly once:
+# a timed-out or interrupted attempt may already have executed, so a second copy could duplicate it.
+# Any new order-placing template belongs here too.
+ORDER_AFFECTING_TEMPLATES = frozenset({312, 314, 316, 330, 332, 334, 346, 3504})
+
 class BasePlant(BackgroundTaskMixin):
     infra_type = None
 
@@ -313,8 +318,9 @@ class BasePlant(BackgroundTaskMixin):
             self.logger.exception(f"WebSocket connection closed unexpectedly while sending a message (template_id={template_id})")
 
             self._disconnect_event.set()
-            await self.client._signal_unexpected_disconnect(self.plant_type)
+            # Before the listeners run: a reconnect outcome reached while they run must not be erased.
             self._reconnected_event.clear()
+            await self.client._signal_unexpected_disconnect(self.plant_type)
             if not retry_on_reconnect:
                 raise
             try:
@@ -345,7 +351,7 @@ class BasePlant(BackgroundTaskMixin):
         await self._send(
             buffer,
             template_id=template_id,
-            retry_on_reconnect=retry_on_reconnect,
+            retry_on_reconnect=retry_on_reconnect and template_id not in ORDER_AFFECTING_TEMPLATES,
         )
 
         return template_id
@@ -438,8 +444,7 @@ class BasePlant(BackgroundTaskMixin):
             kwargs["account_id"] = account_id
 
         retries = self.client.retry_settings.max_retries
-        if template_id in [312, 330]:
-            # Don't retry NewOrder requests
+        if template_id in ORDER_AFFECTING_TEMPLATES:
             retries = 1
 
         timeout = self.client.retry_settings.timeout
@@ -464,6 +469,11 @@ class BasePlant(BackgroundTaskMixin):
                 if self.client.retry_settings.jitter_range is not None:
                     wait_time = random.uniform(*self.client.retry_settings.jitter_range)
                     await asyncio.sleep(wait_time)
+            except (ConnectionClosedError, ConnectionClosedOK) as exc:
+                raise RithmicConnectionLostError(
+                    f"Connection lost while sending the request (template_id={template_id}); "
+                    "whether Rithmic received it is unknown"
+                ) from exc
 
         if last_exc:
             raise last_exc

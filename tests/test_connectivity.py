@@ -231,6 +231,29 @@ async def test_send_retries_after_reconnect_success(ticker_plant_mock):
     assert observed == [plant.plant_type]
 
 
+async def test_send_sees_a_reconnect_outcome_reached_while_listeners_run(ticker_plant_mock):
+    plant = ticker_plant_mock
+    client = MagicMock()
+    client.on_unexpected_disconnected = Event()
+    client._signal_unexpected_disconnect = RithmicClient._signal_unexpected_disconnect.__get__(client)
+    # Gives up at once
+    client.reconnection_settings = ReconnectionSettings(max_retries=0, backoff_type="constant", interval=0)
+
+    async def slow_listener(plant_type):
+        await asyncio.sleep(0.1)
+
+    client.on_unexpected_disconnected += slow_listener
+    plant.client = client
+    plant._stop_io_tasks = AsyncMock()
+    plant.ws.send.side_effect = ConnectionClosedError(rcvd=None, sent=None)
+    reconnect_loop = asyncio.create_task(plant._reconnect_loop())
+
+    # Instead of waiting 60 s for an outcome already reached
+    with pytest.raises(RuntimeError, match="Unable to reconnect"):
+        await asyncio.wait_for(plant._send(b"test-message"), timeout=1)
+    assert reconnect_loop.done()
+
+
 async def test_unexpected_disconnect_handler_observes_receive_loop_loss(ticker_plant_mock):
     client = MagicMock()
     client.on_disconnected = Event()
