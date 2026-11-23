@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0.0] - 2026-10-xx
+## [2.0.0] - 2026-11-23
 ### Improved
 - Historical data replay:
     - Make tick pagination safe across same-second boundaries.
@@ -18,7 +18,7 @@
   `RithmicErrorResponse` in the coroutine that issued the request instead of
   returning an empty result while the background task logs the error.
 - Map `template_id` 357 and 358 to protobuf models (user update & account update)
-- Keep password out of log messages.
+- Hide password from log messages.
 
 ## [1.6.6] - 2026-08-21
 ### Fixed
