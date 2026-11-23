@@ -45,20 +45,35 @@ class PnlPlant(BasePlant):
         """
         Instrument PNL snapshots
         """
-        return await self._send_and_collect(
-            template_id=402,
+        return await self._list_snapshot(
             expected_response=dict(template_id=450, is_snapshot=True),
-            **kwargs
+            **kwargs,
         )
 
     async def list_account_summary(self, **kwargs):
         """
         Account PNL snapshots
         """
+        return await self._list_snapshot(
+            expected_response=dict(template_id=451, is_snapshot=True),
+            **kwargs,
+        )
+
+    async def _list_snapshot(self, expected_response, **kwargs):
+        if "account_id" not in kwargs and len(self.client.accounts) > 1:
+            snapshots = []
+            for account in self.client.accounts:
+                snapshots.extend(await self._send_and_collect(
+                    template_id=402,
+                    expected_response=dict(expected_response),
+                    account_id=account.account_id,
+                ))
+            return snapshots
+
         return await self._send_and_collect(
             template_id=402,
-            expected_response=dict(template_id=451, is_snapshot=True),
-            **kwargs
+            expected_response=dict(expected_response),
+            **kwargs,
         )
 
     async def _process_response(self, response):

@@ -12,6 +12,7 @@ class RequestManager:
         self.plant = plant
         self.requests = {}
         self.responses = defaultdict(list)
+        self.errors = {}
         self.expected_responses = {}
         self.done_events = {}
         self.start_times = {}
@@ -19,9 +20,18 @@ class RequestManager:
     def start(self, request_id: str, request: dict, expected_response: dict):
         self.requests[request_id] = request
         self.responses[request_id] = []
+        self.errors.pop(request_id, None)
         self.done_events[request_id] = asyncio.Event()
         self.expected_responses[request_id] = expected_response
         self.start_times[request_id] = time.time()
+
+    def _cleanup(self, request_id: str):
+        self.requests.pop(request_id, None)
+        self.responses.pop(request_id, None)
+        self.errors.pop(request_id, None)
+        self.expected_responses.pop(request_id, None)
+        self.done_events.pop(request_id, None)
+        self.start_times.pop(request_id, None)
 
     async def send_and_collect(self, timeout: float = 30.0, **kwargs):
         """
@@ -42,21 +52,25 @@ class RequestManager:
 
         self.plant.logger.debug(f"Sending request {request_id}")
         self.start(request_id, kwargs, expected_response)
-        await self.plant._send_request(**kwargs)
+        done_event = self.done_events[request_id]
 
         try:
-            await asyncio.wait_for(self.done_events[request_id].wait(), timeout=timeout)
+            await self.plant._send_request(**kwargs)
+            await asyncio.wait_for(done_event.wait(), timeout=timeout)
 
         except asyncio.TimeoutError:
             self.plant.logger.exception(f"Timeout waiting for complete response stream for request_id={request_id}")
-            self.done_events.pop(request_id, None)
-            self.expected_responses.pop(request_id, None)
             raise
 
         finally:
-            self.done_events.pop(request_id, None)
+            responses = self.responses.get(request_id, [])
+            error = self.errors.get(request_id)
+            self._cleanup(request_id)
 
-        return self.responses.pop(request_id, [])
+        if error is not None:
+            raise error
+
+        return responses
 
     def handle_response(self, response):
         """
@@ -86,13 +100,20 @@ class RequestManager:
             )
 
             self.done_events[request_id].set()
-
-            # Clean up
             self.done_events.pop(request_id, None)
             self.expected_responses.pop(request_id, None)
             self.start_times.pop(request_id, None)
         else:
             self.plant.logger.error(f"Unknown request {request_id}")
+
+    def mark_error(self, request_id: str, error: Exception):
+        """Deliver a request-scoped rithmic error to its waiting coroutine."""
+        if request_id not in self.done_events:
+            self.plant.logger.error(f"Unknown request {request_id}")
+            return
+
+        self.errors[request_id] = error
+        self.mark_complete(request_id)
 
     def has_pending(self, request_id: str):
         return request_id in self.responses

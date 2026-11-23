@@ -1,7 +1,20 @@
-list_account_summary
-
 PNL API
 =========
+
+Account positions
+-----------------
+
+Use ``list_positions()`` to retrieve instrument-level PNL snapshots:
+
+.. code-block:: python
+
+    positions = await client.list_positions(account_id="1234")
+
+The result is a list of position snapshot objects.
+When ``account_id`` is omitted for a multi-account login, the request is made
+for every account and the results are returned as one list. Each object
+contains its ``account_id``.
+
 
 Account PNL snapshot
 --------------------
@@ -12,7 +25,12 @@ Use `list_account_summary()` to retrieve the PNL snapshot of an account.
 
     accounts = await client.list_account_summary(account_id="1234")
 
-The result is a list which contains a single object. See the `account_pnl_position_update.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/account_pnl_position_update.proto>`_ definition for field details.
+For an explicit ``account_id`` (or a single-account login), the result is a
+list which contains a single object. When ``account_id`` is omitted for a
+multi-account login, the request is made for every account and the results are
+returned as one list. Each object contains its ``account_id``. See the
+`account_pnl_position_update.proto <https://github.com/rundef/async_rithmic/blob/main/async_rithmic/protocol_buffers/source/account_pnl_position_update.proto>`_
+definition for field details.
 
 
 Streaming PNL updates

@@ -222,6 +222,7 @@ class OrderPlant(BasePlant):
         order_type: OrderType,
         **kwargs
     ):
+        window_name = kwargs.pop("window_name", None)
         kwargs.setdefault("duration", OrderDuration.DAY)
 
         msg_kwargs = self._validate_price_fields(order_type, **kwargs)
@@ -274,6 +275,9 @@ class OrderPlant(BasePlant):
             msg_kwargs["cancel_at_ssboe"] = ssboe
             msg_kwargs["cancel_at_usecs"] = usecs
 
+        if window_name is not None:
+            msg_kwargs["window_name"] = window_name
+
         manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
 
         return await self._send_and_collect(
@@ -295,6 +299,7 @@ class OrderPlant(BasePlant):
         Cancel an order by order_id (user-assigned id) or basket_id (rithmic-assigned id)
         """
 
+        window_name = kwargs.pop("window_name", None)
         basket_id = kwargs.get("basket_id")
         account_id = kwargs.get("account_id")
 
@@ -308,12 +313,17 @@ class OrderPlant(BasePlant):
 
         manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
 
+        request_kwargs = {}
+        if window_name is not None:
+            request_kwargs["window_name"] = window_name
+
         return await self._send_and_collect(
             template_id=316,
             expected_response=dict(template_id=317),
             manual_or_auto=manual_or_auto,
             basket_id=basket_id,
             account_id=account_id,
+            **request_kwargs,
         )
 
     async def cancel_all_orders(self, **kwargs):
@@ -334,7 +344,7 @@ class OrderPlant(BasePlant):
         Modify an existing order with updated parameters.
 
         Supported attributes:
-        - `qty`: New quantity
+        - `qty`: New quantity (optional)
         - `order_type`: Order type (e.g., "MKT", "LMT", "STOP LMT", etc.)
         - `price`: Updated price (for limit or stop-limit orders)
         - `trigger_price`: Updated trigger price (for stop orders)
@@ -344,10 +354,11 @@ class OrderPlant(BasePlant):
         Note: we can't update SL/TP/main order concurrently or Rithmic will send back an error: 'Atomic order operation in progress'
 
         For time-critical modifications, pass `order=` with an object containing
-        the required fields (account_id, basket_id, symbol, exchange, quantity,
+        the required fields (account_id, basket_id, symbol, exchange,
         price_type, price) to skip the get_order() network call.
         """
 
+        window_name = kwargs.pop("window_name", None)
         order = kwargs.pop('order', None)
         if order is None:
             order = await self.get_order(**kwargs)
@@ -355,7 +366,6 @@ class OrderPlant(BasePlant):
             raise Exception(f"Order not found: {kwargs}")
 
         order_type: OrderType = kwargs.pop("order_type", order.price_type)
-        qty: int = kwargs.pop("qty", order.quantity)
 
         # Get the current stop ticks and target ticks, we will have to submit the old values when modifying them
         current_stop_ticks, current_target_ticks = None, None
@@ -393,11 +403,17 @@ class OrderPlant(BasePlant):
         # Update the actual order
         msg_kwargs = self._validate_price_fields(order_type, raise_exception=False, **kwargs)
 
+        if "qty" in kwargs and kwargs["qty"] is not None:
+            msg_kwargs["quantity"] = kwargs["qty"]
+
         if "trail_ticks" in kwargs:
             msg_kwargs["trailing_stop"] = True
             msg_kwargs["trail_by_ticks"] = kwargs["trail_ticks"]
 
         manual_or_auto = kwargs.get("manual_or_auto", self.client.manual_or_auto)
+
+        if window_name is not None:
+            msg_kwargs["window_name"] = window_name
 
         return await self._send_and_collect(
             template_id=314,
@@ -407,10 +423,9 @@ class OrderPlant(BasePlant):
             basket_id=order.basket_id,
             symbol=order.symbol,
             exchange=order.exchange,
-            quantity=qty,
             price_type=order_type,
             price=msg_kwargs.pop("price", order.price),
-            **msg_kwargs
+            **msg_kwargs,
         )
 
     async def show_order_history_dates(self):

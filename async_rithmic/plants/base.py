@@ -107,6 +107,8 @@ TEMPLATES_MAP = {
     351: pb.rithmic_order_notification_pb2.RithmicOrderNotification,
     352: pb.exchange_order_notification_pb2.ExchangeOrderNotification,
     353: pb.bracket_updates_pb2.BracketUpdates,
+    357: pb.user_info_update_pb2.UserInfoUpdate,
+    358: pb.user_account_update_pb2.UserAccountUpdate, 
 
     3504: pb.request_exit_position_pb2.RequestExitPosition,
     3505: pb.response_exit_position_pb2.ResponseExitPosition,
@@ -202,6 +204,13 @@ class BasePlant(BackgroundTaskMixin):
             SysInfraType.REPOSITORY_PLANT: "repository",
         }[self.infra_type]
 
+    def _request_to_log(self, request):
+        data = MessageToDict(request)
+        if "password" in data:
+            data["password"] = "****"
+
+        return data
+
     async def _connect(self):
         """
         Clients should follow the below sequence for communicating with protocol server,
@@ -243,8 +252,6 @@ class BasePlant(BackgroundTaskMixin):
         responses = await self._send_and_collect(
             template_id=login_template_id,
             template_version="3.9",
-            user=self.credentials["user"],
-            password=self.credentials["password"],
             system_name=self.credentials["system_name"],
             app_name=self.credentials["app_name"],
             app_version=self.credentials["app_version"],
@@ -288,7 +295,12 @@ class BasePlant(BackgroundTaskMixin):
         )
         return self._first(responses)
 
-    async def _send(self, message: bytes, template_id: int = None):
+    async def _send(
+        self,
+        message: bytes,
+        template_id: int = None,
+        retry_on_reconnect: bool = True,
+    ):
 
         try:
             async with try_acquire_lock(self, context=f"send_{template_id}"):
@@ -298,7 +310,10 @@ class BasePlant(BackgroundTaskMixin):
             self.logger.exception(f"WebSocket connection closed unexpectedly while sending a message (template_id={template_id})")
 
             self._disconnect_event.set()
+            await self.client._signal_unexpected_disconnect(self.plant_type)
             self._reconnected_event.clear()
+            if not retry_on_reconnect:
+                raise
             try:
                 await asyncio.wait_for(self._reconnected_event.wait(), timeout=60)
             except asyncio.TimeoutError:
@@ -315,16 +330,20 @@ class BasePlant(BackgroundTaskMixin):
     async def _recv(self):
         return await self.ws.recv()
 
-    async def _send_request(self, **kwargs):
+    async def _send_request(self, retry_on_reconnect: bool = True, **kwargs):
         """
         Create Request class instance, convert it to bytes and send it to the server
         """
         request = self._build_request(**kwargs)
-        self.logger.debug(f"Sending message {MessageToDict(request)}")
+        self.logger.debug(f"Sending message {self._request_to_log(request)}")
 
         template_id = kwargs["template_id"]
         buffer = self._convert_request_to_bytes(request)
-        await self._send(buffer, template_id=template_id)
+        await self._send(
+            buffer,
+            template_id=template_id,
+            retry_on_reconnect=retry_on_reconnect,
+        )
 
         return template_id
 
@@ -344,6 +363,9 @@ class BasePlant(BackgroundTaskMixin):
             request.ib_id = self.client.ib_id
         if request.DESCRIPTOR.fields_by_name.get("user_type"):
             request.user_type = self.client.user_type
+        if request.DESCRIPTOR.fields_by_name.get("password"):
+            request.user = self.credentials["user"]
+            request.password = self.credentials["password"]
 
         return request
 
@@ -362,7 +384,7 @@ class BasePlant(BackgroundTaskMixin):
         async with try_acquire_lock(self, context=f"send_and_recv_immediate_{kwargs.get('template_id')}"):
 
             request = self._build_request(**kwargs)
-            self.logger.debug(f"Sending message {MessageToDict(request)}")
+            self.logger.debug(f"Sending message {self._request_to_log(request)}")
 
             buffer = self._convert_request_to_bytes(request)
             await self.ws.send(buffer)
@@ -392,6 +414,7 @@ class BasePlant(BackgroundTaskMixin):
                 self.logger.debug(f"Rithmic returned no data for the request={kwargs}")
                 return []
             raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(responses[-1])} for the request={kwargs}")
+
 
         return responses
 
@@ -563,8 +586,11 @@ class BasePlant(BackgroundTaskMixin):
                             self.request_manager.mark_complete(request_id)
                             return True
                         request = self.request_manager.requests.get(request_id)
-                        self.request_manager.mark_complete(request_id)
-                        raise RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}")
+                        self.request_manager.mark_error(
+                            request_id,
+                            RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}"),
+                        )
+                        return True
 
                     else:
                         # single-response endpoints that carries data along with the terminal sentinel
