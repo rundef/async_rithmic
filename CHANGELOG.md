@@ -22,6 +22,10 @@
   complete result. With several accounts, one such answer fails the whole call.
   `get_order` skips such an account; other endpoints still return an empty
   result.
+### Fixed
+- A Reject (template 75) that names a pending request raises
+  `RithmicErrorResponse` in that request's caller, instead of being only logged
+  while the request waits for its timeout and is sent again.
 
 ## [2.0.0] - 2026-11-23
 ### Improved

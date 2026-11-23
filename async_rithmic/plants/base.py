@@ -582,6 +582,15 @@ class BasePlant(BackgroundTaskMixin):
             return True
 
         if response.template_id == 75:
+            request_id = self._first(response.user_msg)
+            if request_id is not None and self.request_manager.has_pending(request_id):
+                request = self.request_manager.requests.get(request_id)
+                self.request_manager.mark_error(
+                    request_id,
+                    RithmicErrorResponse(f"Rithmic returned an error={MessageToDict(response)} for the request={request}"),
+                )
+                return True
+
             self.logger.warning(f"Received a Reject message from Rithmic: {', '.join(response.rp_code)}")
             return True
 

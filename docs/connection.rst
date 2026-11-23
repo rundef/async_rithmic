@@ -109,6 +109,10 @@ Catch this exception when the application needs to handle a rejection:
     except RithmicErrorResponse as exc:
         print(f"Order request rejected: {exc}")
 
+A Reject message (template 75) that names a pending request also raises
+`RithmicErrorResponse` in that request's caller. A Reject that names no pending
+request is only logged.
+
 Rithmic response code `7` is the no-data case and returns an empty result,
 except for the account snapshots `list_orders`, `list_positions` and
 `list_account_summary`: they raise `RithmicNoDataResponse`, a subclass of

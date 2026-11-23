@@ -129,6 +129,48 @@ class TestRequestManager:
         with pytest.raises(RithmicErrorResponse):
             await waiter
 
+    async def test_reject_fails_only_the_request_it_names(self, caplog):
+        client = SimpleNamespace(
+            retry_settings=SimpleNamespace(
+                max_retries=1, timeout=1, jitter_range=None
+            ),
+            credentials={},
+        )
+        plant = OrderPlant(client)
+        plant._send_request = AsyncMock()
+        plant._generate_request_id = MagicMock(side_effect=["rejected", "other"])
+
+        rejected, other = [
+            asyncio.create_task(plant._send_and_collect(
+                template_id=316,
+                account_id=None,
+                expected_response={"template_id": 317},
+            ))
+            for _ in range(2)
+        ]
+        while len(plant.request_manager.done_events) < 2:
+            await asyncio.sleep(0)
+
+        # A Reject that names no pending request is only logged
+        await plant._process_response(pb.reject_pb2.Reject(
+            template_id=75, user_msg=["unknown"], rp_code=["3", "unknown request"],
+        ))
+        assert "Received a Reject message from Rithmic: 3, unknown request" in caplog.text
+        assert set(plant.request_manager.done_events) == {"rejected", "other"}
+
+        await plant._process_response(pb.reject_pb2.Reject(
+            template_id=75, user_msg=["rejected"], rp_code=["3", "bad request"],
+        ))
+        with pytest.raises(RithmicErrorResponse, match="bad request"):
+            await asyncio.wait_for(rejected, timeout=0.5)
+
+        assert not other.done()
+        response = pb.response_cancel_order_pb2.ResponseCancelOrder(
+            template_id=317, user_msg=["other"], rp_code=["0"],
+        )
+        await plant._process_response(response)
+        assert await other == [response]
+
     async def test_successful_cancel_response_remains_an_acknowledgement(self):
         client = SimpleNamespace(
             retry_settings=SimpleNamespace(
