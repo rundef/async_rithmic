@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+### Changed
+- Requests pending when their plant loses its connection fail at once with the
+  new `RithmicConnectionLostError` (a `ConnectionError`) instead of waiting for
+  their timeout and being sent again. For an order operation the outcome is
+  unknown.
+
 ## [2.0.0] - 2026-11-23
 ### Improved
 - Historical data replay:

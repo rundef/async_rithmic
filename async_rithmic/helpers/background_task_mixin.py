@@ -2,6 +2,8 @@ import asyncio
 from google.protobuf.json_format import MessageToDict
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
+from ..exceptions import RithmicConnectionLostError
+
 
 class BackgroundTaskMixin:
     """
@@ -55,7 +57,7 @@ class BackgroundTaskMixin:
     async def _recv_loop(self):
         """
         Continuously reads from the WebSocket and pushes raw messages to the inbound queue.
-        Exits cleanly on disconnect; _reconnect_loop takes over from there.
+        On disconnect, fails the pending requests and exits; _reconnect_loop takes over from there.
         """
         while True:
             try:
@@ -70,6 +72,10 @@ class BackgroundTaskMixin:
 
             except (ConnectionClosedError, ConnectionClosedOK):
                 self.logger.warning("WebSocket connection closed — signalling reconnect")
+                # Responses to pending requests cannot arrive on a new session.
+                self.request_manager.fail_pending(RithmicConnectionLostError(
+                    f"The {self.plant_type} plant lost its connection while the request was pending"
+                ))
                 self._disconnect_event.set()
                 try:
                     await self.client.on_disconnected.call_async(self.plant_type)

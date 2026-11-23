@@ -86,6 +86,9 @@ You can customize the retry behavior using `RetrySettings`.
 .. note::
 
     - Only timeouts are retried; other errors (like bad requests) will not trigger retries.
+    - A request still pending when its plant loses the connection raises
+      `RithmicConnectionLostError` (a `ConnectionError`) at once and is not retried.
+      For an order operation, whether Rithmic received or executed it is unknown.
     - Each retry uses a new request ID, so every attempt is a fresh request to Rithmic.
     - If all attempts time out, a `TimeoutError` is raised.
     - This mechanism makes your client more robust to occasional slowdowns in the Rithmic infrastructure, network hiccups, or other unpredictable delays.
@@ -139,6 +142,12 @@ reconnection proceeds independently. This is separate from
         print(f"Unexpected connection loss on {plant_type}")
 
     client.on_unexpected_disconnected += on_unexpected_disconnected
+
+Requests still waiting for a response on that plant raise
+`RithmicConnectionLostError` at once: their responses cannot arrive on a new
+session, so they are not retried. For an order operation the outcome is
+unknown: the order may be working or filled. Check its state once the plant is
+connected again.
 
 Debugging & Logging
 -------------------

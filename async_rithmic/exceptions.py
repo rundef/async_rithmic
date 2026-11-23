@@ -3,6 +3,14 @@ class RithmicErrorResponse(Exception):
     pass
 
 
+class RithmicConnectionLostError(ConnectionError):
+    """Raised when the connection is lost while a request is pending.
+
+    Whether Rithmic received or executed the request is unknown.
+    """
+    pass
+
+
 class InvalidRequestError(Exception):
     """Raised when a user-level API call is missing required arguments or is malformed."""
     pass

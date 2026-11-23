@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import time
 from collections import defaultdict
 
@@ -62,6 +63,13 @@ class RequestManager:
             self.plant.logger.exception(f"Timeout waiting for complete response stream for request_id={request_id}")
             raise
 
+        except Exception as exc:
+            # A send waiting for a reconnection can fail after its request was failed
+            # (e.g. connection lost): the request's own error is the outcome to report.
+            if request_id not in self.errors:
+                raise
+            raise self.errors[request_id] from exc
+
         finally:
             responses = self.responses.get(request_id, [])
             error = self.errors.get(request_id)
@@ -114,6 +122,12 @@ class RequestManager:
 
         self.errors[request_id] = error
         self.mark_complete(request_id)
+
+    def fail_pending(self, error: Exception):
+        """Deliver a copy of `error` to every request still waiting for its responses."""
+        for request_id in list(self.done_events):
+            # One instance raised by several callers would accumulate all their tracebacks
+            self.mark_error(request_id, copy.copy(error))
 
     def has_pending(self, request_id: str):
         return request_id in self.responses

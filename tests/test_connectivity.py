@@ -10,6 +10,7 @@ from pattern_kit import Event
 
 from async_rithmic import ReconnectionSettings, RithmicClient
 from async_rithmic.enums import SysInfraType
+from async_rithmic.exceptions import RithmicConnectionLostError
 
 
 @pytest.mark.parametrize("settings, attempt, expected_range", [
@@ -64,6 +65,36 @@ async def test_recv_loop_notifies_disconnected_listeners(ticker_plant_mock):
     await plant._recv_loop()
 
     assert disconnected == [plant.plant_type]
+
+
+async def test_connection_loss_fails_pending_requests(ticker_plant_mock):
+    plant = ticker_plant_mock
+    manager = plant.request_manager
+    awaiting_response = asyncio.create_task(plant.get_reference_data("ESZ6", "CME"))
+    while plant.ws.send.await_count < 1:
+        await asyncio.sleep(0)
+    # This send hits the closed socket and waits for a reconnection
+    plant.ws.send.side_effect = ConnectionClosedError(rcvd=None, sent=None)
+    awaiting_reconnection = asyncio.create_task(plant.get_reference_data("NQZ6", "CME"))
+    while plant.ws.send.await_count < 2:
+        await asyncio.sleep(0)
+
+    plant._recv = AsyncMock(side_effect=ConnectionClosedError(rcvd=None, sent=None))
+    await plant._recv_loop()
+
+    # Well before the 3 s request timeout.
+    with pytest.raises(RithmicConnectionLostError):
+        await asyncio.wait_for(awaiting_response, timeout=0.5)
+
+    # The reconnection gives up
+    plant._reconnected_event.set()
+    with pytest.raises(RithmicConnectionLostError):
+        await asyncio.wait_for(awaiting_reconnection, timeout=0.5)
+
+    assert not manager.requests
+    assert not manager.responses
+    assert not manager.errors
+    assert not manager.done_events
 
 
 async def test_reconnect_loop_restarts_and_calls_login(ticker_plant_mock):
