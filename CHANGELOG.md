@@ -33,6 +33,10 @@
   while the request waits for its timeout and is sent again.
 - A send that hits a closed connection no longer waits 60 s for a reconnection
   outcome reached while `on_unexpected_disconnected` listeners were running.
+- A failed `connect()` logs out of and closes the plants it had already
+  connected, as `disconnect()` does, then re-raises the original error. Their
+  sessions no longer count against the concurrent-session limit until Rithmic
+  times them out.
 
 ## [2.0.0] - 2026-11-23
 ### Improved

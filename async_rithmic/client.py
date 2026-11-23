@@ -136,6 +136,9 @@ class RithmicClient(DelegateMixin):
             for plant in self.plants.values():
                 await plant._stop_background_tasks()
 
+            # Log out of the sessions already opened: they would count against the
+            # concurrent-session limit until Rithmic times them out.
+            await self.disconnect()
             raise
 
     async def _signal_unexpected_disconnect(self, plant_type: str) -> None:

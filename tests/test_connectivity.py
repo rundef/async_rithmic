@@ -11,7 +11,7 @@ from pattern_kit import Event
 from async_rithmic import ReconnectionSettings, RithmicClient
 from async_rithmic import protocol_buffers as pb
 from async_rithmic.enums import SysInfraType
-from async_rithmic.exceptions import RithmicConnectionLostError
+from async_rithmic.exceptions import RithmicConnectionLostError, RithmicErrorResponse
 from conftest import _convert_proto_message_to_bytes, make_client, use_local_gateway
 
 
@@ -168,6 +168,27 @@ async def test_forced_logout_queued_behind_a_slow_callback_still_prevents_reconn
     assert not plant.is_connected
     assert rithmic_server.connections.empty()
 
+
+async def test_failed_connect_logs_out_of_the_sessions_it_opened(rithmic_server):
+    client = make_client()
+    order_plant = client.plants["order"]
+    pnl_plant = client.plants["pnl"]
+    use_local_gateway(order_plant, rithmic_server)
+    use_local_gateway(pnl_plant, rithmic_server)
+    order_plant._login = AsyncMock()
+    login_error = RithmicErrorResponse("login rejected")
+    pnl_plant._login = AsyncMock(side_effect=login_error)
+
+    with pytest.raises(RithmicErrorResponse) as caught:
+        await client.connect(plants=[SysInfraType.ORDER_PLANT, SysInfraType.PNL_PLANT], plant_connect_delay=0)
+
+    assert caught.value is login_error
+    order_gateway = await rithmic_server.connections.get()
+    frame = await asyncio.wait_for(order_gateway.recv(), timeout=1)
+    assert order_plant._convert_bytes_to_response(frame).template_id == 12  # RequestLogout
+    assert not order_plant.is_connected
+    assert not pnl_plant.is_connected
+    assert all(not plant._bg_tasks for plant in client.plants.values())
 
 async def test_reconnect_loop_restarts_and_calls_login(ticker_plant_mock):
     plant = ticker_plant_mock
