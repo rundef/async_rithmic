@@ -35,6 +35,7 @@ class RithmicClient(DelegateMixin):
         self.on_connected = Event()
         self.on_disconnected = Event()
         self.on_unexpected_disconnected = Event()
+        self.on_forced_logout = Event()
 
         # Real-time market updates events
         self.on_tick = Event()
@@ -123,6 +124,7 @@ class RithmicClient(DelegateMixin):
                     continue
 
                 await plant._connect()
+                plant._forced_logout = False
 
                 await plant._start_background_tasks()
                 await plant._login()
@@ -143,6 +145,16 @@ class RithmicClient(DelegateMixin):
         except Exception:
             logger.exception(
                 "Unexpected-disconnect callback failed for plant %s",
+                plant_type,
+            )
+
+    async def _signal_forced_logout(self, plant_type: str) -> None:
+        """Notify listeners that Rithmic ended a plant's session."""
+        try:
+            await self.on_forced_logout.call_async(plant_type)
+        except Exception:
+            logger.exception(
+                "Forced-logout callback failed for plant %s",
                 plant_type,
             )
 

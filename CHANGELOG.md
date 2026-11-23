@@ -1,11 +1,21 @@
 # Changelog
 
 ## [Unreleased]
+### Added
+- `RithmicClient.on_forced_logout`, called with the plant type when Rithmic
+  ends a plant's session with a ForcedLogout.
 ### Changed
 - Requests pending when their plant loses its connection fail at once with the
   new `RithmicConnectionLostError` (a `ConnectionError`) instead of waiting for
   their timeout and being sent again. For an order operation the outcome is
   unknown.
+- After a ForcedLogout, the plant fails its pending requests with
+  `RithmicConnectionLostError`, closes its socket and no longer reconnects
+  automatically, whatever the `ReconnectionSettings`. An explicit
+  `client.connect()` starts a new session.
+- Before reconnecting, a plant finishes processing the messages it had already
+  received (for up to 5 s), so a ForcedLogout followed at once by a socket
+  close still prevents the reconnection.
 
 ## [2.0.0] - 2026-11-23
 ### Improved

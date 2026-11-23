@@ -40,7 +40,7 @@ Conformance
 Custom Reconnection Settings
 ----------------------------
 
-`async_rithmic` will automatically attempt to reconnect if the connection to Rithmic is lost (no matter the reason for the disconnection). This includes network drops, internet hiccups, server restarts, or unexpected protocol errors.
+`async_rithmic` will automatically attempt to reconnect if the connection to Rithmic is lost (no matter the reason for the disconnection, except a `forced logout`_). This includes network drops, internet hiccups, server restarts, or unexpected protocol errors.
 
 You can customize the reconnection behavior using `ReconnectionSettings`. This allows you to define backoff strategies like exponential delay with jitter:
 
@@ -148,6 +148,29 @@ Requests still waiting for a response on that plant raise
 session, so they are not retried. For an order operation the outcome is
 unknown: the order may be working or filled. Check its state once the plant is
 connected again.
+
+Forced logout
+-------------
+
+Rithmic can end a session with a ForcedLogout message, for example when the
+user exceeds the maximum number of concurrent sessions. The plant that receives
+it ends its session, in this order:
+
+- requests pending on that plant raise `RithmicConnectionLostError`;
+- `client.on_forced_logout` is called with the plant type;
+- the plant closes its socket, so `is_connected` becomes `False`, and
+  `client.on_unexpected_disconnected` follows for the same plant.
+
+The plant does not reconnect automatically, whatever the
+`ReconnectionSettings`. An explicit `client.connect()` starts a new session;
+call it outside the callback.
+
+.. code-block:: python
+
+    async def on_forced_logout(plant_type: str):
+        print(f"Rithmic ended the {plant_type} session")
+
+    client.on_forced_logout += on_forced_logout
 
 Debugging & Logging
 -------------------

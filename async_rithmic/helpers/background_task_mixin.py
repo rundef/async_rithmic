@@ -95,7 +95,8 @@ class BackgroundTaskMixin:
     async def _reconnect_loop(self):
         """
         Waits for a disconnect signal, then owns the full reconnect lifecycle:
-        stop IO tasks → retry _connect → start IO tasks → _login.
+        process the frames already received → stop IO tasks → retry _connect → start IO tasks → _login.
+        After a ForcedLogout, it stops the IO tasks and returns without reconnecting.
         By starting IO tasks (including _recv_loop) before calling _login, the login
         flow can safely use the request manager instead of _send_and_recv_immediate.
         """
@@ -105,8 +106,20 @@ class BackgroundTaskMixin:
                 self._disconnect_event.clear()
                 self._reconnected_event.clear()
 
-                self.logger.warning("Connection lost - attempting to reconnect")
+                # A ForcedLogout may be queued behind a slow callback when the server closes the
+                # socket right after it: it must be handled before deciding to reconnect.
+                try:
+                    await asyncio.wait_for(self._inbound_queue.join(), timeout=5)
+                except asyncio.TimeoutError:
+                    self.logger.warning("Stopping before all frames received before the disconnect were processed")
                 await self._stop_io_tasks()
+
+                if self._forced_logout:
+                    self.logger.warning("Rithmic ended the session (ForcedLogout) - not reconnecting")
+                    self._reconnected_event.set()
+                    return
+
+                self.logger.warning("Connection lost - attempting to reconnect")
 
                 settings = self.client.reconnection_settings
                 attempt = 1
@@ -173,6 +186,9 @@ class BackgroundTaskMixin:
 
             except Exception as e:
                 self.logger.exception("Error processing response", exc_info=e)
+
+            finally:
+                self._inbound_queue.task_done()
 
     async def _heartbeat_loop(self):
         """

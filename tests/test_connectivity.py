@@ -9,8 +9,10 @@ from websockets.protocol import OPEN
 from pattern_kit import Event
 
 from async_rithmic import ReconnectionSettings, RithmicClient
+from async_rithmic import protocol_buffers as pb
 from async_rithmic.enums import SysInfraType
 from async_rithmic.exceptions import RithmicConnectionLostError
+from conftest import _convert_proto_message_to_bytes, make_client, use_local_gateway
 
 
 @pytest.mark.parametrize("settings, attempt, expected_range", [
@@ -95,6 +97,76 @@ async def test_connection_loss_fails_pending_requests(ticker_plant_mock):
     assert not manager.responses
     assert not manager.errors
     assert not manager.done_events
+
+
+async def test_forced_logout_ends_the_session_without_reconnecting(rithmic_server):
+    client = make_client(
+        # Unlimited retries, as by default, without the default delay.
+        reconnection_settings=ReconnectionSettings(backoff_type="constant", interval=0.01),
+    )
+    plant = client.plants["order"]
+    use_local_gateway(plant, rithmic_server)
+    logins = asyncio.Semaphore(0)
+    plant._login = AsyncMock(side_effect=logins.release)
+    forced_logouts = []
+    unexpected_disconnects = []
+    client.on_forced_logout += forced_logouts.append
+    client.on_unexpected_disconnected += unexpected_disconnects.append
+
+    await client.connect(plants=[SysInfraType.ORDER_PLANT], plant_connect_delay=0)
+    gateway = await rithmic_server.connections.get()
+    request = asyncio.create_task(plant.list_accounts())
+    await gateway.recv()
+    await gateway.send(_convert_proto_message_to_bytes(pb.forced_logout_pb2.ForcedLogout(template_id=77)))
+
+    with pytest.raises(RithmicConnectionLostError, match="ForcedLogout"):
+        await asyncio.wait_for(request, timeout=1)
+    # Room for reconnection attempts, which must not happen.
+    await asyncio.sleep(0.2)
+
+    assert forced_logouts == ["order"]
+    assert unexpected_disconnects == ["order"]
+    assert not plant.is_connected
+    assert rithmic_server.connections.empty()
+    assert all(task.done() for task in plant._bg_tasks)
+
+    # An explicit connect starts a new session, which reconnects automatically again.
+    await client.connect(plants=[SysInfraType.ORDER_PLANT], plant_connect_delay=0)
+    assert plant.is_connected
+    await (await rithmic_server.connections.get()).close()
+    for _ in range(3):
+        await asyncio.wait_for(logins.acquire(), timeout=1)
+
+    await client.disconnect()
+
+
+async def test_forced_logout_queued_behind_a_slow_callback_still_prevents_reconnection(rithmic_server):
+    client = make_client(
+        reconnection_settings=ReconnectionSettings(backoff_type="constant", interval=0.01),
+    )
+    plant = client.plants["order"]
+    use_local_gateway(plant, rithmic_server)
+    plant._login = AsyncMock()
+    forced_logouts = []
+    client.on_forced_logout += forced_logouts.append
+
+    async def slow_callback(notification):
+        await asyncio.sleep(0.2)
+
+    client.on_exchange_order_notification += slow_callback
+    await client.connect(plants=[SysInfraType.ORDER_PLANT], plant_connect_delay=0)
+    gateway = await rithmic_server.connections.get()
+
+    # The server closes the socket right after the ForcedLogout, while the notification is processed
+    notification = pb.exchange_order_notification_pb2.ExchangeOrderNotification(template_id=352)
+    await gateway.send(_convert_proto_message_to_bytes(notification))
+    await gateway.send(_convert_proto_message_to_bytes(pb.forced_logout_pb2.ForcedLogout(template_id=77)))
+    await gateway.close()
+    await asyncio.sleep(0.5)
+
+    assert forced_logouts == ["order"]
+    assert not plant.is_connected
+    assert rithmic_server.connections.empty()
 
 
 async def test_reconnect_loop_restarts_and_calls_login(ticker_plant_mock):

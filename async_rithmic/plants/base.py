@@ -14,7 +14,7 @@ from google.protobuf.json_format import MessageToDict
 from .. import protocol_buffers as pb
 from ..logger import logger
 from ..enums import SysInfraType
-from ..exceptions import RithmicErrorResponse
+from ..exceptions import RithmicConnectionLostError, RithmicErrorResponse
 from ..helpers.request_manager import RequestManager
 from ..helpers.concurrency import try_acquire_lock
 from ..helpers.background_task_mixin import BackgroundTaskMixin
@@ -178,6 +178,9 @@ class BasePlant(BackgroundTaskMixin):
         # _send awaits this before retrying.
         self._reconnected_event = asyncio.Event()
         self._reconnected_event.set()
+        # Set when Rithmic ends the session with a ForcedLogout; suppresses
+        # automatic reconnection until an explicit client.connect().
+        self._forced_logout = False
 
         # Keep list of subscriptions in order to resubscribe automatically after disconnections
         self._subscriptions = defaultdict(set)
@@ -567,8 +570,11 @@ class BasePlant(BackgroundTaskMixin):
         if response.template_id == 77:
             # Forced logout
             self.logger.warning("Received a ForcedLogout message from Rithmic - did you reach the maximum number of concurrent sessions ?")
-
-            # Reconnection will happen automatically
+            self._forced_logout = True
+            self.request_manager.fail_pending(RithmicConnectionLostError("Rithmic ended the session (ForcedLogout)"))
+            await self.client._signal_forced_logout(self.plant_type)
+            # Last: once the socket closes, stopping the IO tasks may cancel this handler.
+            await self._disconnect(trigger_event=False)
             return True
 
         if response.template_id == 75:
